@@ -170,7 +170,7 @@ function pointToLayer(feature, latlng, attributes){
     
     var year = attribute.split("_")[1];
     $("#Year").html("<b>Display Year: </b>" + year);
-    var popupContent = "<p><b>Park Name:</b><br>"+feature.properties.Name+"</p><p><b>"+year+" Visitation:</b><br>"+Number(feature.properties[attribute]).toLocaleString();
+    var popupContent = "<p><b>Park Name:</b><br>"+feature.properties.Name+"</p><p><b>"+year+" Visitation:</b><br>"+Number(feature.properties[attribute]).toLocaleString()+"<br><br>Click for more information";
     layer.bindPopup(popupContent, {
         closeButton: false
     });
