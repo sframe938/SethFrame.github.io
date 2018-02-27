@@ -219,7 +219,7 @@ function updatePropSymbols(map, attribute){
             
             var year = attribute.split("_")[1];
             $("#Year").html("<b>Display Year: </b>" + year);
-            var popupContent = "<p><b>Park Name:</b><br>"+layer.feature.properties.Name+"</p><p><b>"+year+" Visitation:</b><br>"+Number(layer.feature.properties[attribute]).toLocaleString();
+            var popupContent = "<p><b>Park Name:</b><br>"+layer.feature.properties.Name+"</p><p><b>"+year+" Visitation:</b><br>"+Number(layer.feature.properties[attribute]).toLocaleString()+"<br><br>Click for more information";
             layer.bindPopup(popupContent, {
                 closeButton: false
             });
