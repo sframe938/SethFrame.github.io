@@ -56,7 +56,7 @@ function filterFeatures(feature, filter){
 
 // Creates the park legend and returns the filter value based on the 'active' button class
 function createLegendControls(map, feature){
-    $('.NPS').append('<button title="Top 17 Most Visited NPS Properties, by Average Visitation " data-filter="Popular" class="active"><img src="images/nps/other.png" alt= "Most Popular" align="left" hspace="20" width="20" height="20">Most Visited</button>');
+    $('.NPS').append('<button title="Top 20 Most Visited NPS Properties, by Average Visitation " data-filter="Popular" class="active"><img src="images/nps/other.png" alt= "Most Popular" align="left" hspace="20" width="20" height="20">Most Visited</button>');
     $('.NPS').append('<button title="National Parks" data-filter="Park"><img src="images/nps/park.png" alt= "Park" align="left" hspace="20" width="20" height="20">Park</button>');
     $('.NPS').append('<button title="National Monuments" data-filter="Monument"><img src="images/nps/monument.png" alt= "Monument" align="left" hspace="20" width="20" height="20">Monument</button>');
     $('.NPS').append('<button title="National Historical Parks and Sites" data-filter="Historic"><img src="images/nps/historic.png" alt= "Historic" align="left" hspace="20" width="20" height="20">Historic</button>');
