@@ -169,6 +169,7 @@ function pointToLayer(feature, latlng, attributes){
     });
     
     var year = attribute.split("_")[1];
+    $('#slider').append('<a id="Year" align+"text-center"></a>');
     $("#Year").html("<b>Display Year: </b>" + year);
     var popupContent = "<p><b>Park Name:</b><br>"+feature.properties.Name+"</p><p><b>"+year+" Visitation:</b><br>"+Number(feature.properties[attribute]).toLocaleString()+"<br><br>Click for more information";
     layer.bindPopup(popupContent, {
@@ -184,11 +185,21 @@ function pointToLayer(feature, latlng, attributes){
             this.closePopup();
         },
         click: function(){
-            $("#Name").html("<b>Park Name:</b><br>" + feature.properties.Name);
-            $("#Type").html("<b>Park Type:</b><br>" + feature.properties.Type);
-            $("#State").html("<b>State:</b><br>" + feature.properties.STATE);
-            $("#Region").html("<b>Region:</b><br>" + feature.properties.REGION);
-            $("#Vis").html("<b>Average Visitation:</b><br>" + Number(feature.properties.Average).toLocaleString());
+            $("#info").remove();
+            
+            $('#panel').append('<ul id="info"></ul>');
+            $('#info').append('<li><a id="Name"></a></li>');
+            $('#info').append('<li><a id="Type"></a></li>');
+            $('#info').append('<li><a id="State"></a></li>');
+            $('#info').append('<li><a id="Region"></a></li>');
+            $('#info').append('<li><a id="Vis"></a></li>');
+            
+            
+            $("#Name").html('<mark class="category">Park Name:</mark><br>' + feature.properties.Name);
+            $("#Type").html('<mark class="category">Park Type:</mark><br>' + feature.properties.Type);
+            $("#State").html('<mark class="category">State:</mark><br>' + feature.properties.STATE);
+            $("#Region").html('<mark class="category">Region:</mark><br>' + feature.properties.REGION);
+            $("#Vis").html('<mark class="category">Average Visitation:</mark><br>' + Number(feature.properties.Average).toLocaleString());
         }
     });
     
@@ -219,7 +230,7 @@ function updatePropSymbols(map, attribute){
             
             var year = attribute.split("_")[1];
             $("#Year").html("<b>Display Year: </b>" + year);
-            var popupContent = "<p><b>Park Name:</b><br>"+layer.feature.properties.Name+"</p><p><b>"+year+" Visitation:</b><br>"+Number(layer.feature.properties[attribute]).toLocaleString()+"<br><br>Click for more information";
+            var popupContent = "<p><b>Park Name:</b><br>"+layer.feature.properties.Name+"</p><p><b>"+year+" Visitation:</b><br>"+Number(layer.feature.properties[attribute]).toLocaleString();
             layer.bindPopup(popupContent, {
                 closeButton: false
             });
@@ -234,8 +245,8 @@ function getData(map){
         dataType: "json",
         success: function(response){
             var attributes = processData(response);
-            createPropSymbols(response, map, attributes);
             createSequenceControls(map, attributes);
+            createPropSymbols(response, map, attributes);
             updateFilter(response, map, attributes);
         }
     });

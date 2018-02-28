@@ -120,7 +120,8 @@ html, body, #map{
     z-index: 50;
     width: 100%;
     height: 100px;
-    padding: 10px;
+    padding-top: 10px;
+    padding-bottom: 10px;
     color: whitesmoke;
     background-color: black;
     font: 14px/1.42857 arial,helvetica,sans-serif;
@@ -128,14 +129,14 @@ html, body, #map{
 
 #panel {
     position: absolute;
-    height: 500px;
-    width: 200px;
-    top: 21%;
-    left: 85%;
+    height: auto;
+    width: auto;
+    top: 20%;
+    left: 80%;
     padding-bottom: 10px;
     padding-top: 10px;
-    padding-left: 5px;
-    padding-right: 5px;
+    padding-left: 10px;
+    padding-right: 3%;
     z-index: 10;
     font: arial,helvetica,sans-serif;
 }
@@ -161,10 +162,12 @@ html, body, #map{
 	border-bottom: 1px solid #4b5e26; 
 	border-top: 1px solid #4b5e26; 
     border-left: 1px solid #4b5e26;
-    border-right: 1px solid #4b5e26;}
+    border-right: 1px solid #4b5e26;
+}
 
 #info li {
-	float: center; }
+	float: center; 
+}
 
 
 #info li a {
@@ -173,6 +176,14 @@ html, body, #map{
     text-decoration: none;
     font-size: 16px;
     border-right: 1px solid #fff; 
+    font: arial,helvetica,sans-serif;
+    margin: .25% 0;
+}
+
+mark.category{
+    color: #4b5e26;
+    background: none;
+    font-weight: bold;
     font: arial,helvetica,sans-serif;
 }
 
@@ -205,16 +216,16 @@ nav button {
 
 
 nav button {
-        width: 200px;
-		display: block;
-		padding: 8px 15px;
-		text-decoration: none;
-		font-weight: bold;
-		color: #4b5e26;
-        font-size: 16px;
-        font: arial,helvetica,sans-serif;
-		border-right: 1px solid #fff; 
-        background-color: whitesmoke;
+    width: inherit;
+    display: block;
+    padding: 8px 15px;
+    text-decoration: none;
+    font-weight: bold;
+    color: #4b5e26;
+    font-size: 16px;
+    font: arial,helvetica,sans-serif;
+    border-right: 1px solid #fff; 
+    background-color: whitesmoke;
 }
 
 .NPS button:first-child {
@@ -226,8 +237,8 @@ nav button {
       }
 
 nav button:hover {
-		color: whitesmoke;
-		background-color: darkgrey; }
+    color: whitesmoke;
+    background-color: darkgrey; }
 
 nav button.active {
     background:darkgrey;
@@ -236,6 +247,11 @@ nav button.active {
 
 button img {
     opacity: 0.7;
+}
+
+#Year {
+    color: white;
+    opacity: 1;
 }
 
 #slider {
@@ -251,21 +267,28 @@ button img {
     padding: 10px;
     padding-bottom: 12px;
     right:0;
-    cursor: pointer;
     display: inline-block;
     text-align: center;
 }
 
+#slider:hover{
+    opacity: .8;
+    background-color: #4b5e26;
+}
+
 .range-slider {
     width: 390px;
+    cursor: pointer;
 }
 
 #forward {
     float: right;
+    cursor: pointer;
 }
 
 #reverse {
     float: left;
+    cursor: pointer;
 }
 
 .column {
