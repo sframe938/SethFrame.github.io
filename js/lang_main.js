@@ -50,7 +50,7 @@ function setMap(width, height){
         .center([0, 37])
         .rotate([110, 0])
         .parallels([25.9, 45.5])
-        .scale(width * 2.8)
+        .scale(width * 2.)
         .translate([width / 2, height / 2]);
     
     var path = d3.geoPath()

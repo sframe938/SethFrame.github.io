@@ -201,13 +201,13 @@ option {
     right: 10%;
     width: 40%;
     font-family: sans-serif;
-    font-size: 1.25em;
+    font-size: 1em;
     fill: #363128;
     text-align: justify;
 }
 
 body {
-    height: 1000px;
+    height: 850px;
     background: #CDC4B4;
     background: linear-gradient(#CDC4B4, #706151);
 }
