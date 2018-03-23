@@ -177,19 +177,9 @@ option {
     stroke-linecap: round;
 }
 
-.gratLines {
-    fill: none;
-    stroke: #002214;
-    stroke-width: 1px;
-}
-
-.gratBackground {
-    fill: #6DCCC2;
-}
-
 .infolabel {
     position: absolute;
-    height: 50px;
+    height: 75px;
     min-width: 100px;
     color: #CDC4B4;
     background-color: #706151;

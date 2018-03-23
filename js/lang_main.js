@@ -63,11 +63,13 @@ function setMap(width, height){
     
     function callback(error, csvData, co){
         
-        console.log(co);
+        console.log(csvData);
         
         var langCounties = topojson.feature(co, co.objects.Counties).features;
         
         langCounties = joinData(langCounties, csvData);
+        
+        console.log(langCounties);
         
         var colorScale = makeColorScale(csvData);
         
@@ -378,7 +380,7 @@ function setLabel(props){
 
     var regionName = infolabel.append("div")
         .attr("class", "labelname")
-        .html(props.NAME);
+        .html(props.Co_Name);
 };
 
 function moveLabel(){
@@ -408,16 +410,16 @@ function setText(){
     .attr("height", height-50)
     .attr("class", "textPanel")
     .append("p")
-    .text("Welcome, feel free to explore language useage statistics of the Southwestern United States.");
+    .text("The language you speak when you are at home with your family and loves ones is a reflection of your cultural identity. Cultural identity is shared within a group and gives a person a feeling of inclusion. Language reinforces and defines this inclusion within a group. Language can be seen as an anchor between a person and their cultural identity in that language in many ways encodes the cultural worldview of the individual. In addition to simply allowing us to communicate with other members of our kind, language allows us to pass down myths, stories, history, and culture from one generation to the next. Language acts as a conduit for a people’s cultural heritage. In many cases language usage and cultural identity are seen as interchangeable and cultural affiliation is assumed based on the language spoken. In the American Southwest there have been waves of cultural expansion and intermixing, going back thousands of years. The aim of the accompanying map and chart is to explore the interplay between the languages and cultures living in the are in the present day. Enjoy.");
     
 };
 
 function updateText(props){
-    var navajoText = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus elementum eu elit nec laoreet. Vestibulum facilisis arcu est, vitae pellentesque nibh imperdiet ut. Morbi semper vehicula bibendum. Nulla tristique augue lorem, quis interdum tortor tempor ac. Aenean elementum quis urna id pretium. Vivamus at ante venenatis metus fringilla sodales non vel nisi. Mauris pellentesque tincidunt orci, vel euismod metus porttitor id. Curabitur vel urna nec est semper accumsan nec non diam. Aenean finibus dapibus pellentesque. Nunc feugiat velit nec nisi pulvinar, pulvinar bibendum dui cursus. Aliquam imperdiet ultrices congue."
-    var othernaText = "Nunc accumsan lectus id eros vulputate consectetur. Praesent consequat facilisis quam sed porttitor. Cras eget mauris nec ipsum semper interdum. Maecenas ut orci vulputate, faucibus diam sed, dignissim nulla. Aliquam vulputate urna non justo pretium porttitor non a ante. Pellentesque nec sodales velit. In id vulputate leo, vitae aliquam dolor. Aliquam elit felis, lacinia in ex ac, fermentum accumsan elit. Etiam varius, nibh non suscipit pulvinar, lacus erat commodo massa, non mollis diam metus ut quam. Nulla facilisi. Nam vulputate leo eget eros rutrum semper."
-    var spanishText = "Duis laoreet sapien lorem. Fusce dignissim quam eu eros dictum commodo eget eget lacus. Sed faucibus lectus id auctor semper. Aenean pulvinar ultrices venenatis. Aenean eleifend quam eleifend, fringilla tellus sed, iaculis lorem. Ut sit amet mauris felis. In a metus id dolor rhoncus molestie at in urna. Curabitur tellus nunc, ultrices vel nisi tincidunt, sagittis volutpat sem. Curabitur in justo sed velit porta varius."
-    var englishText = "Vestibulum eget maximus dolor. Etiam ullamcorper nunc nec ipsum interdum sodales. Aliquam fringilla eget arcu a mattis. Duis sed gravida massa, vestibulum aliquet velit. Phasellus vitae placerat velit, non sodales tortor. Proin vehicula tempor ex quis efficitur. Phasellus mattis vel neque accumsan consectetur. Maecenas commodo sed lorem vehicula mattis. Integer condimentum orci risus, eu tristique augue consequat at. Proin cursus ac ex a feugiat. Nulla facilisi. Nulla ipsum odio, vulputate sit amet sapien in, consectetur viverra sapien. Suspendisse ut cursus tortor, eget vehicula quam. Morbi lacinia urna eget lacinia varius. Cras consequat quis orci sit amet mollis."
-    var elseText = "Aliquam sollicitudin nec purus a vehicula. Vivamus lobortis sit amet odio nec facilisis. Ut sem ante, porta nec cursus ut, ullamcorper vel elit. Pellentesque eget lorem elementum nunc pulvinar consectetur. Pellentesque venenatis ipsum eu purus semper, quis efficitur enim iaculis. Donec dui odio, imperdiet quis metus eu, euismod fermentum lacus. Pellentesque ac enim non orci volutpat tincidunt. Donec lacinia aliquet viverra. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Suspendisse ut risus at libero finibus convallis sed aliquam orci. Quisque ornare justo dolor, in vulputate turpis rhoncus vel. Duis placerat ullamcorper massa vitae auctor. Suspendisse eget lectus iaculis, tristique neque vel, sagittis velit. Nulla ultricies bibendum nulla. Sed scelerisque augue vel lorem dapibus, non semper magna mollis"
+    var navajoText = "The Navajo language, or Diné Bizaad, with over 175,000 speakers is one of the most widely spoken Native American languages alive today. Even so, the Navajo were latecomers to the Southwest region. Unlike other native languages in the area, Diné Bizaad is Athabaskan in origin and is related to the languages spoken by native peoples in northern Canada. While the Navajo people have assimilated the customs and lifestyles of their neighbors, they have maintained a distinct cultural identity through, in part, to the preservation of their language."
+    var othernaText = "While the language of the Navajo is the most widely spoken language in the area, the Southwest if home to a myriad of other Native American languages and cultures. Each culture is unique and has its own belief and customs. Unfortunately, it is not possible to represent all those peoples individually in the context of this map. Instead, they have been grouped into a single layer to give a feel just how endangered native language are in the Southwest. My apologies to those peoples for not better representing their individual cultures."
+    var spanishText = "Spanish, or Español, is another prevalent language in the Southwest. Introduced with the arrival of the Spanish from Europe in the 16th century, it has spread throughout both North and South America. Spanish explorers visiting areas that would one day become 42 U.S. states. Currently it is the second most common language spoken in the United States with forty-five million speakers. The high proportion of Spanish speakers in the Southwest stems from the region at one time belonging to Mexico, which it acquired from Spain in 1821. The area was annexed by the U.S. after the Mexican-American War in the 1850’s. Spanish influence and culture has been incorporated throughout the Southwest and is deeply associated with the area."
+    var englishText = "English is the most widely spoken language in the United States and represents the language spoken by the dominant culture of the country. Although it is not the official language of the country, it is seen as the default. For example, this webpage uses primarily English for its text simply because it will be the most widely understood. So ubiquitous is the language and so difficult to escape it’s influence in many Native American communities English has supplanted the traditional language. This has occurred for a number of reasons, most notably a program of Native American re-education beginning in the late 1870s."
+    var elseText = "The last two maps represent the ability to speak English amongst Native American peoples. There are two categories: Those who speak English “Very Well” and those who speak English “Less Than Well.” This represents numbers of Native American who are to some extent bilingual and also speak their native languages."
     
     if (expressed == attrArray[0]){
         var chartTitle = d3.select(".textPanel p")
