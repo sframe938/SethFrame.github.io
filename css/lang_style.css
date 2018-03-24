@@ -173,7 +173,7 @@ body {
 
 .dropdown {
     position: absolute;
-    top: 62%;
+    top: 70%;
     right: 15%;
     z-index: 10;
     font-family: sans-serif;
@@ -211,7 +211,7 @@ option {
     top: -75px;
 }
 
-.infolabel h1 {
+.infolabel h2 {
     margin: 0 20px 0 0;
     padding: 0;
     display: inline-block;

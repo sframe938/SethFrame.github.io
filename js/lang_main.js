@@ -369,8 +369,8 @@ function setLabel(props){
         var label = t_lessthanwell;
     };
     
-    var labelAttribute = "<h1>" + props[expressed] +
-        "%</h1><br><b>" + label + "</b>";
+    var labelAttribute = "<h2>" + props[expressed] +
+        "%</h2><br><b>" + label + "</b>";
 
     var infolabel = d3.select("body")
         .append("div")
