@@ -99,6 +99,15 @@ textarea {
    ========================================================================== */
 /*#ADD6F0, #5B9ADE, #363128, #706151, #CDC4B4*/
 
+html{
+    height: 100%;
+}
+
+body {
+    min-height: 90%;
+    background: linear-gradient(#CDC4B4, #706151);
+}
+
 #title{
     position: absolute;
     top: 5%;
@@ -207,12 +216,6 @@ option {
     padding: 0;
     display: inline-block;
     line-height: 1em;
-}
-
-body {
-    height: 860px;
-    background: #CDC4B4;
-    background: linear-gradient(#CDC4B4, #706151);
 }
 
 /* ==========================================================================
