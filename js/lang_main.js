@@ -17,28 +17,30 @@ var h = Math.max(document.documentElement.clientHeight, window.innerHeight || 0)
 var pageTitleH= parseInt(d3.select('#title').style('height'));
     
 var chartWidth = window.innerWidth * 0.97,
-    chartHeight = (h - height - pageTitleH) * 0.75,
+    chartHeight = (h - height - pageTitleH) * .80,
     leftPadding = 35,
-    rightPadding = 2,
-    topBottomPadding = 5,
+    rightPadding = 5,
+    topBottomPadding = 10,
     chartInnerWidth = chartWidth - leftPadding - rightPadding,
-    chartInnerHeight = chartHeight - topBottomPadding * 2,
+    chartInnerHeight = chartHeight - topBottomPadding * 10,
     translate = "translate(" + leftPadding + "," + topBottomPadding + ")";
     
 var t_navajo = "Navajo speakers",
-    t_otherna = "other Native American language speakers",
+    t_otherna = "other Native American speakers",
     t_spanish = "Spanish speakers",
     t_english = "English only speakers",
     t_verywell = "speak English very well",
     t_lessthanwell = "speak English less than well";
 
 var yScale = d3.scaleLinear()
-    .range([chartHeight - 10, 0])
+    .range([chartInnerHeight + 85, 0])
     .domain([0, 100]);
     
 window.onload = setMap(width, height);
 
 function setMap(width, height){
+    
+    setText();
 
     var map = d3.select("body")
         .append("svg")
@@ -47,10 +49,10 @@ function setMap(width, height){
         .attr("height", height);
     
     var projection = d3.geoAlbers()
-        .center([0, 37])
-        .rotate([110, 0])
+        .center([0, 36.7])
+        .rotate([109, 0])
         .parallels([25.9, 45.5])
-        .scale(width * 2.)
+        .scale(width * 3)
         .translate([width / 2, height / 2]);
     
     var path = d3.geoPath()
@@ -76,7 +78,6 @@ function setMap(width, height){
         setEnumerationUnits(langCounties, map, path, colorScale);
 
         createDropdown(csvData);
-        setText();
         setChart(csvData, colorScale);
         
     };
@@ -140,7 +141,7 @@ function makeColorScale(data){
 
 function choropleth(props, colorScale){
     var val = parseFloat(props[expressed]);
-    if (typeof val == 'number' && !isNaN(val)){
+    if (typeof val == 'number' && !isNaN(val) && val != 0.0){
         return colorScale(val);
     } else {
         return "#CCC";
@@ -173,6 +174,10 @@ function setEnumerationUnits(langCounties, map, path, colorScale){
 };
     
 function setChart(csvData, colorScale){
+    
+    var chartTitle = d3.select("body")
+        .append("chartText")
+        .attr("class", "chartTitle");
 
     var chart = d3.select("body")
         .append("svg")
@@ -204,11 +209,6 @@ function setChart(csvData, colorScale){
     
     var desc = bars.append("desc")
         .text('{"stroke": "none", "stroke-width": "0px"}');
-    
-    var chartTitle = chart.append("text")
-        .attr("x", chartWidth/2.75)
-        .attr("y", 25)
-        .attr("class", "chartTitle")
     
     var yAxis = d3.axisLeft(yScale);
     
@@ -304,22 +304,22 @@ function updateChart(bars, n, colorScale){
     
     if (expressed == attrArray[0]) {    
         var chartTitle = d3.select(".chartTitle")
-            .text("Percentage of " + t_navajo + " per county");
+            .text("Percentage of " + t_navajo);
     } else if (expressed == attrArray[1]) {
         var chartTitle = d3.select(".chartTitle")    
-            .text("Percentage of " + t_otherna + " per county");
+            .text("Percentage of " + t_otherna);
     } else if (expressed == attrArray[2]) {
         var chartTitle = d3.select(".chartTitle")    
-            .text("Percentage of " + t_spanish + " per county");
+            .text("Percentage of " + t_spanish);
     } else if (expressed == attrArray[3]) {
         var chartTitle = d3.select(".chartTitle")    
-            .text("Percentage of " + t_english + " per county");
+            .text("Percentage of " + t_english);
     } else if (expressed == attrArray[4]) {
         var chartTitle = d3.select(".chartTitle")    
-            .text("Percentage of Native Americans that " + t_verywell + " per county");
+            .text("Percentage that " + t_verywell);
     } else if (expressed == attrArray[5]) {
          var chartTitle = d3.select(".chartTitle")    
-            .text("Percentage of Native Americans that  " + t_lessthanwell + " per county");
+            .text("Percentage that  " + t_lessthanwell);
     };
 };
 
@@ -404,13 +404,13 @@ function moveLabel(){
 };
 
 function setText(){
-    var chart = d3.select("body")
+    var textPanel = d3.select("body")
     .append("div")
     .attr("width", width-50)
     .attr("height", height-50)
     .attr("class", "textPanel")
     .append("p")
-    .text("The language you speak when you are at home with your family and loves ones is a reflection of your cultural identity. Cultural identity is shared within a group and gives a person a feeling of inclusion. Language reinforces and defines this inclusion within a group. Language can be seen as an anchor between a person and their cultural identity in that language in many ways encodes the cultural worldview of the individual. In addition to simply allowing us to communicate with other members of our kind, language allows us to pass down myths, stories, history, and culture from one generation to the next. Language acts as a conduit for a people’s cultural heritage. In many cases language usage and cultural identity are seen as interchangeable and cultural affiliation is assumed based on the language spoken. In the American Southwest there have been waves of cultural expansion and intermixing, going back thousands of years. The aim of the accompanying map and chart is to explore the interplay between the languages and cultures living in the are in the present day. Enjoy.");
+    .text("The language you speak when you are at home with your family and loved ones is a reflection of your cultural identity. Cultural identity is shared within a group and gives a person a feeling of inclusion. Language reinforces and defines this inclusion within a group. Language can be seen as an anchor between a person and their cultural identity because in many ways it encodes the cultural worldview of the individual. In addition to simply allowing us to communicate with other members of our kind, language allows us to pass down myths, stories, history, and culture from one generation to the next. Language acts as a conduit for a people’s cultural heritage. In the American Southwest there have been waves of cultural expansion and intermixing, going back thousands of years. The aim of the accompanying map and chart is to explore the interplay between the languages and cultures living in the are in the present day. Enjoy.");
     
 };
 
@@ -422,22 +422,22 @@ function updateText(props){
     var elseText = "The last two maps represent the ability to speak English amongst Native American peoples. There are two categories: Those who speak English “Very Well” and those who speak English “Less Than Well.” This represents numbers of Native American who are to some extent bilingual and also speak their native languages."
     
     if (expressed == attrArray[0]){
-        var chartTitle = d3.select(".textPanel p")
+        var textContent = d3.select(".textPanel p")
             .text(navajoText);
     } else if (expressed == attrArray[1]){
-        var chartTitle = d3.select(".textPanel p")
+        var textContent = d3.select(".textPanel p")
             .text(othernaText);
     } else if (expressed == attrArray[2]){
-        var chartTitle = d3.select(".textPanel p")
+        var textContent = d3.select(".textPanel p")
             .text(spanishText);
     } else if (expressed == attrArray[3]){
-        var chartTitle = d3.select(".textPanel p")
+        var textContent = d3.select(".textPanel p")
             .text(englishText);
     } else if (expressed == attrArray[4]){
-        var chartTitle = d3.select(".textPanel p")
+        var textContent = d3.select(".textPanel p")
             .text(elseText);
     } else if (expressed == attrArray[5]){
-        var chartTitle = d3.select(".textPanel p")
+        var textContent = d3.select(".textPanel p")
             .text(elseText);
     };
 };
