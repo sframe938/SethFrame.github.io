@@ -67,7 +67,7 @@ function setMap(width, height){
         
         console.log(csvData);
         
-        var langCounties = topojson.feature(co, co.objects.Counties).features;
+        var langCounties = topojson.feature(co, co.objects.counties).features;
         
         langCounties = joinData(langCounties, csvData);
         
