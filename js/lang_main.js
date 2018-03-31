@@ -1,5 +1,5 @@
 //JavaScript by Seth Frame
-// https://bl.ocks.org/mbostock/2206590
+
 (function(){
 
 var attrArray = ["Navajo", "Other_NA", "Spanish", "English", "Very_Well", "Less_Than_Well"];
