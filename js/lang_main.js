@@ -25,6 +25,16 @@ var chartWidth = window.innerWidth * 0.97,
     chartInnerHeight = chartHeight - topBottomPadding * 10,
     translate = "translate(" + leftPadding + "," + topBottomPadding + ")";
     
+var projection = d3.geoAlbers()
+    .center([0, 36.7])
+    .rotate([109, 0])
+    .parallels([25.9, 45.5])
+    .scale(width * 3)
+    .translate([width / 2, height / 2]);
+
+var path = d3.geoPath()
+    .projection(projection);
+    
 var t_navajo = "Navajo speakers",
     t_otherna = "other Native American speakers",
     t_spanish = "Spanish speakers",
@@ -48,38 +58,28 @@ function setMap(width, height){
         .attr("width", width)
         .attr("height", height);
     
-    var projection = d3.geoAlbers()
-        .center([0, 36.7])
-        .rotate([109, 0])
-        .parallels([25.9, 45.5])
-        .scale(width * 3)
-        .translate([width / 2, height / 2]);
-    
-    var path = d3.geoPath()
-        .projection(projection);
-    
     d3.queue()
         .defer(d3.csv, "data/County_Attributes.csv")
         .defer(d3.json, "data/counties.topojson")
+        .defer(d3.json, "data/reservations.topojson")
         .await(callback);
     
-    function callback(error, csvData, co){
+    function callback(error, csvData, co, res){
         
-        console.log(csvData);
-        
-        var langCounties = topojson.feature(co, co.objects.counties).features;
+        var resBoundaries = topojson.feature(res, res.objects.reservations),
+            langCounties = topojson.feature(co, co.objects.counties).features;
         
         langCounties = joinData(langCounties, csvData);
-        
-        console.log(langCounties);
         
         var colorScale = makeColorScale(csvData);
         
         setEnumerationUnits(langCounties, map, path, colorScale);
 
-        createDropdown(csvData);
-        setChart(csvData, colorScale);
+        setResText(resBoundaries, map, path);
         
+        createDropdown(csvData);
+        
+        setChart(csvData, colorScale);
     };
 };
     
@@ -171,6 +171,27 @@ function setEnumerationUnits(langCounties, map, path, colorScale){
     
     var desc = regions.append("desc")
         .text('{"stroke": "#000", "stroke-width": "0.5px"}');
+};
+
+function setReservation(resBoundaries, map, path){
+    map.append("path")
+        .datum(resBoundaries)
+        .attr("class", "reservation")
+        .attr("d", path)
+};
+
+function setResText(res, map, path){
+    d3.select("body")
+    .append("div")
+    .attr("height", "25")
+    .attr("class", "resText")
+    .text("Reservations")
+    .on("click", function(){
+        console.log(d3.select("d").empty());
+        if(d3.select(".reservation").empty() === true){
+            setReservation(res, map, path);
+        }else d3.select(".reservation").remove();
+    }) 
 };
     
 function setChart(csvData, colorScale){
