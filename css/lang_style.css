@@ -273,8 +273,18 @@ option {
     color: #CDC4B4;
 }
 
-h2, h4{
+h2, h4, h6{
     color: #363128;
+    line-height: 8px;
+}
+
+a:link{
+    color: #363128;
+    text-decoration: none;
+}
+
+a:hover{
+    color: #5B9ADE;
 }
 
 /* ==========================================================================
