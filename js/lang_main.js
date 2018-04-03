@@ -192,7 +192,7 @@ function setStateBackground(stateBorders, path){
         .center([0, 40])
         .rotate([96, 0])
         //.parallels([20, 40])
-        .scale(width)
+        .scale(width/3)
         .translate([width / 2, height / 2]);
 
     var path = d3.geoPath()
