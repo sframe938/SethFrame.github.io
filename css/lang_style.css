@@ -273,9 +273,9 @@ option {
     color: #CDC4B4;
 }
 
-h2, h4, h6{
+h2, h4, h6, a{
     color: #363128;
-    line-height: 8px;
+    line-height: .25em;
 }
 
 a:link{
