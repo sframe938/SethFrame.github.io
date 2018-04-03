@@ -105,26 +105,51 @@ html{
 }
 
 body {
-    min-height: 90%;
+    min-height: 95%;
     background: linear-gradient(#CDC4B4, #706151);
+}
+
+#map{
+    width: 100%;
+}
+
+.background{
+    position: absolute;
+    margin-top: 8%;
+    margin-left: 10%;
+    fill: none;
+    stroke: #363128;
+    stroke-width: .5px;
+    z-index: -1;
+    opacity: .7;
+}
+
+.Utah, 
+.Colorado,
+.Arizona,
+.New_Mexico{
+    fill: #706151;
+    stroke-width: 1px;
+    opacity: .5;
+    
 }
 
 #title{
     position: absolute;
     top: 5%;
     left: 10%;
-    width: 25%;
+    width: 33.33%;
     text-align: left;
+    text-shadow: 5px 5px 10px #CDC4B4;
 }
 
 .textPanel {
-    position: absolute;
     top: 18%;
     left: 10%;
-    width: 35%;
     font-size: 1em;
     fill: #363128;
     text-align: justify;
+    
 }
 
 .map {
@@ -224,6 +249,7 @@ option {
     stroke: #000;
     stroke-width: .5px;
     stroke-linecap: round;
+    z-index: 40;
 }
 
 .infolabel {

@@ -49,8 +49,6 @@ var yScale = d3.scaleLinear()
 window.onload = setMap(width, height);
 
 function setMap(width, height){
-    
-    setText();
 
     var map = d3.select("body")
         .append("svg")
@@ -62,16 +60,25 @@ function setMap(width, height){
         .defer(d3.csv, "data/County_Attributes.csv")
         .defer(d3.json, "data/counties.topojson")
         .defer(d3.json, "data/reservations.topojson")
+        .defer(d3.json, "data/states.topojson")
         .await(callback);
     
-    function callback(error, csvData, co, res){
+    function callback(error, csvData, co, res, st){
         
         var resBoundaries = topojson.feature(res, res.objects.reservations),
+            stateBorders = topojson.feature(st, st.objects.states).features,
             langCounties = topojson.feature(co, co.objects.counties).features;
+        
+        
+         console.log(stateBorders);
         
         langCounties = joinData(langCounties, csvData);
         
         var colorScale = makeColorScale(csvData);
+        
+        setStateBackground(stateBorders, path);
+        
+        setText();
         
         setEnumerationUnits(langCounties, map, path, colorScale);
 
@@ -177,6 +184,33 @@ function setReservation(resBoundaries, map, path){
     map.append("path")
         .datum(resBoundaries)
         .attr("class", "reservation")
+        .attr("d", path)
+};
+
+function setStateBackground(stateBorders, path){
+    var projection = d3.geoMercator()
+        .center([0, 40])
+        .rotate([96, 0])
+        //.parallels([20, 40])
+        .scale(width)
+        .translate([width / 2, height / 2]);
+
+    var path = d3.geoPath()
+        .projection(projection);
+    
+    var map = d3.select("#map")
+        .append("svg")
+        .attr("class", "background")
+        .attr("width", "50%")
+        .attr("height", "75%");
+    
+    var states = map.selectAll(".states")
+        .data(stateBorders)
+        .enter()
+        .append("path")
+        .attr("class", function(d){
+            return "states " + d.properties.STATE_NAME;
+        })
         .attr("d", path)
 };
 
@@ -425,10 +459,8 @@ function moveLabel(){
 };
 
 function setText(){
-    var textPanel = d3.select("body")
+    var textPanel = d3.select("#title")
     .append("div")
-    .attr("width", width-50)
-    .attr("height", height-50)
     .attr("class", "textPanel")
     .append("p")
     .text("The language you speak when you are at home with your family and loved ones is a reflection of your cultural identity. Cultural identity is shared within a group and gives a person a feeling of inclusion. Language reinforces and defines this inclusion within a group. Language can be seen as an anchor between a person and their cultural identity because in many ways it encodes the cultural worldview of the individual. In addition to simply allowing us to communicate with other members of our kind, language allows us to pass down myths, stories, history, and culture from one generation to the next. Language acts as a conduit for a people’s cultural heritage. In the American Southwest there have been waves of cultural expansion and intermixing, going back thousands of years. The aim of the accompanying map and chart is to explore the interplay between the languages and cultures living in the are in the present day. Enjoy.");
