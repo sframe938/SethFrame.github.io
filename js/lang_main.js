@@ -2,9 +2,11 @@
 
 (function(){
 
+    // Set array of attributes
 var attrArray = ["Navajo", "Other_NA", "Spanish", "English", "Very_Well", "Less_Than_Well"];
 var expressed = attrArray[0];
 
+    // Set map attributes
 var margin = {top: 10, left: 10, bottom: 10, right: 10},
     width = parseInt(d3.select('#map').style('width')),
     width = (width - margin.left - margin.right)/2,
@@ -14,8 +16,10 @@ var margin = {top: 10, left: 10, bottom: 10, right: 10},
 
 var h = Math.max(document.documentElement.clientHeight, window.innerHeight || 0);
 
+    // Set page title
 var pageTitleH= parseInt(d3.select('#title').style('height'));
     
+    // Set Chart attributes
 var chartWidth = window.innerWidth * 0.97,
     chartHeight = (h - height - pageTitleH) * .80,
     leftPadding = 35,
@@ -25,6 +29,7 @@ var chartWidth = window.innerWidth * 0.97,
     chartInnerHeight = chartHeight - topBottomPadding * 10,
     translate = "translate(" + leftPadding + "," + topBottomPadding + ")";
     
+    // Set map projection
 var projection = d3.geoAlbers()
     .center([0, 36.7])
     .rotate([109, 0])
@@ -35,6 +40,7 @@ var projection = d3.geoAlbers()
 var path = d3.geoPath()
     .projection(projection);
     
+    // Set alternate attribute names
 var t_navajo = "Navajo speakers",
     t_otherna = "other Native American speakers",
     t_spanish = "Spanish speakers",
@@ -42,12 +48,15 @@ var t_navajo = "Navajo speakers",
     t_verywell = "speak English very well",
     t_lessthanwell = "speak English less than well";
 
+    // Set scale
 var yScale = d3.scaleLinear()
     .range([chartInnerHeight + 85, 0])
     .domain([0, 100]);
     
+    // Call map on window load
 window.onload = setMap(width, height);
 
+    // Sets main map in page and adds data also calls other functions on callback
 function setMap(width, height){
 
     var map = d3.select("body")
@@ -90,6 +99,7 @@ function setMap(width, height){
     };
 };
     
+    // Join JSON data to CSV
 function joinData(langCounties, csvData){
         for (var i=0; i<csvData.length; i++){
             var csvRegion = csvData[i];
@@ -112,6 +122,7 @@ function joinData(langCounties, csvData){
     return langCounties;
 };
     
+    // Create colorscale for map and chart
 function makeColorScale(data){
     var colorClasses = [
         "#fff5eb",
@@ -146,6 +157,7 @@ function makeColorScale(data){
     return colorScale;
 };
 
+    // Define choropleth for colorscale
 function choropleth(props, colorScale){
     var val = parseFloat(props[expressed]);
     if (typeof val == 'number' && !isNaN(val) && val != 0.0){
@@ -155,6 +167,7 @@ function choropleth(props, colorScale){
     };
 };
 
+    // Set main map units
 function setEnumerationUnits(langCounties, map, path, colorScale){
     var regions = map.selectAll(".regions")
         .data(langCounties)
@@ -180,6 +193,7 @@ function setEnumerationUnits(langCounties, map, path, colorScale){
         .text('{"stroke": "#000", "stroke-width": "0.5px"}');
 };
 
+    // Set reservation boundary data
 function setReservation(resBoundaries, map, path){
     map.append("path")
         .datum(resBoundaries)
@@ -187,6 +201,7 @@ function setReservation(resBoundaries, map, path){
         .attr("d", path)
 };
 
+    // Set United States background map
 function setStateBackground(stateBorders, path){
     var projection = d3.geoMercator()
         .center([0, 40])
@@ -214,6 +229,7 @@ function setStateBackground(stateBorders, path){
         .attr("d", path)
 };
 
+    // Creates Reservation button and functionality
 function setResText(res, map, path){
     d3.select("body")
     .append("div")
@@ -228,6 +244,7 @@ function setResText(res, map, path){
     }) 
 };
     
+    // Sets Chart with bars and attributes
 function setChart(csvData, colorScale){
     
     var chartTitle = d3.select("body")
@@ -281,6 +298,7 @@ function setChart(csvData, colorScale){
     updateChart(bars, csvData.length, colorScale);
 };
     
+    // Creates and populates attribute dropdown
 function createDropdown(csvData){
     var dropdown = d3.select("body")
         .append("select")
@@ -317,6 +335,7 @@ function createDropdown(csvData){
 		});
 };
 
+    // Changes map attributes based on dropdown choice
 function changeAttribute(attribute, csvData){
     expressed = attribute;
 
@@ -342,6 +361,7 @@ function changeAttribute(attribute, csvData){
         updateText(expressed);
 };
 
+    // Updates chart with new attributes
 function updateChart(bars, n, colorScale){
     
     bars.attr("x", function(d, i){
@@ -378,6 +398,7 @@ function updateChart(bars, n, colorScale){
     };
 };
 
+    // Mouse over highlight function
 function highlight(props){
     var selected = d3.selectAll("." + props.GeoID)
         .style("stroke", "#363128")
@@ -386,6 +407,7 @@ function highlight(props){
     setLabel(props);
 };
 
+    // Mouse out dehilight function
 function dehighlight(props){
     var selected = d3.selectAll("." + props.GeoID)
         .style("stroke", function(){
@@ -409,6 +431,7 @@ function dehighlight(props){
         .remove();
 };
 
+    // Set value for mouse over label
 function setLabel(props){
     if (expressed == attrArray[0]){
         var label = t_navajo;
@@ -438,6 +461,7 @@ function setLabel(props){
         .html(props.Co_Name);
 };
 
+    // Function to move label with mouse
 function moveLabel(){
     var labelwidth = d3.select(".infolabel")
         .node()
@@ -458,6 +482,7 @@ function moveLabel(){
         .style("top", y + "px");
 };
 
+    // Set text panel and adds landing page text
 function setText(){
     var textPanel = d3.select("#title")
     .append("div")
@@ -467,6 +492,7 @@ function setText(){
     
 };
 
+    // Updates text with attribute change
 function updateText(props){
     var navajoText = "The Navajo language, or Diné Bizaad, with over 175,000 speakers is one of the most widely spoken Native American languages alive today. Even so, the Navajo were latecomers to the Southwest region. Unlike other native languages in the area, Diné Bizaad is Athabaskan in origin and is related to the languages spoken by native peoples in northern Canada. While the Navajo people have assimilated the customs and lifestyles of their neighbors, they have maintained a distinct cultural identity through, in part, to the preservation of their language."
     var othernaText = "While the language of the Navajo is the most widely spoken language in the area, the Southwest if home to a myriad of other Native American languages and cultures. Each culture is unique and has its own belief and customs. Unfortunately, it is not possible to represent all those peoples individually in the context of this map. Instead, they have been grouped into a single layer to give a feel just how endangered native language are in the Southwest. My apologies to those peoples for not better representing their individual cultures."
