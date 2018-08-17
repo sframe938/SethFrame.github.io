@@ -74,12 +74,14 @@ function setMap(width, height){
     
     function callback(error, csvData, co, res, st){
         
+        console.log(st);
+        
         var resBoundaries = topojson.feature(res, res.objects.reservations),
             stateBorders = topojson.feature(st, st.objects.states).features,
             langCounties = topojson.feature(co, co.objects.counties).features;
         
         
-         console.log(stateBorders);
+        console.log(stateBorders);
         
         langCounties = joinData(langCounties, csvData);
         

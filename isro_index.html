@@ -1,0 +1,79 @@
+<!doctype html>
+<html class="no-js" lang="">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <title>ISRO NPS</title>
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="manifest" href="site.webmanifest">
+    <link rel="apple-touch-icon" href="icon.png">
+    <!-- Place favicon.ico in the root directory -->
+
+    <link rel="stylesheet" href="css/normalize.css">
+    <link rel="stylesheet" href="lib/leaflet.css">
+    <link rel="stylesheet" href="css/isro_style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/esri-leaflet-geocoder@2.2.12/dist/esri-leaflet-geocoder.css">
+
+</head>
+
+<body>
+    <div id="title" class="row">
+        <div class="column"><a href="https://www.nps.gov/index.htm" target="_blank"><img src='images/isro/NationalParkService-Logo.png' alt="NPS" align='left' hspace="20" height=100px></a>
+            <br><a href="https://www.nps.gov/isro/index.htm" target="_blank"><h1>Isle Royal</h1><br></a><h5>National Park<br>Michigan</h5></div>
+        <div class="column"></div>
+        <div class="column"></div>
+    </div>
+    <div class="navbar">
+        <button id="home-extent" title="Map Extent"><i class="fa fa-home fa-fw"></i></button>
+        <button id="zoom-in" title="Zoom In"><i class="fa fa-plus fa-fw"></i></button>
+        <button id="zoom-out" title="Zoom Out"><i class="fa fa-minus fa-fw"></i></button>
+        <button id="user-loc" title="User Location"><i class="fa fa-map-marker fa-fw"></i></button>
+    </div>
+    <div class="footbar">
+        <div class="dropup">
+            <button class="dropbtn">Layer Menu 
+                <i class="fa fa-caret-up"></i>
+            </button>
+            <div class="dropup-content">
+                <li id="wolf" data-filter="park_wolf" class='enable'>Wolf Sightings</li>
+                <li id="poi" data-filter="park_poi" class='enable'>Points of Interest</li>
+                <li id="trail" data-filter="park_trails" class='enable'>Trails</li>
+                <li id="ferry" data-filter="park_ferry_routes" class='enable'>Ferry Routes</li>
+                <li id="stream" data-filter="park_streams" class='enable'>Streams</li>
+                <li id="lake" data-filter="park_lakes" class='enable'>Lakes</li>
+                <li id="bound" data-filter="park_boundary" class='enable'>Park Boundary</li>
+            </div>
+        </div>
+        <a id="sighting" href="#sighting">Wolf Sighting <i class="fa fa-binoculars"></i></a>
+    </div>
+    <form id="sightingform" action=""></form>
+    <div id="map"></div>
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+    <script>
+        window.jQuery || document.write('<script src="js/vendor/jquery-3.2.1.min.js"><\/script>')
+    </script>
+    <script src="js/plugins.js"></script>
+    <script src="lib/leaflet.js"></script>
+    <script src="js/isro_main.js"></script>
+    <script src="https://unpkg.com/esri-leaflet/dist/esri-leaflet.js"></script>
+    <script src="https://unpkg.com/esri-leaflet-geocoder"></script>
+
+
+    <!-- Google Analytics: change UA-XXXXX-Y to be your site's ID. -->
+    <script>
+        window.ga = function() {
+            ga.q.push(arguments)
+        };
+        ga.q = [];
+        ga.l = +new Date;
+        ga('create', 'UA-114910048-1', 'auto');
+        ga('send', 'pageview')
+    </script>
+    <script src="https://www.google-analytics.com/analytics.js" async defer></script>
+</body>
+
+</html>
