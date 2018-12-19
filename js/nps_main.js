@@ -201,7 +201,7 @@ function pointToLayer(feature, latlng, attributes){
             $("#State").html('<mark class="category">State:</mark><br>' + feature.properties.STATE);
             $("#Region").html('<mark class="category">Region:</mark><br>' + feature.properties.REGION);
             $("#Vis").html('<mark class="category">Average Visitation:</mark><br>' + Number(feature.properties.Average).toLocaleString());
-            $("#URL").html('<mark class="category">NPS Property Website:</mark><br><a href="https://www.nps.gov/' + feature.properties.UNIT_CODE + '/index.htm" target="_blank">www.NPS.gov</a');
+            $("#URL").html('<mark class="category">NPS Property Website:</mark><br><a href="https://www.nps.gov/' + feature.properties.UNIT_CODE + '/index.htm" target="_blank">www.nps.gov/' + feature.properties.UNIT_CODE.toLowerCase() +'/index.htm</a');
         }
     });
     
