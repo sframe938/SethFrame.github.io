@@ -1,0 +1,44 @@
+<!doctype html>
+<html class="no-js" lang="">
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="x-ua-compatible" content="ie=edge">
+    <title>NPS Visitation</title>
+    <meta name="description" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link rel="manifest" href="site.webmanifest">
+    <link rel="apple-touch-icon" href="icon.png">
+    <!-- Place favicon.ico in the root directory -->
+
+    <link rel="stylesheet" href="css/normalize.css">
+    <link rel="stylesheet" href="lib/leaflet.css">
+    <link rel="stylesheet" href="css/nps_style.css">
+
+</head>
+
+<body>
+    <div id="title" class="row">
+        <div class="column"><a href="https://www.nps.gov/index.htm" target="_blank"><img src='images/nps/NationalParkService-Logo.png' alt="NPS" align='left' hspace="20" height=100px></a><h1>National Park Service</h1><br><h5>U.S. Department of the Interior</h5><h4>Yearly Visitation (2007-2016)</h4></div>
+        <div class="column"></div>
+        <div class="column" align="right"><h4>Park visitation data gathered from the National Park Service Stats <br>website for visitor use statistics:</h4><a href="https://irma.nps.gov/Stats/" target="_blank"><h4>https://irma.nps.gov/Stats/</h4></a></div>
+    </div>
+    <div id="map"></div>
+    <div id="mapLegend">
+        <nav class="NPS"></nav>
+    </div>
+    <div class="infoPanel" id="panel"></div>
+    <div id="slider"></div>
+    
+    <script src="js/vendor/modernizr-3.5.0.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+    <script>
+        window.jQuery || document.write('<script src="js/vendor/jquery-3.2.1.min.js"><\/script>')
+    </script>
+    <script src="js/plugins.js"></script>
+    <script src="lib/leaflet.js"></script>
+    <script src="js/nps_main.js"></script>
+</body>
+
+</html>
