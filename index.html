@@ -537,15 +537,15 @@
     <script src="dist/leaflet.zoomhome.min.js"></script>
     <script src="js/front.js"></script>
     <script src="contact-3.js"></script>
-    <!-- Global site tag (gtag.js) - Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-YQYTYPH72M"></script>
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-
-      gtag('config', 'G-YQYTYPH72M');
-    </script>
+        window.ga = function() {
+            ga.q.push(arguments)
+        };
+        ga.q = [];
+        ga.l = +new Date;
+        ga('create', 'UA-114910048-1', 'auto');
+        ga('send', 'pageview')
+    </script>>
     <script src="https://www.google-analytics.com/analytics.js" async defer></script>
   </body>
 </html>
