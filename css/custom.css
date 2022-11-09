@@ -6,5 +6,5 @@
 
 .introhref :hover, .introhref :focus {
   color: #fff;
-  text-decoration: underline;
+  text-decoration: none;
 }
