@@ -37,7 +37,7 @@
         <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script><![endif]-->
   </head>
   <body>
-    <section id="intro" style="background-image: url('img/header.jpg');" class="intro">       
+    <section id="intro" style="background-image: url('img/header1.jpg');" class="intro">       
       <div class="overlay"></div>
       <div class="content">
         <div class="container clearfix">
@@ -61,10 +61,30 @@
             <ul class="navbar-nav ml-auto">
               <li class="nav-item"><a href="#intro" class="nav-link link-scroll">Home</a></li>
               <li class="nav-item"><a href="#about" class="nav-link link-scroll">About </a></li>
-              <li class="nav-item"><a href="#resume" class="nav-link link-scroll">Resume</a></li>
-              <li class="nav-item"><a href="#examples" class="nav-link link-scroll">Sample Work</a></li>
-              <li class="nav-item"><a href="#ceramics" class="nav-link link-scroll">Ceramics</a></li>
-              <li class="nav-item"><a href="#watercolors" class="nav-link link-scroll">Watercolors</a></li>
+              <!-- Dropdown Start -->
+              <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="exDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  Experience
+                </a>
+                <div class="dropdown-menu" aria-labelledby="exDropdown">
+                  <a class="dropdown-item link-scroll" href="#resume">Qualifications</a>
+                  <a class="dropdown-item link-scroll" href="#work">Work History</a>
+                  <a class="dropdown-item link-scroll" href="#educate">Education</a>
+                </div>
+              </li>
+              <!-- Dropdown End -->
+              <li class="nav-item"><a href="#examples" class="nav-link link-scroll">Portfolio</a></li>
+                <!-- Dropdown Start -->
+              <li class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle" href="#" id="artDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  Creative Work
+                </a>
+                <div class="dropdown-menu" aria-labelledby="artDropdown">
+                  <a class="dropdown-item link-scroll" href="#ceramics">Ceramics</a>
+                  <a class="dropdown-item link-scroll" href="#watercolors">Watercolors</a>
+                </div>
+              </li>
+              <!-- Dropdown End -->
               <li class="nav-item"><a href="#contact" class="nav-link link-scroll">Contact</a></li>
             </ul>
           </div>
@@ -81,7 +101,7 @@
             <p align="justify">Raised in the Middle West, Seth Frame has over a decade of experience in GIS; most of that time has been spent in cultural resource management. In a previous life, he performed GIS services for archaeological companies in the intermountain West, he now lives in upstate New York where he is employed as a GIS Supervisor/Analyst for a software development company. Seth is the proud Papa to two fine boys: Lorenzo and Domenico. He has also somehow managed to receive a Bachelor of Arts degree in anthropology from Colorado State University and a degree from the University of Wisconsin-Madison's Cartography and Web Mapping Masters program. Both degrees were obtained while being employed full-time. </p>
           </div>
           <div class="col-lg-5 mx-auto">
-            <p><img src="img/profile2.png" alt="" class="img-fluid rounded-circle"></p>
+            <p><img src="img/profilePic1.jpg" alt="" class="img-fluid rounded-circle" ></p>
           </div>
         </div>
       </div>
@@ -90,44 +110,20 @@
     <!-- Resume page-->
     <section id="resume" class="text-page">
       <div class="container">
-        <h2 class="heading">Resume</h2>
+        <h2 class="heading">Experience</h2>
         <div class="col-lg-12">
             <h4 class="italic">QUALIFICATIONS</h4>
             <div class="row">
-              <div class="col-md-12">
-                  <p><a  data-toggle="collapse" href="#arcgis" title="Click to expand">+ ESRI ArcDesktop Software 10.x</a></p>
-                    <ul id="arcgis" class="panel-collapse collapse">
-                    <li>ArcPro 2.x</li>
-                    <li>ArcGIS Online</li>
-                    <li>ArcGIS Enterprise</li>
-                    <li>3D Analyst Extension</li>
-                    <li>Spatial Analyst Extension</li>
-                    <li>Network Analyst Extension</li>
-                    <li>Data Interoperability Extension</li>
-                    <li>Arcpy</li>
-                    <li>ArcGIS API for JavaScript</li>
-                  </ul>
-                </div>
-                
-                <div class="col-md-12">
-                  <p><a  data-toggle="collapse" href="#trimble" title="Click to expand">+ Trimble Software and Hardware</a></p>
-                    <ul id="trimble"class="panel-collapse collapse">
-                    <li>Pathfinder Office Software</li>
-                    <li>GeoExplorer XT GPS Units (2005, 3000, 6000, and 7x models)</li>
-                    <li>TerraSync Software</li>
-                    <li>TerraFlex ArcGIS Add-In and InSphere</li>
-                  </ul>
-              </div>
               <div class="col-md-3">
                 <ul class="">
                     <li>Python</li>
                     <li>C#</li>
-                    <li>Java</li>
                     <li>JavaScript</li>
                     <li>JQuery</li>
                     <li>AJAX</li>
                     <li>Leaflet</li>
                     <li>D3</li>
+                    <li>Java</li>
                   </ul>
               </div>
               <div class="col-md-3">
@@ -151,13 +147,39 @@
                     <li>ChatGPT & Bard</li>
                   </ul>
                 </div>
+              <div class="col-md-6">
+                  <p><a  data-toggle="collapse" href="#arcgis" title="Click to expand">+ ESRI Software</a></p>
+                    <ul id="arcgis" class="panel-collapse collapse">
+                    <li>ArcGIS for Desktop 9.x, 10.x</li>
+                    <li>ArcGIS Pro 2.x, 3.x</li>
+                    <li>ArcGIS Online</li>
+                    <li>ArcGIS Enterprise</li>
+                    <li>3D Analyst Extension</li>
+                    <li>Spatial Analyst Extension</li>
+                    <li>Network Analyst Extension</li>
+                    <li>Data Interoperability Extension</li>
+                    <li>Arcade</li>
+                    <li>Arcpy</li>
+                    <li>ArcGIS API for JavaScript</li>
+                  </ul>
+                </div>
+                
+                <div class="col-md-6">
+                  <p><a  data-toggle="collapse" href="#trimble" title="Click to expand">+ Trimble Software and Hardware</a></p>
+                    <ul id="trimble"class="panel-collapse collapse">
+                    <li>Pathfinder Office Software</li>
+                    <li>GeoExplorer XT GPS Units (2005, 3000, 6000, and 7x models)</li>
+                    <li>TerraSync Software</li>
+                    <li>TerraFlex ArcGIS Add-In and InSphere</li>
+                  </ul>
+              </div>
             </div>
           </div>
         <div id="map" class=" col-md-12 rounded">
         </div>
-        <div class="row">
-          <div class="col-lg-12" id="work">
-                      <h4 class="italic">WORK HISTORY</h4>
+        <section id="work" class="text-page">
+          <div class="col-lg-12">
+            <h4 class="italic">WORK HISTORY</h4>
             <div class="row">
               <div class="col-md-8">
                   <a  data-toggle="collapse" href="#tyler" title="Click to expand"><strong>+ GIS Supervisor/Analyst,<i> Tyler Technologies,</i></strong></a><i> Latham, NY</i>
@@ -250,7 +272,9 @@
                       </ul>
               </div>
             </div>
-          </div>
+        </section>
+
+        <section id="educate" class="text-page">
           <div class="col-lg-12">
             <h4 class="italic">EDUCATION</h4>
             <div class="row">
@@ -261,6 +285,7 @@
               </div>
             </div>
           </div>
+        </section>
           <div class="col-lg-12">
             <a  data-toggle="collapse" href="#certs" title="Click to expand"><h5 class="italic">+ CERTIFICATIONS/TRAININGS</h5></a>
             <div id="certs" class="row collapse">
@@ -292,7 +317,7 @@
     <!-- Examples / gallery-->
     <section id="examples" class="gallery">
       <div class="container clearfix">
-        <h2 class="heading">Sample Work</h2>
+        <h2 class="heading">Portfolio</h2>
         <div class="row">
           <div class="col-lg-12">
             <div class="row">
@@ -469,66 +494,77 @@
               </div>
             </div>
           </div>
-    </div>
+      </div>
     </section>
     <!-- Examples / gallery end-->
 
-    <!-- Ceramics / gallery-->
-    <section id="ceramics" class="gallery">
+    <section id="creative" class="gallery">
       <div class="container clearfix">
-        <h2 class="heading">Ceramics</h2>
-          <p>Pottery projects</p>
+        <h2 class="heading">Creative Work</h2>
         <div class="row">
           <div class="col-lg-12">
             <div class="row">
+
+              <!-- Ceramics / gallery-->
+              <section id="ceramics" class="gallery">
               <div class="col-md-12">
-                <div class="box"><a href="img/ceramics/c1.jpg" data-lightbox="ceramics" data-title="Turbulent indigo on Laguna Azabache " class="has-border"><img src="img/ceramics/cover.jpg" alt="image" class="img-fluid rounded mx-auto d-block" title ="Ceramic projects"></a></div>
-                <div class="box"><a href="img/ceramics/c2.jpg" data-lightbox="ceramics" data-title="White on Laguna Azabache" class="has-border"></a></div>
-                <div class="box"><a href="img/ceramics/c3.jpg" data-lightbox="ceramics" data-title="Charcoal on Standard 112" class="has-border"></a></div>
-                <div class="box"><a href="img/ceramics/c4.jpg" data-lightbox="ceramics" data-title="White on Laguna Azabache" class="has-border"></a></div>
-                <div class="box"><a href="img/ceramics/c5.jpg" data-lightbox="ceramics" data-title="Copper Float and Celedon Froth on Laguna B-Mix" class="has-border"></a></div>
-                <div class="box"><a href="img/ceramics/c6.jpg" data-lightbox="ceramics" data-title="Copper Float and Celedon Froth on Laguna B-Mix" class="has-border"></a></div>
+                <h4 class="italic">Ceramics</h4>
+                <p>Pottery projects</p>
+                <div class="row">
+                  <div class="col-lg-12">
+                    <div class="row">
+                      <div class="col-md-12">
+                        <div class="box"><a href="img/ceramics/c1.jpg" data-lightbox="ceramics" data-title="Turbulent indigo on Laguna Azabache " class="has-border"><img src="img/ceramics/cover.jpg" alt="image" class="img-fluid rounded mx-auto d-block" title ="Ceramic projects"></a></div>
+                        <div class="box"><a href="img/ceramics/c2.jpg" data-lightbox="ceramics" data-title="White on Laguna Azabache" class="has-border"></a></div>
+                        <div class="box"><a href="img/ceramics/c3.jpg" data-lightbox="ceramics" data-title="Charcoal on Standard 112" class="has-border"></a></div>
+                        <div class="box"><a href="img/ceramics/c4.jpg" data-lightbox="ceramics" data-title="White on Laguna Azabache" class="has-border"></a></div>
+                        <div class="box"><a href="img/ceramics/c5.jpg" data-lightbox="ceramics" data-title="Copper Float and Celedon Froth on Laguna B-Mix" class="has-border"></a></div>
+                        <div class="box"><a href="img/ceramics/c6.jpg" data-lightbox="ceramics" data-title="Copper Float and Celedon Froth on Laguna B-Mix" class="has-border"></a></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
+              </section>
+              <!-- Ceramics / gallery end-->
+              <!-- Watercolors / gallery-->
+               <section id="watercolors" class="gallery">
+                <div class="col-md-12">
+                  <h4 class="italic">Watercolors</h4>
+                  <p>Paintings of places and things</p>
+                  <div class="row">
+                    <div class="col-lg-12">
+                      <div class="row">
+                        <div class="col-md-12">
+                          <div class="box"><a href="img/watercolors/Badlands%20Tipi.jpg" data-lightbox="watercolors" data-title="Badlands tipi" class="has-border"><img src="img/watercolors/cover2.jpg" alt="image" class="img-fluid rounded mx-auto d-block" title ="Watercolor Paintings"></a></div>
+                          <div class="box"><a href="img/watercolors/Boathouse%20in%20Yesllowstone.jpg" data-lightbox="watercolors" data-title="Boathousein Yellowstone NPS" class="has-border"></a></div>
+                          <div class="box"><a href="img/watercolors/Buckhorn%20Angel.jpg" data-lightbox="watercolors" data-title="Buckhorn angel" class="has-border"></a></div>
+                          <div class="box"><a href="img/watercolors/Defiance%20House.jpg" data-lightbox="watercolors" data-title="Defiance house" class="has-border"></a></div>
+                          <div class="box"><a href="img/watercolors/Dolores%20River%20Canyon.jpg" data-lightbox="watercolors" data-title="Dolores river canyon" class="has-border"></a></div>
+                          <div class="box"><a href="img/watercolors/Driggs%20Mansion%201.jpg" data-lightbox="watercolors" data-title="Drigg's mansion no. 1" class="has-border"></a></div>
+                          <div class="box"><a href="img/watercolors/Driggs%20Mansion%202.jpg" data-lightbox="watercolors" data-title="Drigg's mansion no. 2" class="has-border"></a></div>
+                          <div class="box"><a href="img/watercolors/Elk's%20Lodge.jpg" data-lightbox="watercolors" data-title="Elk's lodge" class="has-border"></a></div>
+                          <div class="box"><a href="img/watercolors/Ft%20Ruin%20Bottom.jpg" data-lightbox="watercolors" data-title="Ft. Ruin bottom" class="has-border"></a></div>
+                          <div class="box"><a href="img/watercolors/Indiana%20Dunes%201.jpg" data-lightbox="watercolors" data-title="Indiana dunes No. 1" class="has-border"></a></div>
+                          <div class="box"><a href="img/watercolors/Mato%20Tipi.jpg" data-lightbox="watercolors" data-title="Mato tipi" class="has-border"></a></div>
+                          <div class="box"><a href="img/watercolors/Medicine%20Wheel.jpg" data-lightbox="watercolors" data-title="Medicine wheel" class="has-border"></a></div>
+                          <div class="box"><a href="img/watercolors/Old%20Faithful.jpg" data-lightbox="watercolors" data-title="Old Faithful" class="has-border"></a></div>
+                          <div class="box"><a href="img/watercolors/Port%20Townsend.jpg" data-lightbox="watercolors" data-title="Port Townsend" class="has-border"></a></div>
+                          <div class="box"><a href="img/watercolors/ROW%20Tree.jpg" data-lightbox="watercolors" data-title="R.O.W tree" class="has-border"></a></div>
+                          <div class="box"><a href="img/watercolors/Teton%20Sunset.jpg" data-lightbox="watercolors" data-title="Teton sunset" class="has-border"></a></div>
+                          <div class="box"><a href="img/watercolors/Yellowstone%20Falls.jpg" data-lightbox="watercolors" data-title="Yellowstone falls" class="has-border"></a></div>
+                        </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              </section>
+            <!-- Watercolors / gallery end-->
+            </div>
           </div>
         </div>
       </div>
-    </div>
-    </section>
-    <!-- Ceramics / gallery end-->
-      
-    <!-- Watercolors / gallery-->
-    <section id="watercolors" class="gallery">
-      <div class="container clearfix">
-        <h2 class="heading">Watercolors</h2>
-          <p>Paintings of places and things</p>
-        <div class="row">
-          <div class="col-lg-12">
-            <div class="row">
-              <div class="col-md-12">
-                <div class="box"><a href="img/watercolors/Badlands%20Tipi.jpg" data-lightbox="watercolors" data-title="Badlands tipi" class="has-border"><img src="img/watercolors/cover2.jpg" alt="image" class="img-fluid rounded mx-auto d-block" title ="Watercolor Paintings"></a></div>
-                <div class="box"><a href="img/watercolors/Boathouse%20in%20Yesllowstone.jpg" data-lightbox="watercolors" data-title="Boathousein Yellowstone NPS" class="has-border"></a></div>
-                <div class="box"><a href="img/watercolors/Buckhorn%20Angel.jpg" data-lightbox="watercolors" data-title="Buckhorn angel" class="has-border"></a></div>
-                <div class="box"><a href="img/watercolors/Defiance%20House.jpg" data-lightbox="watercolors" data-title="Defiance house" class="has-border"></a></div>
-                <div class="box"><a href="img/watercolors/Dolores%20River%20Canyon.jpg" data-lightbox="watercolors" data-title="Dolores river canyon" class="has-border"></a></div>
-                <div class="box"><a href="img/watercolors/Driggs%20Mansion%201.jpg" data-lightbox="watercolors" data-title="Drigg's mansion no. 1" class="has-border"></a></div>
-                <div class="box"><a href="img/watercolors/Driggs%20Mansion%202.jpg" data-lightbox="watercolors" data-title="Drigg's mansion no. 2" class="has-border"></a></div>
-                <div class="box"><a href="img/watercolors/Elk's%20Lodge.jpg" data-lightbox="watercolors" data-title="Elk's lodge" class="has-border"></a></div>
-                <div class="box"><a href="img/watercolors/Ft%20Ruin%20Bottom.jpg" data-lightbox="watercolors" data-title="Ft. Ruin bottom" class="has-border"></a></div>
-                <div class="box"><a href="img/watercolors/Indiana%20Dunes%201.jpg" data-lightbox="watercolors" data-title="Indiana dunes No. 1" class="has-border"></a></div>
-                <div class="box"><a href="img/watercolors/Mato%20Tipi.jpg" data-lightbox="watercolors" data-title="Mato tipi" class="has-border"></a></div>
-                <div class="box"><a href="img/watercolors/Medicine%20Wheel.jpg" data-lightbox="watercolors" data-title="Medicine wheel" class="has-border"></a></div>
-                <div class="box"><a href="img/watercolors/Old%20Faithful.jpg" data-lightbox="watercolors" data-title="Old Faithful" class="has-border"></a></div>
-                <div class="box"><a href="img/watercolors/Port%20Townsend.jpg" data-lightbox="watercolors" data-title="Port Townsend" class="has-border"></a></div>
-                <div class="box"><a href="img/watercolors/ROW%20Tree.jpg" data-lightbox="watercolors" data-title="R.O.W tree" class="has-border"></a></div>
-                <div class="box"><a href="img/watercolors/Teton%20Sunset.jpg" data-lightbox="watercolors" data-title="Teton sunset" class="has-border"></a></div>
-                <div class="box"><a href="img/watercolors/Yellowstone%20Falls.jpg" data-lightbox="watercolors" data-title="Yellowstone falls" class="has-border"></a></div>
-              </div>
-          </div>
-        </div>
-      </div>
-    </div>
-    </section>
-    <!-- Watercolors / gallery end-->
+    </section>  
 
 
     <!-- contact-->
