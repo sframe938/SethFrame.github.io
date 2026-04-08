@@ -449,11 +449,12 @@
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   function makePopupHTML(e) {
+    const excerpt = (e.excerpt || '').replace(/\n/g, '<br>');
     return `
       <div class="popup-tag">${e.lake} · ${e.location}</div>
       <div class="popup-title">${e.title}</div>
       <div class="popup-author">by ${e.author} &middot; ${e.date}</div>
-      <div class="popup-excerpt">${e.excerpt}</div>
+      <div class="popup-excerpt">${excerpt}</div>
       <a class="popup-link" href="${e.url}" target="_blank" rel="noopener">Read the essay →</a>
     `;
   }
@@ -498,18 +499,6 @@
     }));
 
     const validEssays = essays.filter(Boolean);
-
-    // Build GeoJSON from essays
-    const geojson = {
-      type: 'FeatureCollection',
-      features: validEssays.map(e => ({
-        type: 'Feature',
-        geometry: { type: 'Point', coordinates: [e.lng, e.lat] },
-        properties: { id: e.id, title: e.title, author: e.author,
-                      lake: e.lake, location: e.location, url: e.url,
-                      excerpt: e.excerpt, date: e.date }
-      }))
-    };
 
     // Store essays by id for reliable lookup (avoids GeoJSON property encoding issues)
     const essayMap = {};
@@ -624,12 +613,13 @@
       const li = document.createElement('li');
       li.className = 'essay-item';
       li.id = `essay-${e.id}`;
+      const excerptHTML = (e.excerpt || '').replace(/\n/g, '<br>');
       li.innerHTML = `
         <div class="essay-inner">
           <span class="essay-lake-tag">${e.lake}</span>
           <div class="essay-title">${e.title}</div>
           <div class="essay-meta">by ${e.author} &middot; ${e.location}</div>
-          <div class="essay-excerpt">${e.excerpt}</div>
+          <div class="essay-excerpt">${excerptHTML}</div>
           <a class="essay-link" href="${e.url}" target="_blank" rel="noopener">Read →</a>
         </div>
       `;
