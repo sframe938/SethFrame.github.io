@@ -208,6 +208,20 @@
       padding: .2rem .4rem;
     }
 
+    /* ── Custom marker ── */
+    .glr-marker {
+      width: 22px;
+      height: 22px;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      background: var(--blue);
+      border: 2px solid #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,.28);
+      cursor: pointer;
+      transition: transform .15s;
+    }
+    .glr-marker:hover { transform: rotate(-45deg) scale(1.15); }
+
     /* ── Popup content ── */
 
     .popup-tag {
@@ -448,13 +462,17 @@
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
+  function formatExcerpt(text) {
+    // Handle both real newlines and literal \n sequences from CSV
+    return (text || '').replace(/\\n/g, '\n').replace(/\n/g, '<br>');
+  }
+
   function makePopupHTML(e) {
-    const excerpt = (e.excerpt || '').replace(/\n/g, '<br>');
     return `
       <div class="popup-tag">${e.lake} · ${e.location}</div>
       <div class="popup-title">${e.title}</div>
       <div class="popup-author">by ${e.author} &middot; ${e.date}</div>
-      <div class="popup-excerpt">${excerpt}</div>
+      <div class="popup-excerpt">${formatExcerpt(e.excerpt)}</div>
       <a class="popup-link" href="${e.url}" target="_blank" rel="noopener">Read the essay →</a>
     `;
   }
@@ -514,97 +532,32 @@
         .addTo(map);
     }
 
-    const addLayers = () => {
-      // Add GeoJSON source — only store id in properties, look up rest from essayMap
-      map.addSource('essays', {
-        type: 'geojson',
-        data: {
-          type: 'FeatureCollection',
-          features: validEssays.map(e => ({
-            type: 'Feature',
-            geometry: { type: 'Point', coordinates: [e.lng, e.lat] },
-            properties: { id: e.id }
-          }))
-        }
-      });
+    const addMarkers = () => {
+      validEssays.forEach(e => {
+        // Styled DOM marker — teardrop shape, no zoom lag with CSS transform
+        const el = document.createElement('div');
+        el.className = 'glr-marker';
+        el.addEventListener('click', () => {
+          activateSidebarItem(e.id);
+          openPopup(e);
+        });
 
-      // Shadow layer for depth
-      map.addLayer({
-        id: 'essays-shadow',
-        type: 'circle',
-        source: 'essays',
-        paint: {
-          'circle-radius': 10,
-          'circle-color': 'rgba(0,0,0,0.15)',
-          'circle-blur': 1,
-          'circle-translate': [1, 2]
-        }
-      });
-
-      // Main marker layer — GPU rendered, no zoom lag
-      map.addLayer({
-        id: 'essays-markers',
-        type: 'circle',
-        source: 'essays',
-        paint: {
-          'circle-radius': [
-            'interpolate', ['linear'], ['zoom'],
-            4, 5, 8, 8, 12, 11
-          ],
-          'circle-color': '#4877D6',
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#ffffff'
-        }
-      });
-
-      // Hover highlight layer
-      map.addLayer({
-        id: 'essays-markers-hover',
-        type: 'circle',
-        source: 'essays',
-        paint: {
-          'circle-radius': [
-            'interpolate', ['linear'], ['zoom'],
-            4, 7, 8, 10, 12, 14
-          ],
-          'circle-color': '#2557c7',
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#ffffff',
-          'circle-opacity': 0
-        }
-      });
-
-      // Click — look up essay from essayMap, not GeoJSON properties
-      map.on('click', 'essays-markers', (e) => {
-        e.preventDefault();
-        const id = e.features[0].properties.id;
-        const essay = essayMap[id];
-        if (!essay) return;
-        activateSidebarItem(id);
-        openPopup(essay);
+        new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+          .setLngLat([e.lng, e.lat])
+          .addTo(map);
       });
 
       // Close popup on map click outside markers
-      map.on('click', (e) => {
-        if (!map.queryRenderedFeatures(e.point, { layers: ['essays-markers'] }).length) {
+      map.on('click', (ev) => {
+        if (!ev.originalEvent.target.classList.contains('glr-marker')) {
           activePopup.remove();
           document.querySelectorAll('.essay-item').forEach(el => el.classList.remove('active'));
         }
       });
-
-      // Cursor
-      map.on('mouseenter', 'essays-markers', () => {
-        map.getCanvas().style.cursor = 'pointer';
-        map.setPaintProperty('essays-markers-hover', 'circle-opacity', 1);
-      });
-      map.on('mouseleave', 'essays-markers', () => {
-        map.getCanvas().style.cursor = '';
-        map.setPaintProperty('essays-markers-hover', 'circle-opacity', 0);
-      });
     };
 
-    if (map.isStyleLoaded()) { addLayers(); }
-    else { map.on('load', addLayers); }
+    if (map.isStyleLoaded()) { addMarkers(); }
+    else { map.on('load', addMarkers); }
 
     // Build sidebar
     const list = document.getElementById('essayList');
@@ -613,7 +566,7 @@
       const li = document.createElement('li');
       li.className = 'essay-item';
       li.id = `essay-${e.id}`;
-      const excerptHTML = (e.excerpt || '').replace(/\n/g, '<br>');
+      const excerptHTML = formatExcerpt(e.excerpt);
       li.innerHTML = `
         <div class="essay-inner">
           <span class="essay-lake-tag">${e.lake}</span>
