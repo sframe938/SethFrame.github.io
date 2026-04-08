@@ -427,8 +427,6 @@
   }
 
   // ── Main — fetch sheet, geocode, render ───────────────────────────────────
-  const popups = {};
-
   async function loadEssays() {
     showLoading();
 
@@ -472,14 +470,33 @@
       }))
     };
 
-    // Store essays by id for popup lookup
-    validEssays.forEach(e => {
-      popups[e.id] = { lng: e.lng, lat: e.lat, data: e };
-    });
+    // Store essays by id for reliable lookup (avoids GeoJSON property encoding issues)
+    const essayMap = {};
+    validEssays.forEach(e => { essayMap[e.id] = e; });
+
+    // Single reusable popup instance
+    const activePopup = new mapboxgl.Popup({ offset: 15, maxWidth: '290px', closeOnClick: false });
+
+    function openPopup(essay) {
+      activePopup
+        .setLngLat([essay.lng, essay.lat])
+        .setHTML(makePopupHTML(essay))
+        .addTo(map);
+    }
 
     const addLayers = () => {
-      // Add GeoJSON source
-      map.addSource('essays', { type: 'geojson', data: geojson });
+      // Add GeoJSON source — only store id in properties, look up rest from essayMap
+      map.addSource('essays', {
+        type: 'geojson',
+        data: {
+          type: 'FeatureCollection',
+          features: validEssays.map(e => ({
+            type: 'Feature',
+            geometry: { type: 'Point', coordinates: [e.lng, e.lat] },
+            properties: { id: e.id }
+          }))
+        }
+      });
 
       // Shadow layer for depth
       map.addLayer({
@@ -502,9 +519,7 @@
         paint: {
           'circle-radius': [
             'interpolate', ['linear'], ['zoom'],
-            4, 5,
-            8, 8,
-            12, 11
+            4, 5, 8, 8, 12, 11
           ],
           'circle-color': '#4877D6',
           'circle-stroke-width': 2,
@@ -512,7 +527,7 @@
         }
       });
 
-      // Hover state
+      // Hover highlight layer
       map.addLayer({
         id: 'essays-markers-hover',
         type: 'circle',
@@ -520,9 +535,7 @@
         paint: {
           'circle-radius': [
             'interpolate', ['linear'], ['zoom'],
-            4, 7,
-            8, 10,
-            12, 14
+            4, 7, 8, 10, 12, 14
           ],
           'circle-color': '#2557c7',
           'circle-stroke-width': 2,
@@ -531,20 +544,26 @@
         }
       });
 
-      // Click handler
+      // Click — look up essay from essayMap, not GeoJSON properties
       map.on('click', 'essays-markers', (e) => {
-        const props = e.features[0].properties;
-        const essay = popups[props.id].data;
-        activateSidebarItem(props.id);
-
-        new mapboxgl.Popup({ offset: 15, maxWidth: '290px' })
-          .setLngLat(e.features[0].geometry.coordinates)
-          .setHTML(makePopupHTML(essay))
-          .addTo(map);
+        e.preventDefault();
+        const id = e.features[0].properties.id;
+        const essay = essayMap[id];
+        if (!essay) return;
+        activateSidebarItem(id);
+        openPopup(essay);
       });
 
-      // Hover cursor
-      map.on('mouseenter', 'essays-markers', (e) => {
+      // Close popup on map click outside markers
+      map.on('click', (e) => {
+        if (!map.queryRenderedFeatures(e.point, { layers: ['essays-markers'] }).length) {
+          activePopup.remove();
+          document.querySelectorAll('.essay-item').forEach(el => el.classList.remove('active'));
+        }
+      });
+
+      // Cursor
+      map.on('mouseenter', 'essays-markers', () => {
         map.getCanvas().style.cursor = 'pointer';
         map.setPaintProperty('essays-markers-hover', 'circle-opacity', 1);
       });
@@ -576,12 +595,7 @@
       li.addEventListener('click', () => {
         activateSidebarItem(e.id);
         map.flyTo({ center: [e.lng, e.lat], zoom: 8, speed: 1.2 });
-        map.once('moveend', () => {
-          new mapboxgl.Popup({ offset: 15, maxWidth: '290px' })
-            .setLngLat([e.lng, e.lat])
-            .setHTML(makePopupHTML(e))
-            .addTo(map);
-        });
+        map.once('moveend', () => openPopup(e));
       });
       list.appendChild(li);
     });
