@@ -208,20 +208,6 @@
       padding: .2rem .4rem;
     }
 
-    /* ── Custom marker ── */
-    .glr-marker {
-      width: 22px;
-      height: 22px;
-      border-radius: 50% 50% 50% 0;
-      transform: rotate(-45deg);
-      background: var(--blue);
-      border: 2px solid #fff;
-      box-shadow: 0 2px 8px rgba(0,0,0,.28);
-      cursor: pointer;
-      transition: transform .15s;
-    }
-    .glr-marker:hover { transform: rotate(-45deg) scale(1.2); }
-
     /* ── Popup content ── */
 
     .popup-tag {
@@ -474,27 +460,102 @@
 
     const validEssays = essays.filter(Boolean);
 
-    // Wait for map style to load before adding markers
-    const addMarkers = () => {
-      validEssays.forEach(e => {
-        const el = document.createElement('div');
-        el.className = 'glr-marker';
+    // Build GeoJSON from essays
+    const geojson = {
+      type: 'FeatureCollection',
+      features: validEssays.map(e => ({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [e.lng, e.lat] },
+        properties: { id: e.id, title: e.title, author: e.author,
+                      lake: e.lake, location: e.location, url: e.url,
+                      excerpt: e.excerpt, date: e.date }
+      }))
+    };
 
-        const popup = new mapboxgl.Popup({ offset: 25, maxWidth: '290px' })
-          .setHTML(makePopupHTML(e));
+    // Store essays by id for popup lookup
+    validEssays.forEach(e => {
+      popups[e.id] = { lng: e.lng, lat: e.lat, data: e };
+    });
 
-        new mapboxgl.Marker(el)
-          .setLngLat([e.lng, e.lat])
-          .setPopup(popup)
+    const addLayers = () => {
+      // Add GeoJSON source
+      map.addSource('essays', { type: 'geojson', data: geojson });
+
+      // Shadow layer for depth
+      map.addLayer({
+        id: 'essays-shadow',
+        type: 'circle',
+        source: 'essays',
+        paint: {
+          'circle-radius': 10,
+          'circle-color': 'rgba(0,0,0,0.15)',
+          'circle-blur': 1,
+          'circle-translate': [1, 2]
+        }
+      });
+
+      // Main marker layer — GPU rendered, no zoom lag
+      map.addLayer({
+        id: 'essays-markers',
+        type: 'circle',
+        source: 'essays',
+        paint: {
+          'circle-radius': [
+            'interpolate', ['linear'], ['zoom'],
+            4, 5,
+            8, 8,
+            12, 11
+          ],
+          'circle-color': '#4877D6',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff'
+        }
+      });
+
+      // Hover state
+      map.addLayer({
+        id: 'essays-markers-hover',
+        type: 'circle',
+        source: 'essays',
+        paint: {
+          'circle-radius': [
+            'interpolate', ['linear'], ['zoom'],
+            4, 7,
+            8, 10,
+            12, 14
+          ],
+          'circle-color': '#2557c7',
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#ffffff',
+          'circle-opacity': 0
+        }
+      });
+
+      // Click handler
+      map.on('click', 'essays-markers', (e) => {
+        const props = e.features[0].properties;
+        const essay = popups[props.id].data;
+        activateSidebarItem(props.id);
+
+        new mapboxgl.Popup({ offset: 15, maxWidth: '290px' })
+          .setLngLat(e.features[0].geometry.coordinates)
+          .setHTML(makePopupHTML(essay))
           .addTo(map);
+      });
 
-        el.addEventListener('click', () => activateSidebarItem(e.id));
-        popups[e.id] = { popup, lng: e.lng, lat: e.lat };
+      // Hover cursor
+      map.on('mouseenter', 'essays-markers', (e) => {
+        map.getCanvas().style.cursor = 'pointer';
+        map.setPaintProperty('essays-markers-hover', 'circle-opacity', 1);
+      });
+      map.on('mouseleave', 'essays-markers', () => {
+        map.getCanvas().style.cursor = '';
+        map.setPaintProperty('essays-markers-hover', 'circle-opacity', 0);
       });
     };
 
-    if (map.isStyleLoaded()) { addMarkers(); }
-    else { map.on('load', addMarkers); }
+    if (map.isStyleLoaded()) { addLayers(); }
+    else { map.on('load', addLayers); }
 
     // Build sidebar
     const list = document.getElementById('essayList');
@@ -516,7 +577,10 @@
         activateSidebarItem(e.id);
         map.flyTo({ center: [e.lng, e.lat], zoom: 8, speed: 1.2 });
         map.once('moveend', () => {
-          if (popups[e.id]) popups[e.id].popup.addTo(map).setLngLat([e.lng, e.lat]);
+          new mapboxgl.Popup({ offset: 15, maxWidth: '290px' })
+            .setLngLat([e.lng, e.lat])
+            .setHTML(makePopupHTML(e))
+            .addTo(map);
         });
       });
       list.appendChild(li);
