@@ -455,26 +455,6 @@
   }
   map.addControl(new HomeControl(), 'top-right');
 
-  // ── CSV parser ────────────────────────────────────────────────────────────
-  function parseCSV(text) {
-    const lines = text.trim().split('\n');
-    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-    return lines.slice(1).map(line => {
-      // Handle quoted fields with commas inside
-      const cols = [];
-      let current = '', inQuotes = false;
-      for (let i = 0; i < line.length; i++) {
-        if (line[i] === '"') { inQuotes = !inQuotes; }
-        else if (line[i] === ',' && !inQuotes) { cols.push(current.trim()); current = ''; }
-        else { current += line[i]; }
-      }
-      cols.push(current.trim());
-      const row = {};
-      headers.forEach((h, i) => row[h] = (cols[i] || '').replace(/^"|"$/g, ''));
-      return row;
-    }).filter(row => row.title); // skip empty rows
-  }
-
   // ── Geocoder — uses Mapbox Geocoding API ──────────────────────────────────
   async function geocode(locationString) {
     const query = encodeURIComponent(locationString + ', Great Lakes');
@@ -507,12 +487,16 @@
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
+  function formatExcerpt(text) {
+    return (text || '').replace(/\\n/g, '\n').replace(/\n/g, '<br>');
+  }
+
   function makePopupHTML(e) {
     return `
       <div class="popup-tag">${e.lake} · ${e.location}</div>
       <div class="popup-title">${e.title}</div>
       <div class="popup-author">by ${e.author} &middot; ${e.date}</div>
-      <div class="popup-excerpt">${e.excerpt}</div>
+      <div class="popup-excerpt">${formatExcerpt(e.excerpt)}</div>
       <a class="popup-link" href="${e.url}" target="_blank" rel="noopener">Read the essay →</a>
     `;
   }
@@ -560,6 +544,16 @@
 
     const validEssays = essays.filter(Boolean);
 
+    // Single reusable popup instance
+    const activePopup = new mapboxgl.Popup({ offset: [11, -11], maxWidth: '290px', closeOnClick: false });
+
+    function openPopup(essay) {
+      activePopup
+        .setLngLat([essay.lng, essay.lat])
+        .setHTML(makePopupHTML(essay))
+        .addTo(map);
+    }
+
     // Wait for map style to load before adding markers
     const addMarkers = () => {
       validEssays.forEach(e => {
@@ -602,16 +596,14 @@
           <span class="essay-lake-tag">${e.lake}</span>
           <div class="essay-title">${e.title}</div>
           <div class="essay-meta">by ${e.author} &middot; ${e.location}</div>
-          <div class="essay-excerpt">${e.excerpt}</div>
+          <div class="essay-excerpt">${formatExcerpt(e.excerpt)}</div>
           <a class="essay-link" href="${e.url}" target="_blank" rel="noopener">Read →</a>
         </div>
       `;
       li.addEventListener('click', () => {
         activateSidebarItem(e.id);
         map.flyTo({ center: [e.lng, e.lat], zoom: 8, speed: 1.2 });
-        map.once('moveend', () => {
-          if (popups[e.id]) popups[e.id].popup.addTo(map).setLngLat([e.lng, e.lat]);
-        });
+        map.once('moveend', () => openPopup(e));
       });
       list.appendChild(li);
     });
