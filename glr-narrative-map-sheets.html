@@ -541,4 +541,90 @@
     } catch(err) {
       showError('Could not load essay data. Please check the sheet URL.');
       console.error(err);
-      return
+      return;
+    }
+
+    // Resolve coordinates — use sheet values if present, otherwise geocode
+    const essays = await Promise.all(rows.map(async (row, i) => {
+      let lat = parseFloat(row.lat || row[7]);
+      let lng = parseFloat(row.lng || row[8]);
+
+      if (!lat || !lng) {
+        const coords = await geocode(row.location);
+        if (coords) { lat = coords.lat; lng = coords.lng; }
+        else { console.warn(`Could not geocode: ${row.location}`); return null; }
+      }
+
+      return { id: i + 1, lat, lng, ...row };
+    }));
+
+    const validEssays = essays.filter(Boolean);
+
+    // Wait for map style to load before adding markers
+    const addMarkers = () => {
+      validEssays.forEach(e => {
+        // Wrapper div is the anchor point (bottom-left = tip of teardrop)
+        const wrap = document.createElement('div');
+        wrap.className = 'glr-marker-wrap';
+        const inner = document.createElement('div');
+        inner.className = 'glr-marker';
+        const tooltip = document.createElement('div');
+        tooltip.className = 'glr-tooltip';
+        tooltip.textContent = e.location;
+        wrap.appendChild(tooltip);
+        wrap.appendChild(inner);
+
+        const popup = new mapboxgl.Popup({ offset: [11, -11], maxWidth: '290px' })
+          .setHTML(makePopupHTML(e));
+
+        new mapboxgl.Marker({ element: wrap, anchor: 'bottom-left' })
+          .setLngLat([e.lng, e.lat])
+          .setPopup(popup)
+          .addTo(map);
+
+        wrap.addEventListener('click', () => activateSidebarItem(e.id));
+        popups[e.id] = { popup, lng: e.lng, lat: e.lat };
+      });
+    };
+
+    if (map.isStyleLoaded()) { addMarkers(); }
+    else { map.on('load', addMarkers); }
+
+    // Build sidebar
+    const list = document.getElementById('essayList');
+    list.innerHTML = '';
+    validEssays.forEach(e => {
+      const li = document.createElement('li');
+      li.className = 'essay-item';
+      li.id = `essay-${e.id}`;
+      li.innerHTML = `
+        <div class="essay-inner">
+          <span class="essay-lake-tag">${e.lake}</span>
+          <div class="essay-title">${e.title}</div>
+          <div class="essay-meta">by ${e.author} &middot; ${e.location}</div>
+          <div class="essay-excerpt">${e.excerpt}</div>
+          <a class="essay-link" href="${e.url}" target="_blank" rel="noopener">Read →</a>
+        </div>
+      `;
+      li.addEventListener('click', () => {
+        activateSidebarItem(e.id);
+        map.flyTo({ center: [e.lng, e.lat], zoom: 8, speed: 1.2 });
+        map.once('moveend', () => {
+          if (popups[e.id]) popups[e.id].popup.addTo(map).setLngLat([e.lng, e.lat]);
+        });
+      });
+      list.appendChild(li);
+    });
+  }
+
+  loadEssays();
+</script>
+
+<style>
+  @keyframes loading {
+    from { transform: scaleX(0.2); }
+    to   { transform: scaleX(1); }
+  }
+</style>
+</body>
+</html>
