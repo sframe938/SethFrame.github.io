@@ -208,7 +208,47 @@
       padding: .2rem .4rem;
     }
 
-    /* ── Custom marker ── */
+    /* ── Hover tooltip ── */
+    .glr-tooltip {
+      position: absolute;
+      background: var(--ink);
+      color: #fff;
+      font-family: 'Roboto Condensed', sans-serif;
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      padding: .3rem .6rem;
+      border-radius: 3px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, -100%) translateY(-10px);
+      transition: opacity .15s, transform .15s;
+      z-index: 999;
+      top: 0;
+      left: 11px;
+    }
+    .glr-tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-top-color: var(--ink);
+    }
+    .glr-marker-wrap {
+      width: 22px;
+      height: 22px;
+      cursor: pointer;
+      will-change: transform;
+      overflow: visible;
+    }
+    .glr-marker-wrap:hover { z-index: 9999 !important; }
+    .glr-marker-wrap:hover .glr-tooltip {
+      opacity: 1;
+      transform: translate(-50%, -100%) translateY(-14px);
+    }
     .glr-marker {
       width: 22px;
       height: 22px;
@@ -217,10 +257,10 @@
       background: var(--blue);
       border: 2px solid #fff;
       box-shadow: 0 2px 8px rgba(0,0,0,.28);
-      cursor: pointer;
       transition: transform .15s;
+      will-change: transform;
     }
-    .glr-marker:hover { transform: rotate(-45deg) scale(1.15); }
+    .glr-marker-wrap:hover .glr-marker { transform: rotate(-45deg) scale(1.2); }
 
     /* ── Popup content ── */
 
@@ -314,6 +354,52 @@
     return fetch(SHEET_CSV_URL);
   }
 
+  // ── CSV parser — handles multi-line quoted fields ─────────────────────────
+  function parseCSV(text) {
+    text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const rows = [];
+    let i = 0;
+
+    function parseField() {
+      if (text[i] === '"') {
+        i++;
+        let field = '';
+        while (i < text.length) {
+          if (text[i] === '"' && text[i + 1] === '"') { field += '"'; i += 2; }
+          else if (text[i] === '"') { i++; break; }
+          else { field += text[i++]; }
+        }
+        return field;
+      } else {
+        let field = '';
+        while (i < text.length && text[i] !== ',' && text[i] !== '\n') {
+          field += text[i++];
+        }
+        return field;
+      }
+    }
+
+    function parseRow() {
+      const cols = [];
+      while (i < text.length && text[i] !== '\n') {
+        cols.push(parseField());
+        if (text[i] === ',') i++;
+      }
+      if (text[i] === '\n') i++;
+      return cols;
+    }
+
+    const headers = parseRow().map(h => h.trim());
+    while (i < text.length) {
+      const cols = parseRow();
+      if (cols.length < 2) continue;
+      const row = {};
+      headers.forEach((h, j) => { row[h] = (cols[j] || '').trim(); });
+      if (row.title) rows.push(row);
+    }
+    return rows;
+  }
+
   // ── Expected sheet columns (order matters) ───────────────────────────────
   // title | author | lake | location | url | excerpt | date | lat | lng
   // lat and lng are optional — if blank, location is geocoded automatically
@@ -369,65 +455,24 @@
   }
   map.addControl(new HomeControl(), 'top-right');
 
-  // ── CSV parser — handles multi-line quoted fields ────────────────────────
+  // ── CSV parser ────────────────────────────────────────────────────────────
   function parseCSV(text) {
-    // Normalize line endings
-    text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-
-    const rows = [];
-    let i = 0;
-
-    function parseField() {
-      if (text[i] === '"') {
-        // Quoted field — read until closing quote
-        i++; // skip opening quote
-        let field = '';
-        while (i < text.length) {
-          if (text[i] === '"' && text[i + 1] === '"') {
-            field += '"'; i += 2; // escaped quote
-          } else if (text[i] === '"') {
-            i++; break; // closing quote
-          } else {
-            field += text[i++];
-          }
-        }
-        return field;
-      } else {
-        // Unquoted field — read until comma or newline
-        let field = '';
-        while (i < text.length && text[i] !== ',' && text[i] !== '\n') {
-          field += text[i++];
-        }
-        return field;
-      }
-    }
-
-    function parseRow() {
+    const lines = text.trim().split('\n');
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+    return lines.slice(1).map(line => {
+      // Handle quoted fields with commas inside
       const cols = [];
-      while (i < text.length && text[i] !== '\n') {
-        cols.push(parseField());
-        if (text[i] === ',') i++; // skip comma
+      let current = '', inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        if (line[i] === '"') { inQuotes = !inQuotes; }
+        else if (line[i] === ',' && !inQuotes) { cols.push(current.trim()); current = ''; }
+        else { current += line[i]; }
       }
-      if (text[i] === '\n') i++; // skip newline
-      return cols;
-    }
-
-    const headerCols = parseRow();
-    const headers = headerCols.map(h => h.trim());
-
-    while (i < text.length) {
-      const cols = parseRow();
-      if (cols.length < 2) continue; // skip blank lines
+      cols.push(current.trim());
       const row = {};
-      headers.forEach((h, j) => {
-        let val = (cols[j] || '').trim();
-        // Collapse internal newlines in excerpts to a single space
-        val = val.replace(/\n+/g, ' ').replace(/  +/g, ' ');
-        row[h] = val;
-      });
-      if (row.title) rows.push(row);
-    }
-    return rows;
+      headers.forEach((h, i) => row[h] = (cols[i] || '').replace(/^"|"$/g, ''));
+      return row;
+    }).filter(row => row.title); // skip empty rows
   }
 
   // ── Geocoder — uses Mapbox Geocoding API ──────────────────────────────────
@@ -462,17 +507,12 @@
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
-  function formatExcerpt(text) {
-    // Handle both real newlines and literal \n sequences from CSV
-    return (text || '').replace(/\\n/g, '\n').replace(/\n/g, '<br>');
-  }
-
   function makePopupHTML(e) {
     return `
       <div class="popup-tag">${e.lake} · ${e.location}</div>
       <div class="popup-title">${e.title}</div>
       <div class="popup-author">by ${e.author} &middot; ${e.date}</div>
-      <div class="popup-excerpt">${formatExcerpt(e.excerpt)}</div>
+      <div class="popup-excerpt">${e.excerpt}</div>
       <a class="popup-link" href="${e.url}" target="_blank" rel="noopener">Read the essay →</a>
     `;
   }
@@ -487,6 +527,8 @@
   }
 
   // ── Main — fetch sheet, geocode, render ───────────────────────────────────
+  const popups = {};
+
   async function loadEssays() {
     showLoading();
 
@@ -499,100 +541,4 @@
     } catch(err) {
       showError('Could not load essay data. Please check the sheet URL.');
       console.error(err);
-      return;
-    }
-
-    // Resolve coordinates — use sheet values if present, otherwise geocode
-    const essays = await Promise.all(rows.map(async (row, i) => {
-      let lat = parseFloat(row.lat || row[7]);
-      let lng = parseFloat(row.lng || row[8]);
-
-      if (!lat || !lng) {
-        const coords = await geocode(row.location);
-        if (coords) { lat = coords.lat; lng = coords.lng; }
-        else { console.warn(`Could not geocode: ${row.location}`); return null; }
-      }
-
-      return { id: i + 1, lat, lng, ...row };
-    }));
-
-    const validEssays = essays.filter(Boolean);
-
-    // Store essays by id for reliable lookup (avoids GeoJSON property encoding issues)
-    const essayMap = {};
-    validEssays.forEach(e => { essayMap[e.id] = e; });
-
-    // Single reusable popup instance
-    const activePopup = new mapboxgl.Popup({ offset: 15, maxWidth: '290px', closeOnClick: false });
-
-    function openPopup(essay) {
-      activePopup
-        .setLngLat([essay.lng, essay.lat])
-        .setHTML(makePopupHTML(essay))
-        .addTo(map);
-    }
-
-    const addMarkers = () => {
-      validEssays.forEach(e => {
-        // Styled DOM marker — teardrop shape, no zoom lag with CSS transform
-        const el = document.createElement('div');
-        el.className = 'glr-marker';
-        el.addEventListener('click', () => {
-          activateSidebarItem(e.id);
-          openPopup(e);
-        });
-
-        new mapboxgl.Marker({ element: el, anchor: 'bottom' })
-          .setLngLat([e.lng, e.lat])
-          .addTo(map);
-      });
-
-      // Close popup on map click outside markers
-      map.on('click', (ev) => {
-        if (!ev.originalEvent.target.classList.contains('glr-marker')) {
-          activePopup.remove();
-          document.querySelectorAll('.essay-item').forEach(el => el.classList.remove('active'));
-        }
-      });
-    };
-
-    if (map.isStyleLoaded()) { addMarkers(); }
-    else { map.on('load', addMarkers); }
-
-    // Build sidebar
-    const list = document.getElementById('essayList');
-    list.innerHTML = '';
-    validEssays.forEach(e => {
-      const li = document.createElement('li');
-      li.className = 'essay-item';
-      li.id = `essay-${e.id}`;
-      const excerptHTML = formatExcerpt(e.excerpt);
-      li.innerHTML = `
-        <div class="essay-inner">
-          <span class="essay-lake-tag">${e.lake}</span>
-          <div class="essay-title">${e.title}</div>
-          <div class="essay-meta">by ${e.author} &middot; ${e.location}</div>
-          <div class="essay-excerpt">${excerptHTML}</div>
-          <a class="essay-link" href="${e.url}" target="_blank" rel="noopener">Read →</a>
-        </div>
-      `;
-      li.addEventListener('click', () => {
-        activateSidebarItem(e.id);
-        map.flyTo({ center: [e.lng, e.lat], zoom: 8, speed: 1.2 });
-        map.once('moveend', () => openPopup(e));
-      });
-      list.appendChild(li);
-    });
-  }
-
-  loadEssays();
-</script>
-
-<style>
-  @keyframes loading {
-    from { transform: scaleX(0.2); }
-    to   { transform: scaleX(1); }
-  }
-</style>
-</body>
-</html>
+      return
