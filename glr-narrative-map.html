@@ -1460,6 +1460,7 @@
 
   // ── Main — fetch sheet, geocode, render ───────────────────────────────────
   const popups = {};
+  let currentOpenPopup = null;
 
   async function loadEssays() {
     showLoading();
@@ -1511,6 +1512,9 @@
           .setPopup(popup)
           .addTo(map);
 
+        popup.on('open', () => { currentOpenPopup = popup; });
+        popup.on('close', () => { if (currentOpenPopup === popup) currentOpenPopup = null; });
+
         wrap.addEventListener('click', () => activateSidebarItem(e.id));
         popups[e.id] = { popup, lng: e.lng, lat: e.lat };
       });
@@ -1537,9 +1541,13 @@
       `;
       li.addEventListener('click', () => {
         activateSidebarItem(e.id);
+        if (currentOpenPopup) { currentOpenPopup.remove(); currentOpenPopup = null; }
         map.flyTo({ center: [e.lng, e.lat], zoom: 8, speed: 1.2 });
         map.once('moveend', () => {
-          if (popups[e.id]) popups[e.id].popup.addTo(map).setLngLat([e.lng, e.lat]);
+          if (popups[e.id]) {
+            currentOpenPopup = popups[e.id].popup;
+            popups[e.id].popup.addTo(map).setLngLat([e.lng, e.lat]);
+          }
         });
       });
       list.appendChild(li);
