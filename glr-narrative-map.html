@@ -1,0 +1,1559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Narrative Map Project</title>
+
+  <!-- Mapbox GL JS -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.18.1/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.18.1/mapbox-gl.js"></script>
+
+  <!-- Google Fonts — matching GLR site: Source Sans Pro + Roboto Condensed -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;600;700&family=Source+Sans+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink:       #404040;
+      --blue:      #4877D6;
+      --blue-lt:   #c5d4f5;
+      --paper:     #ffffff;
+      --bg:        #f8f8f8;
+      --border:    #e5e5e5;
+      --muted:     #666666;
+    }
+
+    body {
+      font-family: 'Source Sans Pro', 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    /* ── Header ── */
+    .glr-header {
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+      padding: 1.1rem 2rem 1rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--paper);
+    }
+
+    .glr-header h1 {
+      font-family: 'Roboto Condensed', sans-serif;
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: .02em;
+      color: var(--blue);
+      text-transform: uppercase;
+    }
+
+    .glr-header .rule {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(to right, var(--border), transparent);
+    }
+
+    .glr-header .byline {
+      font-size: .78rem;
+      color: var(--muted);
+      font-style: italic;
+      white-space: nowrap;
+    }
+
+    /* ── Layout ── */
+    .glr-layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      height: calc(100vh - 68px);
+    }
+
+    /* ── Sidebar ── */
+    .glr-sidebar {
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+      background: var(--paper);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-intro {
+      padding: 1.2rem 1.5rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-intro p {
+      font-size: .875rem;
+      line-height: 1.6;
+      color: var(--muted);
+    }
+
+    .sidebar-intro p strong {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    .essay-list {
+      list-style: none;
+      flex: 1;
+    }
+
+    .essay-item {
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background .15s;
+    }
+
+    .essay-item:hover,
+    .essay-item.active {
+      background: #f0f4fd;
+    }
+
+    .essay-item.active .essay-lake-tag {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+    }
+
+    .essay-inner {
+      padding: 1rem 1.5rem;
+    }
+
+    .essay-lake-tag {
+      display: inline-block;
+      font-size: .65rem;
+      font-family: 'Roboto Condensed', sans-serif;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--blue);
+      border: 1px solid var(--blue-lt);
+      border-radius: 2px;
+      padding: .15rem .45rem;
+      margin-bottom: .5rem;
+      transition: background .15s, color .15s, border-color .15s;
+    }
+
+    .essay-title {
+      font-family: 'Roboto Condensed', sans-serif;
+      font-weight: 600;
+      font-size: 1rem;
+      line-height: 1.3;
+      color: var(--ink);
+      margin-bottom: .3rem;
+    }
+
+    .essay-meta {
+      font-size: .78rem;
+      color: var(--muted);
+      margin-bottom: .4rem;
+    }
+
+    .essay-excerpt {
+      font-size: .82rem;
+      line-height: 1.58;
+      color: var(--muted);
+    }
+
+    .essay-link {
+      display: inline-block;
+      margin-top: .55rem;
+      font-size: .78rem;
+      font-weight: 600;
+      color: var(--blue);
+      text-decoration: none;
+      border-bottom: 1px solid var(--blue-lt);
+      transition: border-color .15s;
+    }
+
+    .essay-link:hover { border-color: var(--blue); }
+
+    /* ── Map ── */
+    #map {
+      width: 100%;
+      height: 100%;
+      background: #c8dde8;
+    }
+
+    /* Mapbox GL attribution */
+    .mapboxgl-ctrl-attrib { font-size: .65rem; }
+    .mapboxgl-ctrl-home {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 29px;
+      height: 29px;
+      background: #fff;
+      border: none;
+      cursor: pointer;
+      color: #333;
+      padding: 0;
+    }
+    .mapboxgl-ctrl-home:hover { background: #f0f0f0; }
+    .mapboxgl-popup-content {
+      border-radius: 3px;
+      box-shadow: 0 4px 18px rgba(0,0,0,.15);
+      border: 1px solid var(--border);
+      background: var(--paper);
+      font-family: 'Source Sans Pro', sans-serif;
+      padding: 1rem 1.1rem;
+      max-width: 280px;
+    }
+    .mapboxgl-popup-tip { border-top-color: var(--paper) !important; }
+    .mapboxgl-popup-close-button {
+      font-size: 1.1rem;
+      color: var(--muted);
+      padding: .2rem .4rem;
+    }
+
+    /* ── Hover tooltip ── */
+    .glr-tooltip {
+      position: absolute;
+      background: var(--ink);
+      color: #fff;
+      font-family: 'Roboto Condensed', sans-serif;
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      padding: .3rem .6rem;
+      border-radius: 3px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, -100%) translateY(-10px);
+      transition: opacity .15s, transform .15s;
+      z-index: 999;
+      top: 0;
+      left: 11px;
+    }
+    .glr-tooltip::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border: 5px solid transparent;
+      border-top-color: var(--ink);
+    }
+    .glr-marker-wrap {
+      width: 22px;
+      height: 22px;
+      cursor: pointer;
+      will-change: transform;
+      overflow: visible;
+    }
+    .glr-marker-wrap:hover { z-index: 9999 !important; }
+    .glr-marker-wrap:hover .glr-tooltip {
+      opacity: 1;
+      transform: translate(-50%, -100%) translateY(-14px);
+    }
+    .glr-marker {
+      width: 22px;
+      height: 22px;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      background: var(--blue);
+      border: 2px solid #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,.28);
+      transition: transform .15s;
+      will-change: transform;
+    }
+    .glr-marker-wrap:hover .glr-marker { transform: rotate(-45deg) scale(1.2); }
+
+    /* ── Popup content ── */
+
+    .popup-tag {
+      font-size: .68rem;
+      font-family: 'Roboto Condensed', sans-serif;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--blue);
+    }
+
+    .popup-title {
+      font-family: 'Roboto Condensed', sans-serif;
+      font-weight: 600;
+      font-size: .98rem;
+      line-height: 1.3;
+      margin: .3rem 0 .2rem;
+      color: var(--ink);
+    }
+
+    .popup-author {
+      font-size: .78rem;
+      color: var(--muted);
+      font-style: italic;
+      margin-bottom: .5rem;
+    }
+
+    .popup-excerpt {
+      font-size: .8rem;
+      line-height: 1.55;
+      color: var(--muted);
+      margin-bottom: .6rem;
+    }
+
+    .popup-link {
+      font-size: .78rem;
+      font-weight: 600;
+      color: var(--blue);
+      text-decoration: none;
+      border-bottom: 1px solid var(--blue-lt);
+    }
+
+    .popup-link:hover { border-color: var(--blue); }
+
+    /* ── Scrollbar ── */
+    .glr-sidebar::-webkit-scrollbar { width: 5px; }
+    .glr-sidebar::-webkit-scrollbar-track { background: transparent; }
+    .glr-sidebar::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 680px) {
+      .glr-layout { grid-template-columns: 1fr; grid-template-rows: 55vh 1fr; }
+      #map { height: 100%; }
+      .glr-sidebar { height: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="glr-header">
+  <h1>Narrative Map Project</h1>
+  <div class="rule"></div>
+  <span class="byline">Great Lakes Review</span>
+</header>
+
+<div class="glr-layout">
+
+  <!-- Sidebar -->
+  <aside class="glr-sidebar">
+    <div class="sidebar-intro">
+      <p>The Great Lakes region is home to country and coastline, cities and hitching posts, sea glass and Petoskey stones. Each essay is written about a place in the region.</p>
+      <p style="margin-top:.6rem;">Find an essay, then take a walk with it. Learn about the people and history there — perhaps you'll find a new place to vacation, or a new inspiration for a poem or piece of fiction.</p>
+    </div>
+    <ul class="essay-list" id="essayList"></ul>
+  </aside>
+
+  <!-- Map -->
+  <div id="map"></div>
+
+</div>
+
+<script>
+  // ── Configuration — update these two values for GLR's account ────────────
+  const MAPBOX_TOKEN = 'pk.eyJ1Ijoic2ZyYW1lOTM4IiwiYSI6ImNqN2RweG9ydjBkenIycWt5Z2c5NWtsajcifQ.bA0BviPhPcygQREBZd0cdQ';
+  const MAPBOX_STYLE = 'mapbox://styles/sframe938/cmn39x4gy004101s3h9saa7j7/draft';
+
+  // Hardcoded essay data for local testing
+  const HARDCODED_ESSAYS = [
+  {
+    "title": "The Wreck of the Edmund Fitzgerald, Perch Sandwiches, Baby Steps, and Other Memories of Growing Up on the Great Lakes",
+    "author": "John Kropf",
+    "lake": "Lake Erie Watershed",
+    "location": "Kelleys Island, Ohio",
+    "url": "https://greatlakesreview.org/the-wreck-of-the-edmund-fitzgerald-perch-sandwiches-baby-steps-and-other-memories-of-growing-up-on-the-great-lakes/",
+    "excerpt": "In western Lake Erie, on the south shore of Kelleys Island, a limestone rock covered with petroglyphs holds a few clues as to the first humans to enter the area.1 Native American tribes had traveled the freshwater lake, hunting and fishing, and some of their group left their stories on the rock. The first Europeans who explored the area later gave the lake the name \"erie,\" an adaptation of a word from the Iroquois tribe that lived along its south shore.",
+    "date": "October 2025",
+    "lat": "41.5954",
+    "lng": "-82.7068"
+  },
+  {
+    "title": "Black Sands",
+    "author": "Helen Raica-Klotz",
+    "lake": "Lake Superior Watershed",
+    "location": "Keweenaw Peninsula, Michigan",
+    "url": "https://greatlakesreview.org/black-sands/",
+    "excerpt": "Some people still call Michigan's Keweenaw Peninsula \"The Copper Country,\" since it was home to over 150 copper mines and mills from the mid-1800s to the turn of the century. The remains of this industry litter the landscape. Empty mills, with crumbling bricks and broken windows, squat along Highway 28. A dredge stands in Torch Lake, tilting wildly to its side like a drunken uncle. And, of course, the Lutheran and Catholic cemeteries are filled with the names of hundreds of miners who were blown up, buried under a landslide, or fell to their deaths in the shafts deep under the ground.",
+    "date": "August 2025",
+    "lat": "47.242",
+    "lng": "-88.451"
+  },
+  {
+    "title": "Erie, Pennsylvania: Waldameer Amusement Park",
+    "author": "Michael O'Connell",
+    "lake": "Lake Erie Watershed",
+    "location": "Erie, Pennsylvania",
+    "url": "https://greatlakesreview.org/erie-pennsylvania-waldameer-amusement-park/",
+    "excerpt": "While growing up I was mildly obsessed with Ray Bradbury's Something Wicked This Way Comes, particularly his depiction of the traveling carnival that disrupts the peaceful order of Green Town, Illinois. Among its many wicked delights is a magical carousel that can age (or de-age) a rider, one year for each full rotation; even as a child I knew the carnival was evil, but still the carousel -- with its magical ability to help a kid skip past the awkwardness of adolescence into the full bloom of manhood -- struck me as particularly appealing. And now, as a 45-year-old, there is something tempting about the idea of riding it in reverse, and slipping back to recapture youthful innocence, if only for a moment.",
+    "date": "July 2025",
+    "lat": "42.1585823",
+    "lng": "-80.1149411"
+  },
+  {
+    "title": "Teeth",
+    "author": "Ava O'Malley",
+    "lake": "Lake Erie Watershed",
+    "location": "Bay Village, Ohio",
+    "url": "https://greatlakesreview.org/teeth/",
+    "excerpt": "It was mid-June, and the annual army of spindly Canadian Soldiers had come to clog up the screen windows of every lake-front home. I, too, was frenzied by summer's arrival. For a week, the sky had been stuck in a glorious oscillation of peach haze and silky blue, and school had let out. As the solstice neared, due to our lucky position in the Eastern time zone, the sun did not set until ten in the evening. Anthony and I hadn't seen one another in three days because of his wisdom teeth removal, and he had been under the watchful eye of his mother for once, which only added to my anticipation. Two days after his procedure, he had agreed to meet me at the hippie tree, the local teenagers' hideaway that rested on a cliff at the lakefront.",
+    "date": "May 2025",
+    "lat": "41.3845",
+    "lng": "-81.9182"
+  },
+  {
+    "title": "The Niagara River Gorge: A Church Full of Joy",
+    "author": "Vincent O'Keefe",
+    "lake": "Lake Ontario Watershed",
+    "location": "Niagara River Gorge, New York",
+    "url": "https://greatlakesreview.org/the-niagara-river-gorge-a-church-full-of-joy/",
+    "excerpt": "In many ways, the section of the Niagara River that races, swirls, and squeezes through the deep Niagara Gorge beyond the Falls behaves like a rowdy teen. The white, frothy, Class 6 rapids on top of the green, galloping river feel impulsive and moody but also energetic and slap-happy. That's why it was so amazing to spend my childhood and teen years just three blocks from this natural wonder.",
+    "date": "April 2025",
+    "lat": "43.0896",
+    "lng": "-79.0849"
+  },
+  {
+    "title": "Going to the Lake",
+    "author": "Emily Brisse",
+    "lake": "Mississippi River Watershed",
+    "location": "Lake Shetek, Minnesota",
+    "url": "https://greatlakesreview.org/going-to-the-lake/",
+    "excerpt": "I've learned that Shetek means pelican in Ojibwe, just as I've learned that \"going to the lake\" for many Minnesotans involves a drive north, a boat or a pair of Jet Skis, and a stay within a roof and sturdy walls that protect bathtubs and microwaves and TVs. I didn't know any of these things when I was growing up. When my parents announced we were going to The Lake, I only knew our family station wagon--stuffed with gallons of water, bags of licorice, bottles of bug spray and suntan lotion, and rolled-up sleeping bags--was headed south. That we'd drive through prairie to get there. That my brother and I would spot the far-off glints of blue just moments before we'd turn left, and there ahead of us would be The Lake.",
+    "date": "October 2023",
+    "lat": "44.1272",
+    "lng": "-95.6991"
+  },
+  {
+    "title": "Summer Harbor",
+    "author": "Karen O'Neil",
+    "lake": "Lake Michigan Watershed",
+    "location": "Pentwater, Michigan",
+    "url": "https://greatlakesreview.org/summer-harbor/",
+    "excerpt": "Even from 35,000 feet, I can spot it, the sandy sweep of Lake Michigan's eastern shore, then a little dimple carved into the giant expanse of water, just south of the natural channel that leads from the big lake to its inlet Pentwater Lake. Here is our family's summer home.",
+    "date": "May 2022",
+    "lat": "43.7806",
+    "lng": "-86.4314"
+  },
+  {
+    "title": "County Line and Lakeshore: Where Ozaukee, Sheboygan, and Lake Michigan Meet",
+    "author": "Margaret King",
+    "lake": "Lake Michigan Watershed",
+    "location": "Ozaukee/Sheboygan County Line, Wisconsin",
+    "url": "https://greatlakesreview.org/county-line-lakeshore-ozaukee-sheboygan-lake-michigan-meet/",
+    "excerpt": "I look for them--my ancestors. I drive seventeen miles west along the county line between Ozaukee and Sheboygan Counties, to where they had their farm, home, church, and gravestones in Dacada, Wisconsin. Dacada, their version of \"Dakota.\" I have been to the Dakotas several times, and love them. Did my pull toward those plains states have its roots in some inexplicable genetic affinity? My plan is to apologize for not having visited Dacada or their graves before, even though I live a fifteen-minute drive away. In return, I hope they finally offer up the missing information I need.",
+    "date": "March 2022",
+    "lat": "43.4957558",
+    "lng": "-87.8256973"
+  },
+  {
+    "title": "Shadows of Detroit",
+    "author": "Esther Lee Deitch",
+    "lake": "Lake Huron Watershed",
+    "location": "Detroit, Michigan",
+    "url": "https://greatlakesreview.org/shadows-detroit/",
+    "excerpt": "I dream that I'm trapped under the cloverleaf, without a car. You don't get far without a car in Detroit, but I never learned to drive. Not even in my dreams. So I huddle there, waiting for my opportunity to cross the live lanes, holding my breath as the monsters roar past belching their noxious fumes. Running away, trying to find my way home.",
+    "date": "February 2022",
+    "lat": "42.331427",
+    "lng": "-83.0457538"
+  },
+  {
+    "title": "Coldwater: Open Spaces",
+    "author": "Lauren Slagter",
+    "lake": "Lake Michigan Watershed",
+    "location": "Coldwater, Michigan",
+    "url": "https://greatlakesreview.org/coldwater-open-spaces/",
+    "excerpt": "Coldwater is water--twenty-nine miles of it, divided between two chains of a dozen different lakes, the gems that set our small rural town apart from every other surrounding small rural town. I spent my teenage summers on the South Chain aboard an oversized Jet Ski with my two best friends. Our knuckles turned white gripping the loops on each other's life jackets as we sped across the water, wind rushing in our ears and whipping our hair. We shrieked every time a wave sent us airborne. After a high-speed loop, we would slow to a crawl on the no-wake channels that strung the little lakes together like a strand of pearls. The whir of the motor dropped low enough for us to talk as we passed the fishermen and cottages clustered on the channels. Sun burned my nose, shoulders and thighs, and the air smelled of gasoline and seaweed. Eventually we'd pop out on the next lake and gun the Jet Ski again, little rainbows forming in the water spraying alongside us. The lakes were a place to be seventeen and free.",
+    "date": "February 2022",
+    "lat": "41.9414",
+    "lng": "-85"
+  },
+  {
+    "title": "The Trees of Evanston, Illinois",
+    "author": "Eduardo Frajman",
+    "lake": "Lake Michigan Watershed",
+    "location": "Evanston, Illinois",
+    "url": "https://greatlakesreview.org/trees-evanston-illinois/",
+    "excerpt": "\"The beauty of Evanston has long been planned\" (according to reporter Lucy Rogers Hawking, reporting in 1933) \"which accounts for its magnificent trees.\"",
+    "date": "January 2022",
+    "lat": "42.0451",
+    "lng": "-87.6877"
+  },
+  {
+    "title": "Sawyer, Michigan: Summer Vacation",
+    "author": "Dorian Kingman Chong",
+    "lake": "Lake Michigan Watershed",
+    "location": "Sawyer, Michigan",
+    "url": "https://greatlakesreview.org/sawyer-michigan-summer-vacation/",
+    "excerpt": "On this day in 1955 I am almost ten. My family doesn't have much money, so our one affordable annual vacation is to visit my grandmother in Michigan. This year the Interstate Highway System is not yet born and the rambling three-hour drive to her house feels interminable. Our car is a 1952 baby blue Cadillac sedan that my parents bought from our neighbor--it was a deal attractive enough to overcome their embarrassment for owning such an expensive car. Unburdened by such qualms, my brother Barry and I love it. Six years from now I will learn to drive in this splendid car.",
+    "date": "January 2022",
+    "lat": "41.887",
+    "lng": "-86.5681"
+  },
+  {
+    "title": "Country Club",
+    "author": "Hannah Benson",
+    "lake": "Mississippi River Watershed",
+    "location": "Scioto Country Club, Columbus, Ohio",
+    "url": "https://greatlakesreview.org/country-club/",
+    "excerpt": "Welcome to the Pool Grille (can't forget the e). There we are: the gazebo between the hot tub and the kiddie pool. Pay no attention to the woman sunbathing with a ceramic pot of buttery yellow orchids. Pay no attention to the sixth-grade boys squabbling at the ping-pong table, wielding iPads instead of paddles. No time for observation when there are fifteen-dollar burgers to be flipped; pizzas to be smeared with one-third pesto, one-third marinara, one-third olive oil; and a blond five-year-old named Colton telling you, \"You need to hurry up. We're about to leave.\"",
+    "date": "December 2021",
+    "lat": "39.9611755",
+    "lng": "-82.9987942"
+  },
+  {
+    "title": "Buildings of My Youth: Flint",
+    "author": "Robert Detman",
+    "lake": "Lake Huron Watershed",
+    "location": "Flint, Michigan",
+    "url": "https://greatlakesreview.org/buildings-youth-flint/",
+    "excerpt": "When I tell people where I'm from, I watch faces for inevitable recognition--notorious recognition--for how Flint is portrayed in the media, for good (rarely) or bad (usually) and many ambivalent shades in between. I prepare myself to defend my hometown. Years ago, at a book signing of esteemed Michigan writer Jim Harrison, hoping to make a connection with him through our shared state, I said to him, \"I'm from Flint.\" His reply crushed me: \"I guess someone has to be.\"",
+    "date": "December 2021",
+    "lat": "43.0125274",
+    "lng": "-83.6874562"
+  },
+  {
+    "title": "Ashtabula, Ohio: The Biker",
+    "author": "Elizabeth Devore",
+    "lake": "Lake Erie Watershed",
+    "location": "Ashtabula, Ohio",
+    "url": "https://greatlakesreview.org/ashtabula-ohio-the-biker/",
+    "excerpt": "The bike wobbles as he turns his head\nto say hello to the girl and her dog\nand the handlebars swerve the way they do\nthe first time the training wheels come off, but\nhe's been riding for seventy years now.",
+    "date": "October 2017",
+    "lat": "41.865",
+    "lng": "-80.7898"
+  },
+  {
+    "title": "Marquette, Michigan: Pristine Inland Sea",
+    "author": "Jennifer Stanley",
+    "lake": "Lake Superior Watershed",
+    "location": "Marquette, Michigan",
+    "url": "https://greatlakesreview.org/marquette-michigan-pristine-inland-sea/",
+    "excerpt": "As a lifelong resident of Marquette, Michigan, located on the south shore of Lake Superior, I consider myself fortunate. Wherever I have lived in the city, I have been only moments from the lake, able to see it from outside my front door",
+    "date": "October 2017",
+    "lat": "46.5436199",
+    "lng": "-87.3953713"
+  },
+  {
+    "title": "Windsor, Ontario: Mount Francis",
+    "author": "Cassandra Caverhill",
+    "lake": "Lake Erie Watershed",
+    "location": "Windsor, Ontario",
+    "url": "https://greatlakesreview.org/windsor-ontario-mount-francis/",
+    "excerpt": "For fourteen weeks\nthe grasses grew\nso high they turned\nto accidental prairies.",
+    "date": "August 2017",
+    "lat": "42.3149367",
+    "lng": "-83.0363633"
+  },
+  {
+    "title": "Grandville, Michigan: The Rose Room",
+    "author": "Carly Shisler",
+    "lake": "Lake Michigan Watershed",
+    "location": "Grandville, Michigan",
+    "url": "https://greatlakesreview.org/grandville-michigan-the-rose-room/",
+    "excerpt": "Kelley hoisted the door open and a ding promptly followed. We peered around the empty shop, the vacancy of other people was unimportant because we felt welcomed into a room with only flowers. The scents met our noses with a cooling effect, almost like when mint Chapstick encounters lips. Our eyes were pleased with the blurred view of different hues coming from every which way. Without focusing in on a specific flower, the room looked like an abstract painting. We were stopped in the doorway taking it all in.",
+    "date": "May 2017",
+    "lat": "42.9097484",
+    "lng": "-85.7630885"
+  },
+  {
+    "title": "Grand Rapids, Michigan: First Lessons on Lost Things",
+    "author": "Patricia Schlutt",
+    "lake": "Lake Michigan Watershed",
+    "location": "Grand Rapids, Michigan",
+    "url": "https://greatlakesreview.org/grand-rapids-michigan-first-lessons-on-lost-things/",
+    "excerpt": "Setting courses for sailboats taught the boy about scars: the lake was a gouge in the earth, the sailboats left fluid white gashes in the water which healed in moments, red punctures and bruises bloomed across his forearms as he fought to right the masts of boats that overturned on blustering mornings.",
+    "date": "May 2017",
+    "lat": "42.9633599",
+    "lng": "-85.6680863"
+  },
+  {
+    "title": "Saugatuck Dunes, Michigan: A Sweet Beginning at the Bitter End Coffeehouse",
+    "author": "Sydney Shanley",
+    "lake": "Lake Michigan Watershed",
+    "location": "Saugatuck Dunes, Michigan",
+    "url": "https://greatlakesreview.org/saugatuck-dunes-michigan-a-sweet-beginning-at-the-bitter-end-coffeehouse/",
+    "excerpt": "The exterior looked how I felt: dirty red brick, tired neon signs, a dead tree, and a lot of ashtrays. Every time I went, the routine was the same but the faces always changed. A bunch of strangers chainsmoking outside, bonding over bummed cigarettes and borrowed lighters. Huddled together on the most painful metal chairs ever created, there was an an intimacy only possible between two and six o'clock in the morning. It was the stomping ground for self-proclaimed philosophers and recluse savants; my favorites being the sidewalk savior, the socialist hermit, the flighty poet, and the cloaked artist.",
+    "date": "May 2017",
+    "lat": "42.7044211",
+    "lng": "-86.2014914"
+  },
+  {
+    "title": "Battle Creek, Michigan: The Smell of Cereal After Goodbye",
+    "author": "April Kragt",
+    "lake": "Lake Michigan Watershed",
+    "location": "Battle Creek, Michigan",
+    "url": "https://greatlakesreview.org/battle-creek-michigan-the-smell-of-cereal-after-goodbye/",
+    "excerpt": "As a teenager, I cringed at the idea of staying in Battle Creek. I looked down on the people who grew up in Battle Creek, raised their own families in Battle Creek, and sent their kids to the same schools in Battle Creek. I was determined to be different than all of them. I wasn't going to get stuck in in this place; instead, I was going to depart for college and leave for good, pile my belongings into my tiny blue Saturn, and fly down I-94, never to look back. Really, the city could burn for all I cared, because in my escape of Battle Creek I thought I left a wasteland. I thought I left the rundown buildings, the pathetic mall, the potholed roads.",
+    "date": "May 2017",
+    "lat": "42.3211522",
+    "lng": "-85.1797142"
+  },
+  {
+    "title": "Paradise, Michigan: A Journey North",
+    "author": "Benjamin Kauffman",
+    "lake": "Lake Superior Watershed",
+    "location": "Paradise, Michigan",
+    "url": "https://greatlakesreview.org/paradise-michigan-a-journey-north/",
+    "excerpt": "June 12: I'm getting in the car and driving north soon. The road feels like home in a different sort of way than my parent's house does. It has been good to be with my parents for the summer, but I want to get out of the house. My mother told me it wouldn't have happened if I hadn't gotten so drunk and I know that, but you're not really supposed to say it. It didn't sit quite right with me so I'm going away for a few days.",
+    "date": "May 2017",
+    "lat": "46.6273998",
+    "lng": "-85.0373851"
+  },
+  {
+    "title": "Old Mackinac Point Lighthouse, Michigan: Just Watch",
+    "author": "Rebekah Glupker",
+    "lake": "Lake Michigan Watershed",
+    "location": "Old Mackinac Point Lighthouse, Michigan",
+    "url": "https://greatlakesreview.org/old-mackinac-point-lighthouse-michigan-just-watch/",
+    "excerpt": "I settle down on the beach near the Old Mackinaw Point Lighthouse and take my camera out of its protective case. The sun has just begun to set over Lake Michigan, the first tendrils of pink reaching across the sky, and I want to capture the moment.",
+    "date": "May 2017",
+    "lat": "45.7875",
+    "lng": "-84.7294444"
+  },
+  {
+    "title": "Seul Choix Point, Michigan: Of Shells and Strata, Time and Terrain",
+    "author": "Robert Root",
+    "lake": "Lake Superior Watershed",
+    "location": "Seul Choix Point, Michigan",
+    "url": "https://greatlakesreview.org/seul-choix-point-michigan-of-shells-and-strata-time-and-terrain/",
+    "excerpt": "I've been tracking the Niagara Escarpment, a geologic formation that arcs from Wisconsin through upper Michigan and Ontario past Niagara Falls into western New York. In the Upper Peninsula, Seul Choix Point interrupts a long stretch of Lake Michigan shoreline, between the Garden Peninsula on the west and the Mackinac Bridge on the east. The name comes either from French explorers who thought the point the only choice-\"seul choix\"--for shelter between Mackinac Island and Green Bay or from a distortion of an Ojibwa word, \"shashoweg,\" the straight line. As my wife and I approach, I ignore college French lessons and use the local pronunciation, \"Sis-shwa.\" I want to see the way the Niagara Cuesta slides under Lake Michigan here.",
+    "date": "January 2017",
+    "lat": "45.9213369",
+    "lng": "-85.9122565"
+  },
+  {
+    "title": "Buffalo, New York: A lake forgotten--a performance renewed",
+    "author": "Shannon Traphagen",
+    "lake": "Lake Ontario Watershed",
+    "location": "Buffalo, New York",
+    "url": "https://greatlakesreview.org/buffalo-new-york-a-lake-forgotten-a-performance-renewed/",
+    "excerpt": "Mine is a watery world. Mirages that swell the tales of fisherman as distant sailboats and canoes glide along the edge of a lake forgotten. Lake Erie, at the edge of Buffalo, NY is a fragment of the world that is just now rejoining the mass of lakes surrounding it; showcasing its great comeback.",
+    "date": "December 2016",
+    "lat": "42.8864468",
+    "lng": "-78.8783689"
+  },
+  {
+    "title": "Marquette, Michigan: Landing",
+    "author": "Andrea Hoyt",
+    "lake": "Lake Superior Watershed",
+    "location": "Marquette, Michigan",
+    "url": "https://greatlakesreview.org/marquette-michigan-landing/",
+    "excerpt": "Our lives play out indoors. We are caged animals and mostly we like it this way. The sensations of earthly dependence have left our bodies but they linger somewhere else, and we resent the wind in the trees for being such a tease. But we had a beach once. It wasn't exactly ours but we seemed to credit ourselves with its presence. It was ours but we did not buy it and we did not make it. We did not grind the sand that sloped so slowly into the cold Superior. We did not mold the sandstone into cliffs and paint them wildly with mineral powders. We were not here 500 million years ago. But we have descended the gentle slopes, uncomfortable and exposed, waiting for the water to rise and rescue us from our ambivalence. We have seen the light of our fires thrown against the cliffs. We have kissed each other while the Aurora Borealis blazed above us. And often we were drunk. And on those nights Superior was gentler and we could feel our bare bodies become small and tight beneath the water as we darted from rock to rock. We felt that to fly could not be better than this.",
+    "date": "October 2016",
+    "lat": "46.5436199",
+    "lng": "-87.3953713"
+  },
+  {
+    "title": "Kirk Park, Michigan: The Beach at Lake Michigan",
+    "author": "Alan Harris",
+    "lake": "Lake Michigan Watershed",
+    "location": "Kirk Park, Michigan",
+    "url": "https://greatlakesreview.org/kirk-park-michigan-the-beach-at-lake-michigan/",
+    "excerpt": "Grandpa is usually quite the talker. There are only two things in the world that I know of that keeps him from talking to anybody and everybody still above ground--sleep and going to the beach.",
+    "date": "October 2016",
+    "lat": "42.945629",
+    "lng": "-86.2158241"
+  },
+  {
+    "title": "Elkhart, Indiana: The Long Afternoon",
+    "author": "Gary V. Powell",
+    "lake": "Lake Michigan Watershed",
+    "location": "Elkhart, Indiana",
+    "url": "https://greatlakesreview.org/elkhart-indiana-the-long-afternoon/",
+    "excerpt": "Did her assailant lie in wait, or did Mrs. S answer a knock at the door and welcome a stranger inside? No sign of forced entry the police said, so maybe she recognized the man. On the other hand, she might have left the door unlocked while out shopping, unwittingly inviting danger into her home. People trusted their neighbors in those days, and in a small, Indiana town on a county road, wasn't everyone a neighbor.",
+    "date": "August 2016",
+    "lat": "41.6812083",
+    "lng": "-85.9656249"
+  },
+  {
+    "title": "MILWAUKEE, WISCONSIN: MILWAUKEE PEOPLE",
+    "author": "Ed Makowski",
+    "lake": "Lake Michigan Watershed",
+    "location": "Milwaukee, Wisconsin",
+    "url": "https://greatlakesreview.org/milwaukee-wisconsin-milwaukee-people-2/",
+    "excerpt": "We got\n\n9 inches of snow\n\nafter 4 was predicted.",
+    "date": "July 2016",
+    "lat": "43.0389025",
+    "lng": "-87.9064736"
+  },
+  {
+    "title": "Milwaukee, Wisconsin: Champagne in the Sour Times",
+    "author": "Tori Szekeres",
+    "lake": "Lake Michigan Watershed",
+    "location": "Milwaukee, Wisconsin",
+    "url": "https://greatlakesreview.org/milwaukee-wisconsin-champagne-in-the-sour-times/",
+    "excerpt": "I didn't notice how drunk my coworker Erin was until she fell down for the second time on our way to Summerfest.",
+    "date": "May 2016",
+    "lat": "43.0389025",
+    "lng": "-87.9064736"
+  },
+  {
+    "title": "Peterborough, Ontario: Unsettled in Nogojiwanong",
+    "author": "Jane Affleck",
+    "lake": "Lake Huron Watershed",
+    "location": "Peterborough, Ontario",
+    "url": "https://greatlakesreview.org/peterborough-ontario-unsettled-in-nogojiwanong/",
+    "excerpt": "After twenty-four hours by train and two by bus, I arrived in Peterborough, Ontario with two suitcases and a backpack weighted with books, laptop, and clothes. I'd have little more to get me through year one of my PhD. September through May, \"home\" was a furnished house shared with three other students; I'd rented out my house in Halifax, Nova Scotia and put my belongings in storage. Low commitment, I told myself, in case the PhD didn't work out.",
+    "date": "May 2016",
+    "lat": "44.309058",
+    "lng": "-78.319747"
+  },
+  {
+    "title": "Garden City, Michigan: Corner of Maplewood and Hartel",
+    "author": "Amy Kenyon",
+    "lake": "Lake Huron Watershed",
+    "location": "Garden City, Michigan",
+    "url": "https://greatlakesreview.org/garden-city-michigan-corner-of-maplewood-and-hartel/",
+    "excerpt": "In an unknown world at the edge of Detroit, there is a green diamond ablaze beneath the sky. We, the young ones in this place of little pattern houses, call it the Lighted Field. Year after year, grasping at childhood, we ride our bikes with streamers on our handlebars, whooshing down Maplewood. Meet me at the Lighted Field, we say. Game or no game. Night or blinding summer day when the sun extinguishes the fierce electric lights. Meet me at the Lighted Field.",
+    "date": "March 2016",
+    "lat": "42.3255928",
+    "lng": "-83.3310422"
+  },
+  {
+    "title": "Manistee National Forest, Michigan: The Bear",
+    "author": "Fritz Swanson",
+    "lake": "Lake Michigan Watershed",
+    "location": "Manistee National Forest, Michigan",
+    "url": "https://greatlakesreview.org/manistee-national-forest-michigan-the-bear/",
+    "excerpt": "The Sunday after the memorial services, we all went morel hunting.",
+    "date": "March 2016",
+    "lat": "43.8666776",
+    "lng": "-85.9667325"
+  },
+  {
+    "title": "Southampton, Ontario: Being there",
+    "author": "Jennifer Hutchison",
+    "lake": "Lake Huron Watershed",
+    "location": "Southampton, Ontario",
+    "url": "https://greatlakesreview.org/southampton-ontario-being-there/",
+    "excerpt": "The roar of the lake\nChallenges, beckons\nI push my way forward\nHair streaming back\nEyes half shut",
+    "date": "March 2016",
+    "lat": "44.4948543",
+    "lng": "-81.3695635"
+  },
+  {
+    "title": "Franklin Island, Ontario: Georgian Bay Wild",
+    "author": "Jann Everard",
+    "lake": "Lake Huron Watershed",
+    "location": "Franklin Island, Ontario",
+    "url": "https://greatlakesreview.org/franklin-island-ontario-georgian-bay-wild/",
+    "excerpt": "My voice takes on that peculiar tone of warning, low to start, pitch rising, two syllables made out of a one-syllable name. \"Jim.\"",
+    "date": "February 2016",
+    "lat": "45.3954355",
+    "lng": "-80.3423821"
+  },
+  {
+    "title": "Bluffton University Nature Preserve, Ohio: Winter Liminal",
+    "author": "Dave Essinger",
+    "lake": "Lake Erie Watershed",
+    "location": "Bluffton University Nature Preserve, Ohio",
+    "url": "https://greatlakesreview.org/bluffton-university-nature-preserve-ohio-winter-liminal/",
+    "excerpt": "The snow in the fields is crisscrossed by finger-wide tracks, and otherwise pristine. One might imagine sticks dragged by wandering wraiths, absent-minded visitors from the other side, but with no other marks at all, at first I can't guess what really made these traces.",
+    "date": "February 2016",
+    "lat": "40.9022368",
+    "lng": "-83.9052686"
+  },
+  {
+    "title": "Walker, Minnesota: Old Haunts",
+    "author": "Michael O'Neill",
+    "lake": "Mississippi River Watershed",
+    "location": "Walker, Minnesota",
+    "url": "https://greatlakesreview.org/walker-minnesota-old-haunts/",
+    "excerpt": "We had postponed this trip for six years, but now it sped toward us. Mom's foot a balancing act on the pedal, ever so lightly pressing down as her own sinews pushed back. We sat in the backseat calculating her trepidation by the number of times she turned the radio down or adjusted her grip on the wheel. The mid-model Ford teetered, accelerated then coasted to the rhythm of so many years rushing through her head. This was always Pete's vacation spot - a tiny row of cabins in Minnesota, in a town which no one cared to remember the name.",
+    "date": "February 2016",
+    "lat": "47.1013462",
+    "lng": "-94.5872162"
+  },
+  {
+    "title": "Superior, Wisconsin: The Face of Surrender",
+    "author": "Carol Dunbar",
+    "lake": "Lake Superior Watershed",
+    "location": "Superior, Wisconsin",
+    "url": "https://greatlakesreview.org/superior-wisconsin-the-face-of-surrender/",
+    "excerpt": "We adopted Helgi, a Giant Alaskan Malamute, just three days after Thanksgiving, and by our first spring together I recognized in him a shared personality trait, what I like to think of as tenacity, and what others might call stubbornness. Weighing in at 124 pounds, Helgi - Icelandic for 'celebration' - is an outdoor dog the size of a small pony with fur frosting white. As a hunter, you can always tell from the quality of his barking what he has cornered, and at four a.m. that spring morning I awoke to the high-pitched yelps that meant Helgi could only be celebrating one thing: porcupine.",
+    "date": "January 2016",
+    "lat": "46.7207737",
+    "lng": "-92.1040796"
+  },
+  {
+    "title": "Elmira, Ontario: Home Sweet Home",
+    "author": "Ed Scherrer",
+    "lake": "Lake Huron Watershed",
+    "location": "Elmira, Ontario",
+    "url": "https://greatlakesreview.org/elmira-ontario-home-sweet-home/",
+    "excerpt": "There is a Canadian quintessence to Elmira in that it boasts the world's largest one day Maple Syrup festival. Arthur Street is bisected by a line of smoking tents that dish out pancakes, back bacon and grilled corn. Hayrides shuttle people to and from their cars. Others filter through the quaint streets on foot, passing by driveways where locals sell jam, pussy willow, or the contents of their refrigerators and attics.",
+    "date": "January 2016",
+    "lat": "43.6004074",
+    "lng": "-80.5629846"
+  },
+  {
+    "title": "Red Lake Falls, Minnesota: The Emptiness",
+    "author": "Rebecca Keller",
+    "lake": "Hudson Bay Watershed",
+    "location": "Red Lake Falls, Minnesota",
+    "url": "https://greatlakesreview.org/red-lake-falls-minnesota-the-emptiness/",
+    "excerpt": "After my grandfather's funeral I asked my sister to drive me out to the farm. I don't know why I didn't have my own car, nor where my husband and daughter were. They might even have been in the backseat.",
+    "date": "December 2015",
+    "lat": "47.88219",
+    "lng": "-96.2742143"
+  },
+  {
+    "title": "Union Grove, Wisconsin: A walk through memory",
+    "author": "David Gourdoux",
+    "lake": "Lake Michigan Watershed",
+    "location": "Union Grove, Wisconsin",
+    "url": "https://greatlakesreview.org/union-grove-wisconsin-a-walk-through-memory/",
+    "excerpt": "Someday I'll come back and they'll be there again, the rolling fields and the small patches of woods, the corn and hayfields, whispering in the midday breeze under a fat sun in a cloudless sky.",
+    "date": "November 2015",
+    "lat": "42.688074",
+    "lng": "-88.0514731"
+  },
+  {
+    "title": "LeRoy, Michigan: Coming Home to the Hill",
+    "author": "Vickie Andresen Sedillo",
+    "lake": "Lake Michigan Watershed",
+    "location": "LeRoy, Michigan",
+    "url": "https://greatlakesreview.org/leroy-michigan-coming-home-to-the-hill/",
+    "excerpt": "In June, I came home to a hill on West 16 Mile Road in Michigan's Osceola County. Life on the Texas Gulf Coast can be beautiful, but the sheer lush green of trees that aren't bent by the wind, that are tall as centuries overhead and march sometimes in rows neatly ordered by the CCC decades ago, the glory of hills that roll up and down and give shape to land and sky. . . there is nothing like it. I know we're almost home when the sound of the road under the tires changes from a blacktop \"whoosh\" to the crunch of gravel. I taste the dust in my mouth through the open windows, just a hint before the truck picks up speed and whisks the dust away behind us.",
+    "date": "September 2015",
+    "lat": "44.0380689",
+    "lng": "-85.4539403"
+  },
+  {
+    "title": "Smithville, Ohio: Storm Krissy",
+    "author": "Jennifer Young",
+    "lake": "Lake Erie Watershed",
+    "location": "Smithville, Ohio",
+    "url": "https://greatlakesreview.org/smithville-ohio-krissy/",
+    "excerpt": "There was an atmospheric shift every time Krissy Peterson walked into the classroom, generally of the variety that sent small animals scurrying for shelter. Krissy was in my 11th grade English class and the meanest, scariest girl in the school. Heavy-set and broad-shouldered, her dirty blond hair typically braided into cornrows, she carried herself with both aggression and pride. Most days she announced her arrival into the classroom by articulating how she had been wronged on that particular day or why she was so angry about [whatever, and anything . . . it changed minute to minute with Krissy].",
+    "date": "August 2015",
+    "lat": "40.862278",
+    "lng": "-81.8618049"
+  },
+  {
+    "title": "Toronto, Ontario: Forever the Tourist",
+    "author": "Darren Bradley Jones",
+    "lake": "Lake Ontario Watershed",
+    "location": "Toronto, Ontario",
+    "url": "https://greatlakesreview.org/toronto-ontario-forever-the-tourist/",
+    "excerpt": "People who live in small towns or smaller cities will almost always question why anyone would ever want to put up with the dense crowds and the bums and the traffic and the garbage and the construction and the expense of living in Canada's largest city.",
+    "date": "July 2015",
+    "lat": "43.653226",
+    "lng": "-79.3831843"
+  },
+  {
+    "title": "Oakland County, Michigan: West Bloomfield Sunset",
+    "author": "Rachel Weisserman",
+    "lake": "Lake Huron Watershed",
+    "location": "Oakland County, Michigan",
+    "url": "https://greatlakesreview.org/oakland-county-michigan-west-bloomfield-sunset/",
+    "excerpt": "I once saw a West Bloomfield octogenarian pull an umbrella out of her purse and behead the hood ornament on a man's Cadillac because he took her handicapped parking spot in front of the Deli Unique, and I once saw a red-headed sandhill crane snatch a Choco Taco out of the hand of a weeping child at the Orchard Lake Yacht Club. I don't believe in fragility.",
+    "date": "July 2015",
+    "lat": "42.5921924",
+    "lng": "-83.336188"
+  },
+  {
+    "title": "Avon Lake, Ohio: A Boy Among Books",
+    "author": "Robert Miltner",
+    "lake": "Lake Erie Watershed",
+    "location": "Avon Lake, Ohio",
+    "url": "https://greatlakesreview.org/avon-lake-ohio-a-boy-among-books/",
+    "excerpt": "I arrive by bike at the Avon Lake Public Library, on Center Road, next to Miller Creek near the high school and half a mile south of Lake Erie. It's an old two-story house that has been converted into a library. It has a flat-roofed porch and an addition added on the back. The house roof is covered in wide horizontal bands of tarpaper that run parallel to the white clapboard siding. The library sits snug against the flat landscape on the north coast of Ohio. The men who settled here cleared the pin oaks to plant apple orchards and Concord grape vineyards that sweetened in the late harvest due to the warm autumn temperature of the lake. In the fall, during the football season, on a cold clear night the air is thick with a scent like grape jam.",
+    "date": "July 2015",
+    "lat": "41.5053178",
+    "lng": "-82.0282001"
+  },
+  {
+    "title": "Wingfoot Lake, Ohio: Tires, turtles and neo-shamanism in small town Ohio",
+    "author": "Matt Stansberry",
+    "lake": "Lake Erie Watershed",
+    "location": "Wingfoot Lake, Ohio",
+    "url": "https://greatlakesreview.org/wingfoot-lake-ohio-tires-turtles-and-neo-shamanism-in-small-town-ohio/",
+    "excerpt": "I grew up in a bucolic little Ohio Township, less than a mile from a 540-acre lake, created by the Goodyear Tire and Rubber Company in 1916 to create a water supply for its manufacturing operations.",
+    "date": "May 2015",
+    "lat": "41.0112004",
+    "lng": "-81.3660642"
+  },
+  {
+    "title": "Chicago, Illinois: Back to the Water's Edge",
+    "author": "Patricia Ann McNair",
+    "lake": "Lake Michigan Watershed",
+    "location": "Chicago, Illinois",
+    "url": "https://greatlakesreview.org/chicago-illinois-back-to-the-waters-edge/",
+    "excerpt": "My girlfriends always drove because they had cars, cool cars: a Monte Carlo, a Cadillac, and best of all, the Trans Am. Boy bait. And that's what we were there for, after all, the boys. That, and a place that seemed about as far away as we could get from our land-locked suburban neighborhoods with low-slung ranch houses and two-car garages and flat, trimmed lawns.",
+    "date": "April 2015",
+    "lat": "41.8781136",
+    "lng": "-87.6297982"
+  },
+  {
+    "title": "Isle Royale, Michigan: I was an Unexpected Visitor",
+    "author": "Rebecca Pekly",
+    "lake": "Lake Superior Watershed",
+    "location": "Isle Royale, Michigan",
+    "url": "https://greatlakesreview.org/isle-royale-michigan-i-was-an-unexpected-visitor/",
+    "excerpt": "Isle Royale pokes out of Lake Superior in waves of layered rock that curve deep under the lake and emerge again 45 miles away as the Keweenaw Peninsula. These slanted rock layers create fingers of stony ridges pointing northeast. It takes a long ferry ride through Superior's moody waters or an expensive hop on a seaplane to reach this rustic and least visited National Park. On my only visit to the island, I chose the ferry from Copper Harbor, a tiny tourist town at the northern curve of the peninsula. I didn't really expect to see any wolves or moose during my one night stay. I wouldn't have time to hike into the undisturbed interior, the regular stomping grounds for those people-shy species.",
+    "date": "March 2015",
+    "lat": "47.9762581",
+    "lng": "-88.9312613"
+  },
+  {
+    "title": "South Manitou Island, Lake Michigan: The Return",
+    "author": "Joyce Hicks",
+    "lake": "Lake Michigan Watershed",
+    "location": "South Manitou Island, Michigan",
+    "url": "https://greatlakesreview.org/south-manitou-island-lake-michigan-the-return/",
+    "excerpt": "A hot summer day seemed perfect for the ferry ride to South Manitou Island in Sleeping Bear Dunes National Lake Shore. A nice family outing was in store for my parents and me with my daughter, who in the mid-1980s was in first grade.",
+    "date": "March 2015",
+    "lat": "45.0187212",
+    "lng": "-86.1333617"
+  },
+  {
+    "title": "Midlothian, Illinois: Bachelor's Grove Cemetery",
+    "author": "Sharon Mesmer",
+    "lake": "Lake Michigan Watershed",
+    "location": "Midlothian, Illinois",
+    "url": "https://greatlakesreview.org/midlothian-illinois-bachelors-grove-cemetery/",
+    "excerpt": "The dashboard clock read 12:34 pm as we sped off on his tour of the weirdest places in Chicago: the Starr Hotel on Madison Avenue; Indian Boundary Park on the northwest side, to see the chickens with Beatle haircuts; and then the leaning tower of Niles, half the size of the real one, and in Niles. We were speeding around so much it felt like one of those Italian jet-set movies, where the woman is wearing big sunglasses and a scarf and the guy drives a red sports car (except we were in an orange Rabbit). Our last stop, a cemetery.",
+    "date": "February 2015",
+    "lat": "41.6253116",
+    "lng": "-87.7175491"
+  },
+  {
+    "title": "Traverse City, Michigan: Original Winter",
+    "author": "Emily Bingham",
+    "lake": "Lake Michigan Watershed",
+    "location": "Traverse City, Michigan",
+    "url": "https://greatlakesreview.org/traverse-city-michigan-original-winter/",
+    "excerpt": "\"There are three things you need to survive winter here,\" Lynda said, yanking the zipper of her puffy down coat up to her chin. We were walking along Front Street in Traverse City, making our way back to the office after our lunch break. A snowy north wind was blasting off the bay, and we both winced as the little granules stung our faces.",
+    "date": "February 2015",
+    "lat": "44.7630567",
+    "lng": "-85.6206317"
+  },
+  {
+    "title": "Michigan: ICE FISHING WITH BEAR ON LAKE HURON",
+    "author": "Yvonne Osborne",
+    "lake": "Lake Huron Watershed",
+    "location": "Brown City, Michigan",
+    "url": "https://greatlakesreview.org/brown-city-michigan-ice-fishing-with-bear-on-lake-huron/",
+    "excerpt": "A brisk wind stings my face as I get out of the car. Blowing snow shears across the dunes and swirls around the parking lot. I tuck my chin inside my scarf and start walking. When I reach the top of the ridge, I stop to look, expecting to see the lake. But there is no lake, only a frozen landscape of jagged ridges and snow-covered valleys do I see. Waves caught in the freeze-frame of February resemble the arctic tundra, not my lake.",
+    "date": "January 2015",
+    "lat": "43.7167",
+    "lng": "-83.1667"
+  },
+  {
+    "title": "Cuyahoga Valley National Park, Ohio: On a bend in the Cuyahoga River near Red Lock",
+    "author": "Matt Stansberry",
+    "lake": "Lake Erie Watershed",
+    "location": "Cuyahoga Valley National Park, Ohio",
+    "url": "https://greatlakesreview.org/cuyahoga-valley-national-park-ohio-on-a-bend-in-the-cuyahoga-river-near-red-lock/",
+    "excerpt": "On the last warm day of October, I sit on a muddy cutbank, feet hanging over a horseshoe bend in the Cuyahoga.",
+    "date": "January 2015",
+    "lat": "41.2897114",
+    "lng": "-81.5640332"
+  },
+  {
+    "title": "Erie, Pennsylvania: Presque Isle - The gem of Lake Erie",
+    "author": "Janet Roberts",
+    "lake": "Lake Erie Watershed",
+    "location": "Erie, Pennsylvania",
+    "url": "https://greatlakesreview.org/erie-pennsylvania-presque-isle-the-gem-of-lake-erie/",
+    "excerpt": "All I long for I have found by its waters.",
+    "date": "January 2015",
+    "lat": "42.1585823",
+    "lng": "-80.1149411"
+  },
+  {
+    "title": "Milwaukee, Wisconsin: An Ode to Milwaukee",
+    "author": "Katie Moulton",
+    "lake": "Lake Michigan Watershed",
+    "location": "Milwaukee, Wisconsin",
+    "url": "https://greatlakesreview.org/milwaukee-wisconsin-an-ode-to-milwaukee/",
+    "excerpt": "O, Milwaukee, we should've got out earlier. O, silent L, we tried to make a better poem out of you. O, Lake Michigan, you're one fat river, and 'Waukee, you're a godless, Protestant drunk. To us, you were one night and a few blocks' radius clung to the lip of the lake like a fever blister in summer--the hard slurp of somebody's tongue that took too long to dry out.",
+    "date": "December 2014",
+    "lat": "43.0389025",
+    "lng": "-87.9064736"
+  },
+  {
+    "title": "Harrison, Michigan: Lexicon for a lowercase great lake",
+    "author": "Lauren Boulton",
+    "lake": "Lake Michigan Watershed",
+    "location": "Harrison, Michigan",
+    "url": "https://greatlakesreview.org/harrison-michigan-lexicon-for-a-lowercase-great-lake/",
+    "excerpt": "Beach, as we defined it, was a foot-wide strip of mottled sand lining our grandmother's tiny lot on Budd Lake. Our parents would drag plastic rakes along the length of it, removing clods of asparagus-colored seaweed. We'd sit there until we had octogenarian-wrinkled feet, dribbling dark castles, dodging waves from passing speedboats.",
+    "date": "November 2014",
+    "lat": "44.0191862",
+    "lng": "-84.7994675"
+  },
+  {
+    "title": "Munising, Michigan: Chicks with Picks",
+    "author": "Felicia Schneiderhan",
+    "lake": "Lake Superior Watershed",
+    "location": "Munising, Michigan",
+    "url": "https://greatlakesreview.org/munising-michigan-chicks-with-picks/",
+    "excerpt": "I'm not a climber.\n\nI married into a family of climbers. Ice climbers.\n\nIce Fest in Munising, Michigan is their annual family event.",
+    "date": "November 2014",
+    "lat": "46.4110574",
+    "lng": "-86.6479361"
+  },
+  {
+    "title": "Ann Arbor, Michigan: A Love Letter to Woody Plants",
+    "author": "Anna Prushinskaya",
+    "lake": "Lake Michigan Watershed",
+    "location": "Ann Arbor, Michigan",
+    "url": "https://greatlakesreview.org/ann-arbor-michigan-a-love-letter-to-woody-plants/",
+    "excerpt": "To the woman in the parking lot of the park, who has found me crushing leaves, smelling them, and looking at the willows: I am giddy because I have identified a poison sumac. It grows on the trail by the water. They happen in Southeastern Michigan, and here are some ways to tell: Shrub or small tree; leaflets compound, sessile, with scarlet midribs; drupes white, persisting in winter.",
+    "date": "October 2014",
+    "lat": "42.2808256",
+    "lng": "-83.7430378"
+  },
+  {
+    "title": "Beulah, Michigan: Racing to the water",
+    "author": "Elizabeth Leis-Newman and Julia Leis",
+    "lake": "Lake Michigan Watershed",
+    "location": "Beulah, Michigan",
+    "url": "https://greatlakesreview.org/beulah-michigan-racing-to-the-water/",
+    "excerpt": "How do you explain a place that lives so much in our imagination and memories?",
+    "date": "October 2014",
+    "lat": "44.631944",
+    "lng": "-86.0909242"
+  },
+  {
+    "title": "Hell, Michigan: I'm from Hell",
+    "author": "Patricia Wheeler",
+    "lake": "Lake Michigan Watershed",
+    "location": "Hell, Michigan",
+    "url": "https://greatlakesreview.org/hell-michigan-im-from-hell/",
+    "excerpt": "I'm from Hell. Almost.\n\nTechnically, I'm from Pinckney, but I claim Hell. How could I not? The winding roads of the area create a playground for motorcyclists. Teams of Harleys, mostly, can frequently be spotted along M-36, all the way through Pinckney, making the turn on Darwin to Hell.",
+    "date": "August 2014",
+    "lat": "42.43472",
+    "lng": "-83.985"
+  },
+  {
+    "title": "Pictured Rocks, Upper Peninsula, Michigan: On The Trail And Near The Edge",
+    "author": "Kyle Feldscher",
+    "lake": "Lake Superior Watershed",
+    "location": "Pictured Rocks, Upper Peninsula, Michigan",
+    "url": "https://greatlakesreview.org/pictured-rocks-upper-peninsula-michigan-on-the-trail-and-near-the-edge/",
+    "excerpt": "\"If I wasn't absolutely positive the fall would kill me, I would so fucking jump right now. Oh Christ, I'm talking to myself.\"",
+    "date": "August 2014",
+    "lat": "46.5332835",
+    "lng": "-86.4882206"
+  },
+  {
+    "title": "Kitchener, Ontario: The Somnamulists of Southern Ontario",
+    "author": "Jason Freure",
+    "lake": "Lake Huron Watershed",
+    "location": "Kitchener, Ontario",
+    "url": "https://greatlakesreview.org/kitchener-ontario-the-somnamulists-of-southern-ontario/",
+    "excerpt": "On Friday nights, I would meet Ren somewhere downtown around 6 or 7 o'clock, usually at the coffee shop. The coffee shop was not the only coffee shop in downtown Kitchener, but it was the only one that one might describe as a \"café.\" That would change. In only a few years, after I moved away for college, the Coffee Time at Ontario Street closed down, Donut City on Gaukel disappeared, Tim Hortons gave up on Market Square, while places with \"Café,\" \"Commons,\" and \"Bean\" in the name took their spots.",
+    "date": "August 2014",
+    "lat": "43.4516395",
+    "lng": "-80.4925337"
+  },
+  {
+    "title": "Fenstad's Resort, Minnesota: A Most Superior Retreat",
+    "author": "Lindsey McDivitt",
+    "lake": "Lake Superior Watershed",
+    "location": "Fenstad's Resort, Minnesota",
+    "url": "https://greatlakesreview.org/fensteds-resort-minnesota-a-most-superior-retreat/",
+    "excerpt": "Just north of Little Marais, Minnesota a narrow wooded road snakes from Highway 61 down to Lake Superior. Our family's favorite place on earth, Fenstad's Resort, perches there on the lake's North Shore. It is a small unassuming \"mom and pop resort\" tightly woven into our personal histories. Year by year our photo albums chronicle growth and change in the same beloved spots: around a driftwood fire on the beach, high on the cliffs looking north to Canada, gulls circling and delicate blue harebells nodding in the breeze. In the rocky harbor anchored by the old fish house, an upside down horseshoe above its door.",
+    "date": "July 2014",
+    "lat": "46.7207737",
+    "lng": "-92.1040796"
+  },
+  {
+    "title": "STRAITS OF MACKINAC, MICHIGAN: CROSSING OVER THE BRIDGE",
+    "author": "Deborah Davis",
+    "lake": "Lake Michigan Watershed",
+    "location": "Straits Of Mackinac, Michigan",
+    "url": "https://greatlakesreview.org/straits-of-mackinac-michigan-crossing-over-the-bridge/",
+    "excerpt": "It rises before us, its two towers brightly lit beacons of a different world approaching. It is five miles long, and allows for a twenty-three foot width of traffic, two lanes in each direction. To a first-time traveler, it looks a bit ominous, even eerie. Below its center, the Straits are 250 feet deep. Our car gets in line with a multitude of others on this chilly September evening. Gulls screech, circling above; ferries make their last runs of the day. Ships can pass beneath, as two hundred feet cushion roadway from water. Lake Michigan and Lake Huron meet here and their waters commingle. This is the Mackinac Bridge, the only means of car travel between Michigan's Lower and Upper peninsulas, between Mackinaw City with its kitschy tourist shops and lovely, wooded St. Ignace, between the \"mitten\" and the land of the \"Yoopers.\"",
+    "date": "July 2014",
+    "lat": "45.8166789",
+    "lng": "-84.750051"
+  },
+  {
+    "title": "Milford, Michigan: So Far Apart",
+    "author": "Nicholas Ward",
+    "lake": "Lake Huron Watershed",
+    "location": "Milford, Michigan",
+    "url": "https://greatlakesreview.org/milford-michigan-so-far-apart/",
+    "excerpt": "My aunt and uncle owned a Christmas tree farm out on Hickory Ridge Road in my father's hometown of Milford, Michigan.[1]",
+    "date": "July 2014",
+    "lat": "42.591446",
+    "lng": "-83.6015332"
+  },
+  {
+    "title": "Detroit, Michigan: A slice of Detroit pie",
+    "author": "Kristin Lenz",
+    "lake": "Lake Huron Watershed",
+    "location": "Detroit, Michigan",
+    "url": "https://greatlakesreview.org/detroit-michigan-a-slice-of-detroit-pie/",
+    "excerpt": "I worked with a woman who my boss described as \"salt of the earth.\" Gloria didn't have my master's degree social work credentials, but she had enough hardscrabble experience to last several lifetimes. She walked with a spring in her step and seemed to know everyone, frequently stopping to chat. She hummed all day long, and I imagined she sang full-on gospel alone in her car and at home in the shower. She sometimes wore a frosted blonde wig, and her smile and cackling laugh were contagious.",
+    "date": "June 2014",
+    "lat": "42.331427",
+    "lng": "-83.0457538"
+  },
+  {
+    "title": "Rogers City, Michigan: You Can't Go to Town and Back in Less Than Two Hours",
+    "author": "Kathryn Almy",
+    "lake": "Lake Huron Watershed",
+    "location": "Rogers City, Michigan",
+    "url": "https://greatlakesreview.org/rogers-city-michigan-you-cant-go-to-town-and-back-in-less-than-two-hours/",
+    "excerpt": "What can I tell you about Rogers City? It's not my hometown. I can't tell you what it's like to grow up, go to school, or work there, let alone survive a winter there. What I know comes from \"going to town\" every summer of my life while vacationing at a beach on Lake Huron about 10 miles northwest of Rogers City, which my family has been visiting for over 80 years.",
+    "date": "June 2014",
+    "lat": "45.4214024",
+    "lng": "-83.8183303"
+  },
+  {
+    "title": "CLEVELAND, OHIO: The Flats Will Be Back",
+    "author": "Patrick Pujolas",
+    "lake": "Lake Erie Watershed",
+    "location": "Cleveland, Ohio",
+    "url": "https://greatlakesreview.org/cleveland-ohio-the-flats-will-be-back/",
+    "excerpt": "The river here is brown. Brown and murky, and from a distance, barely moving. But if you look closer, you can see it swirling, like smoke, and you know that something is going on down there. Sometimes people jump into it (usually they are drunk), only to find they can't get out. There are two eight-feet walls flanking the river, attached to the pilings; the walls are made of steel forged right here in Cleveland, Ohio.",
+    "date": "June 2014",
+    "lat": "41.49932",
+    "lng": "-81.6943605"
+  },
+  {
+    "title": "Upper Peninsula, Michigan: Teal Lake",
+    "author": "Ron Riekki",
+    "lake": "Lake Superior Watershed",
+    "location": "Teal Lake, Michigan",
+    "url": "https://greatlakesreview.org/upper-peninsula-michigan-teal-lake/",
+    "excerpt": "I grew up in Negaunee, but this isn't about Negaunee. It's about the wonderful bladder of Negaunee. I'm talking about Teal Lake. Freckled by trees, filled with children (illegally at the time--an ignored \"no swimming\" city ordinance), and truly Negaunee's front porch. Without the lake, Negaunee would be Gwinn. And no one wants to be Gwinn.",
+    "date": "May 2014",
+    "lat": "46.5134554",
+    "lng": "-87.6304084"
+  },
+  {
+    "title": "DANSVILLE, MICHIGAN: THE BURNING BED",
+    "author": "Mike Salisbury",
+    "lake": "Lake Michigan Watershed",
+    "location": "Dansville, Michigan",
+    "url": "https://greatlakesreview.org/dansville-michigan-the-burning-bed/",
+    "excerpt": "On March 9, 1977 Francine Hughes set fire to the bed her husband, James \"Mickey\" Hughes, was sleeping in. She gathered her four children and drove straight to the police station to confess while Mickey burned alive.",
+    "date": "May 2014",
+    "lat": "42.5606",
+    "lng": "-84.3472"
+  },
+  {
+    "title": "CHICAGO, ILLINOIS: INTO THE RIVER",
+    "author": "Marion Boyer",
+    "lake": "Lake Michigan Watershed",
+    "location": "Chicago, Illinois",
+    "url": "https://greatlakesreview.org/chicago-illinois-into-the-river/",
+    "excerpt": "There's a plaque at the corner of West Wacker and North LaSalle, just above the Chicago River that most workers, tourists, homeless, cabbies, school children and shoppers hustle by without a glance. The bronze sign marks where 844 people drowned right in the Loop on a summer day.",
+    "date": "April 2014",
+    "lat": "41.8781136",
+    "lng": "-87.6297982"
+  },
+  {
+    "title": "DEARBORN, MICHIGAN: The Bricoleurs",
+    "author": "Cal Freeman",
+    "lake": "Lake Huron Watershed",
+    "location": "Dearborn, Michigan",
+    "url": "https://greatlakesreview.org/dearborn-michigan-the-bricoleurs/",
+    "excerpt": "\"Hey Cal Cal, I got that new drill,\" my neighbor yells through my side door. I am at the computer, working on a poem tentatively titled, \"Sunflowers in Dearborn.\"",
+    "date": "April 2014",
+    "lat": "42.3222599",
+    "lng": "-83.1763145"
+  },
+  {
+    "title": "CHELSEA, MICHIGAN: COME OUT WHEN IT'S QUIET",
+    "author": "Megan Stielstra",
+    "lake": "Lake Michigan Watershed",
+    "location": "Chelsea, Michigan",
+    "url": "https://greatlakesreview.org/chelsea-michigan-come-out-when-its-quiet/",
+    "excerpt": "It's my opinion that Chelsea, Michigan is the best place to see the stars. I wager them's fightin' words for some people, including my dad, who brought me up in Chelsea but now lives in Kodiak, Alaska; a stone's throw from the Aurora Borealis exploding pink and green and gold across the sky. I live in Chicago. You can't even see the stars in Chicago. It's never dark enough. Too many street lamps, too much traffic, too many people awake all hours with the lights on, too much electricity and movement and noise. A couple of lifetimes ago, when I transferred my junior year and moved to Chicago, I walked out of a 2 a.m. bar into the wild late-night city, looked up at the empty sky, and asked my friend, \"Do the stars only come out when it's quiet?\" It was exactly the sort of thing I'd have said at nineteen, hiding all that fear under something pretentious. Or maybe I was just drunk. Or maybe I really did want to know about the stars. I don't remember. I was so young then. I had new friends, a new apartment in Ukrainian Village, new clothes, new music, new fake ID--an entirely brand new identity. I had many identities, over the years. I put them on and took them off like sweaters.",
+    "date": "April 2014",
+    "lat": "42.3180919",
+    "lng": "-84.0205029"
+  },
+  {
+    "title": "GRAND RAPIDS, MICHIGAN: WE WERE YOUNG AND NOTHING WAS SIMPLE",
+    "author": "Robert James Russell",
+    "lake": "Lake Michigan Watershed",
+    "location": "Grand Rapids, Michigan",
+    "url": "https://greatlakesreview.org/grand-rapids-michigan-we-were-young-and-nothing-was-simple/",
+    "excerpt": "We talked about doing doughnuts next winter in the parking lot of the school and compared notes on how best to achieve one. Of driving vanfuls of friends to the movies, no longer being dependent on our parents or older brother and sisters. About how cool it would be to finally be able to go on real dates, to drive--ourselves--to pick up the girls, open the door for them and park at Saint Mark Lutheran--way in the back, where you can't be seen from the road--play a CD and just see what happens.",
+    "date": "March 2014",
+    "lat": "42.9633599",
+    "lng": "-85.6680863"
+  },
+  {
+    "title": "KALAMAZOO, MICHIGAN: YOU'LL BE BACK. WE PROMISE.",
+    "author": "Geoff Hyatt",
+    "lake": "Lake Michigan Watershed",
+    "location": "Kalamazoo, Michigan",
+    "url": "https://greatlakesreview.org/kalamazoo-michigan-youll-be-back-we-promise/",
+    "excerpt": "Kalamazoo is an easy place to lose your mind, and how much you enjoy that depends on the manner in which it unravels.",
+    "date": "March 2014",
+    "lat": "42.2917069",
+    "lng": "-85.5872286"
+  },
+  {
+    "title": "Jackson, Michigan: Nothing is flying tonight",
+    "author": "Gail Griffin",
+    "lake": "Lake Michigan Watershed",
+    "location": "Jackson, Michigan",
+    "url": "https://greatlakesreview.org/jackson-nothing-is-flying-tonight/",
+    "excerpt": "Sometime after you've made it beyond the worst of the worst, you arrive in Jackson. Jackson is halfway between Here and There, but for you this is it. Jackson is where you live now. Park, walk around. It looks a little stunned, this town, a little shaky. Streets a mite too wide for the traffic. Downtown, five blocks of buildings that have all been through too many incarnations to matter. At one end sits the Carnegie Library, like a dowager whose money used to run the place.",
+    "date": "March 2014",
+    "lat": "42.245869",
+    "lng": "-84.4013462"
+  },
+  {
+    "title": "DULUTH, MINNESOTA: Lakewalk Love Letter",
+    "author": "Eric Chandler",
+    "lake": "Lake Superior Watershed",
+    "location": "Duluth, Minnesota",
+    "url": "https://greatlakesreview.org/duluth-minnesota-lakewalk-love-letter/",
+    "excerpt": "I was worried there wouldn't be any good trails when we moved to Duluth. Now, that seems absurd. I've never lived anywhere that had so many trails. I'm a cross-country skier, runner and mediocre mountain biker. I can go from sound asleep to skiing in ten minutes. I trail run surrounded by the red cliffs of the watersheds that feed the lake. I ride my bike on the growing single-track trail system. We ski on trails that are groomed by the city better than some private ski areas.",
+    "date": "March 2014",
+    "lat": "46.7866719",
+    "lng": "-92.1004852"
+  },
+  {
+    "title": "TOLEDO, OHIO: Undying love and a truck stop",
+    "author": "Jodie Fletcher",
+    "lake": "Lake Erie Watershed",
+    "location": "Toledo, Ohio",
+    "url": "https://greatlakesreview.org/toledo-ohio-undying-love-and-a-truck-stop/",
+    "excerpt": "With concrete as unforgiving beneath me as a cushionless church pew, I gazed up hundreds of feet into the sky, expecting the TA sign steepling high above the outskirts of Toledo to provide the answers to life's greatest questions: How had I gotten here? And how much farther could I go? Expecting a religious experience, I instead fell in love.",
+    "date": "March 2014",
+    "lat": "41.6528052",
+    "lng": "-83.5378674"
+  },
+  {
+    "title": "Pontiac, Michigan: Great American Commerce and Castoffs",
+    "author": "Meredith Counts",
+    "lake": "Lake Huron Watershed",
+    "location": "Pontiac, Michigan",
+    "url": "https://greatlakesreview.org/pontiac-michigan-great-american-commerce-and-castoffs/",
+    "excerpt": "Summit Place was my childhood mall. My step-dad would buy my mom jewelry for special occasions at the Hudson's there. Several tape shops turned into CD shops then went out of business. A decade later those same spaces were occupied by non-chain garment places that smelled of incense and sold patchwork leather coats and \"South Park\" T-shirts. Hudson's was bought out by Macy's, Builder's Square went out of business and a Steve & Barry's moved in nearby then went again. There was a Media Play (R.I.P.). There was a Mervyn's (also R.I.P.).",
+    "date": "February 2014",
+    "lat": "42.6389216",
+    "lng": "-83.2910468"
+  },
+  {
+    "title": "CHICAGO: BELMONT EL STATION",
+    "author": "Beverly Offen",
+    "lake": "Lake Michigan Watershed",
+    "location": "Chicago, Illinois",
+    "url": "https://greatlakesreview.org/chicago-belmont-el-station/",
+    "excerpt": "You have walked by that picture for years. Always avoided looking at it. Something forbidding about it. Today, you make yourself stop and look.",
+    "date": "February 2014",
+    "lat": "41.8781136",
+    "lng": "-87.6297982"
+  },
+  {
+    "title": "PORT HURON, MICHIGAN: YOU DON'T SAY",
+    "author": "Carolyn Kohl",
+    "lake": "Lake Huron Watershed",
+    "location": "Port Huron, Michigan",
+    "url": "https://greatlakesreview.org/port-huron-michigan-you-dont-say/",
+    "excerpt": "Ten years in the UK may have dulled my accent but I'm still easy to identify as an outsider. Meeting people always involves a discussion of geography and barely disguised disappointment when they find out where I'm from.",
+    "date": "February 2014",
+    "lat": "42.9708634",
+    "lng": "-82.4249142"
+  },
+  {
+    "title": "Sault Ste. Marie: A River and Two Cities with One Name",
+    "author": "Mark Dunn",
+    "lake": "Lake Huron Watershed",
+    "location": "Sault Ste. Marie",
+    "url": "https://greatlakesreview.org/sault-ste-marie-a-river-and-two-cities-with-one-name/",
+    "excerpt": "When Hemingway dipped his hook in these waters the First World War was not two years over. Prohibition had just begun in the United States and the ferryboat between Ontario and Michigan was the only official way across the St. Mary's River at Sault Ste. Marie. Writing in 1920 for The Toronto Star Weekly, Hemingway called the fishing in the area, \"…a wild nightmare.\" The first people still call the waters and the villages nearby Baawitigong, which represents something like the sound of water over stone. The name has been Anglicized, stultified into hard syllables more accessible to the European tongue, into \"Bawating\" - a word that carries some of the meaning but none of the music of the original.",
+    "date": "February 2014",
+    "lat": "46.5136494",
+    "lng": "-84.3357526"
+  },
+  {
+    "title": "DOLTON, ILLINOIS: My … kind of town?",
+    "author": "Marcus Millison",
+    "lake": "Lake Michigan Watershed",
+    "location": "Dolton, Illinois",
+    "url": "https://greatlakesreview.org/dolton-illinois-my-kind-of-town/",
+    "excerpt": "When you find yourself approaching the vicinity of a popular national retailer such as Walgreens, and a pair of bulbs are blown on its massive red cursive letters so that it only reads ' al green', not in homage of the 70's soul singing reverend, but just from an accumulation of mere chance, short funds and pernicious Midwest weather, then you know that you've arrived in my neighborhood.",
+    "date": "February 2014",
+    "lat": "41.6389236",
+    "lng": "-87.607268"
+  },
+  {
+    "title": "CHICAGO: Beverly",
+    "author": "Dmitry Samarov",
+    "lake": "Lake Michigan Watershed",
+    "location": "Chicago, Illinois",
+    "url": "https://greatlakesreview.org/chicago-beverly/",
+    "excerpt": "I've never lived in a place where you couldn't hear the neighbors moving around above your head or under your feet.",
+    "date": "January 2014",
+    "lat": "41.8781136",
+    "lng": "-87.6297982"
+  },
+  {
+    "title": "MICHIGAN: THE SIGNS OF WHITMORE LAKE",
+    "author": "John Counts",
+    "lake": "Lake Huron Watershed",
+    "location": "Whitmore Lake, Michigan",
+    "url": "https://greatlakesreview.org/neighborhood-sketch-michigan-the-signs-of-whitmore-lake/",
+    "excerpt": "The sign greeting motorists says, \"Welcome to Whitmore Lake,\" set inside a Bob Ross painting of trees and water. I hear the 1973 township board meeting approving the sign. \"We are a resort community. We want people to feel relaxed,\" the local leaders said. The township board commissions a local artist who probably taught at the high school and died teaching watercolor techniques to senior citizens.",
+    "date": "January 2014",
+    "lat": "42.439479",
+    "lng": "-83.7438303"
+  }
+];
+
+  async function fetchSheet() {
+    return { ok: true, text: async () => '' };
+  }
+
+  // ── Expected sheet columns (order matters) ───────────────────────────────
+  // title | author | lake | location | url | excerpt | date | lat | lng
+  // lat and lng are optional — if blank, location is geocoded automatically
+
+  // ── Map init ──────────────────────────────────────────────────────────────
+  mapboxgl.accessToken = MAPBOX_TOKEN;
+
+  const GL_BOUNDS = [
+    [-96.5, 38.5],   // SW — covers Red Lake Falls MN west, Columbus OH south
+    [-75.5, 49.5]    // NE — eastern Lake Ontario / St. Lawrence
+  ];
+
+  // Padding used for fitBounds — keeps points away from sidebar and edges
+  const FIT_PADDING = { top: 40, bottom: 40, left: 40, right: 40 };
+
+  function goHome() {
+    map.fitBounds(GL_BOUNDS, { padding: FIT_PADDING, duration: 800 });
+  }
+
+  const map = new mapboxgl.Map({
+    container: 'map',
+    style: MAPBOX_STYLE,
+    bounds: GL_BOUNDS,
+    fitBoundsOptions: { padding: FIT_PADDING },
+    minZoom: 4.5,
+    maxZoom: 10.9,
+    maxBounds: GL_BOUNDS,
+    attributionControl: true
+  });
+
+  map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+  // ── Home button ───────────────────────────────────────────────────────────
+  class HomeControl {
+    onAdd(map) {
+      this._map = map;
+      this._container = document.createElement('div');
+      this._container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
+      this._container.innerHTML = `
+        <button class="mapboxgl-ctrl-home" title="Return to full extent" aria-label="Return to full extent">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/>
+            <polyline points="9 21 9 13 15 13 15 21"/>
+          </svg>
+        </button>
+      `;
+      this._container.querySelector('button').addEventListener('click', () => {
+        goHome();
+        document.querySelectorAll('.essay-item').forEach(el => el.classList.remove('active'));
+      });
+      return this._container;
+    }
+    onRemove() {
+      this._container.parentNode.removeChild(this._container);
+      this._map = undefined;
+    }
+  }
+  map.addControl(new HomeControl(), 'top-right');
+
+  // ── CSV parser — handles multi-line quoted fields ─────────────────────────
+  function parseCSV(text) {
+    text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const rows = [];
+    let i = 0;
+
+    function parseField() {
+      if (text[i] === '"') {
+        i++;
+        let field = '';
+        while (i < text.length) {
+          if (text[i] === '"' && text[i + 1] === '"') { field += '"'; i += 2; }
+          else if (text[i] === '"') { i++; break; }
+          else { field += text[i++]; }
+        }
+        return field;
+      } else {
+        let field = '';
+        while (i < text.length && text[i] !== ',' && text[i] !== '\n') {
+          field += text[i++];
+        }
+        return field;
+      }
+    }
+
+    function parseRow() {
+      const cols = [];
+      while (i < text.length && text[i] !== '\n') {
+        cols.push(parseField());
+        if (text[i] === ',') i++;
+      }
+      if (text[i] === '\n') i++;
+      return cols;
+    }
+
+    const headers = parseRow().map(h => h.trim());
+    while (i < text.length) {
+      const cols = parseRow();
+      if (cols.length < 2) continue;
+      const row = {};
+      headers.forEach((h, j) => { row[h] = (cols[j] || '').trim(); });
+      if (row.title) rows.push(row);
+    }
+    return rows;
+  }
+
+  // ── Geocoder — uses Mapbox Geocoding API ──────────────────────────────────
+  async function geocode(locationString) {
+    const query = encodeURIComponent(locationString + ', Great Lakes');
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json` +
+                `?access_token=${MAPBOX_TOKEN}&limit=1&bbox=-95,40,-73,50`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.features && data.features.length > 0) {
+      const [lng, lat] = data.features[0].center;
+      return { lat, lng };
+    }
+    return null;
+  }
+
+  // ── Loading state ─────────────────────────────────────────────────────────
+  function showLoading() {
+    const list = document.getElementById('essayList');
+    list.innerHTML = `
+      <li style="padding:1.5rem;color:var(--muted);font-size:.85rem;text-align:center;">
+        <div style="margin-bottom:.5rem;">Loading essays…</div>
+        <div style="width:32px;height:3px;background:var(--blue-lt);margin:0 auto;border-radius:2px;overflow:hidden;">
+          <div style="width:100%;height:100%;background:var(--blue);animation:loading 1s ease-in-out infinite alternate;transform-origin:left;"></div>
+        </div>
+      </li>`;
+  }
+
+  function showError(msg) {
+    const list = document.getElementById('essayList');
+    list.innerHTML = `<li style="padding:1.5rem;color:#c0392b;font-size:.85rem;">${msg}</li>`;
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function makePopupHTML(e) {
+    return `
+      <div class="popup-tag">${e.lake} · ${e.location}</div>
+      <div class="popup-title">${e.title}</div>
+      <div class="popup-author">by ${e.author} &middot; ${e.date}</div>
+      <div class="popup-excerpt">${e.excerpt}</div>
+      <a class="popup-link" href="${e.url}" target="_blank" rel="noopener">Read the essay →</a>
+    `;
+  }
+
+  function activateSidebarItem(id) {
+    document.querySelectorAll('.essay-item').forEach(el => el.classList.remove('active'));
+    const el = document.getElementById(`essay-${id}`);
+    if (el) {
+      el.classList.add('active');
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }
+
+  // ── Main — fetch sheet, geocode, render ───────────────────────────────────
+  const popups = {};
+
+  async function loadEssays() {
+    showLoading();
+
+    let rows;
+    try {
+      rows = HARDCODED_ESSAYS;
+    } catch(err) {
+      showError('Could not load essay data.');
+      console.error(err);
+      return;
+    }
+
+    // Resolve coordinates — use sheet values if present, otherwise geocode
+    const essays = await Promise.all(rows.map(async (row, i) => {
+      let lat = parseFloat(row.lat || row[7]);
+      let lng = parseFloat(row.lng || row[8]);
+
+      if (!lat || !lng) {
+        const coords = await geocode(row.location);
+        if (coords) { lat = coords.lat; lng = coords.lng; }
+        else { console.warn(`Could not geocode: ${row.location}`); return null; }
+      }
+
+      return { id: i + 1, lat, lng, ...row };
+    }));
+
+    const validEssays = essays.filter(Boolean);
+
+    // Wait for map style to load before adding markers
+    const addMarkers = () => {
+      validEssays.forEach(e => {
+        // Wrapper div is the anchor point (bottom-left = tip of teardrop)
+        const wrap = document.createElement('div');
+        wrap.className = 'glr-marker-wrap';
+        const inner = document.createElement('div');
+        inner.className = 'glr-marker';
+        const tooltip = document.createElement('div');
+        tooltip.className = 'glr-tooltip';
+        tooltip.textContent = e.location;
+        wrap.appendChild(tooltip);
+        wrap.appendChild(inner);
+
+        const popup = new mapboxgl.Popup({ offset: [11, -11], maxWidth: '290px' })
+          .setHTML(makePopupHTML(e));
+
+        new mapboxgl.Marker({ element: wrap, anchor: 'bottom-left' })
+          .setLngLat([e.lng, e.lat])
+          .setPopup(popup)
+          .addTo(map);
+
+        wrap.addEventListener('click', () => activateSidebarItem(e.id));
+        popups[e.id] = { popup, lng: e.lng, lat: e.lat };
+      });
+    };
+
+    if (map.isStyleLoaded()) { addMarkers(); }
+    else { map.on('load', addMarkers); }
+
+    // Build sidebar
+    const list = document.getElementById('essayList');
+    list.innerHTML = '';
+    validEssays.forEach(e => {
+      const li = document.createElement('li');
+      li.className = 'essay-item';
+      li.id = `essay-${e.id}`;
+      li.innerHTML = `
+        <div class="essay-inner">
+          <span class="essay-lake-tag">${e.lake}</span>
+          <div class="essay-title">${e.title}</div>
+          <div class="essay-meta">by ${e.author} &middot; ${e.location}</div>
+          <div class="essay-excerpt">${e.excerpt}</div>
+          <a class="essay-link" href="${e.url}" target="_blank" rel="noopener">Read →</a>
+        </div>
+      `;
+      li.addEventListener('click', () => {
+        activateSidebarItem(e.id);
+        map.flyTo({ center: [e.lng, e.lat], zoom: 8, speed: 1.2 });
+        map.once('moveend', () => {
+          if (popups[e.id]) popups[e.id].popup.addTo(map).setLngLat([e.lng, e.lat]);
+        });
+      });
+      list.appendChild(li);
+    });
+  }
+
+  loadEssays();
+</script>
+
+<style>
+  @keyframes loading {
+    from { transform: scaleX(0.2); }
+    to   { transform: scaleX(1); }
+  }
+</style>
+</body>
+</html>
