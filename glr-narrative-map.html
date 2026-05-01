@@ -289,6 +289,13 @@
       margin-bottom: .5rem;
     }
 
+    .popup-excerpt {
+      font-size: .8rem;
+      line-height: 1.55;
+      color: var(--muted);
+      margin-bottom: .6rem;
+    }
+
     .popup-link {
       font-size: .78rem;
       font-weight: 600;
@@ -304,11 +311,89 @@
     .glr-sidebar::-webkit-scrollbar-track { background: transparent; }
     .glr-sidebar::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
 
+    /* ── Tab bar (mobile only) ── */
+    .glr-tab-bar {
+      display: none;
+    }
+
     /* ── Responsive ── */
     @media (max-width: 680px) {
-      .glr-layout { grid-template-columns: 1fr; grid-template-rows: 55vh 1fr; }
-      #map { height: 100%; }
-      .glr-sidebar { height: 100%; }
+      .glr-tab-bar {
+        display: flex;
+        background: var(--paper);
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+      }
+
+      .glr-tab {
+        flex: 1;
+        padding: .7rem .5rem;
+        font-family: 'Merriweather Sans', sans-serif;
+        font-size: .8rem;
+        font-weight: 600;
+        letter-spacing: .02em;
+        border: none;
+        background: none;
+        cursor: pointer;
+        color: var(--muted);
+        border-bottom: 2px solid transparent;
+        transition: color .15s, border-color .15s;
+      }
+
+      .glr-tab.active {
+        color: var(--blue);
+        border-bottom-color: var(--blue);
+      }
+
+      .tab-count {
+        display: inline-block;
+        background: var(--blue-lt);
+        color: var(--blue);
+        font-size: .65rem;
+        font-weight: 700;
+        padding: .1rem .35rem;
+        border-radius: 10px;
+        margin-left: .3rem;
+        vertical-align: .05em;
+      }
+
+      /* Layout fills remaining height below header + tab bar */
+      .glr-layout {
+        grid-template-columns: 1fr;
+        height: calc(100vh - 113px);
+      }
+
+      /* Panel visibility controlled by body class */
+      body.show-map .glr-sidebar { display: none; }
+      body.show-list #map        { display: none; }
+
+      body.show-map #map,
+      body.show-list .glr-sidebar {
+        height: 100%;
+        width: 100%;
+      }
+
+      /* Bigger markers for touch */
+      .glr-marker-wrap {
+        width: 28px;
+        height: 28px;
+      }
+
+      .glr-marker {
+        width: 28px;
+        height: 28px;
+      }
+
+      /* Larger popup close button */
+      .mapboxgl-popup-close-button {
+        font-size: 1.4rem;
+        padding: .3rem .6rem;
+      }
+
+      /* Sidebar intro: shorter on mobile */
+      .sidebar-intro {
+        padding: .85rem 1.25rem .75rem;
+      }
     }
   </style>
 </head>
@@ -319,6 +404,17 @@
   <div class="rule"></div>
   <span class="byline">Great Lakes Review</span>
 </header>
+
+<nav class="glr-tab-bar" id="tabBar">
+  <button class="glr-tab active" id="tabMap" onclick="switchTab('map')">
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:.35rem;vertical-align:-.15em"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/></svg>
+    Map
+  </button>
+  <button class="glr-tab" id="tabList" onclick="switchTab('list')">
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:.35rem;vertical-align:-.15em"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+    Essays <span class="tab-count" id="tabCount"></span>
+  </button>
+</nav>
 
 <div class="glr-layout">
 
@@ -1437,6 +1533,7 @@
       <div class="popup-tag">${e.lake} · ${e.location}</div>
       <div class="popup-title">${e.title}</div>
       <div class="popup-author">by ${e.author} &middot; ${e.date}</div>
+      <div class="popup-excerpt">${e.excerpt}</div>
       <a class="popup-link" href="${e.url}" target="_blank" rel="noopener">Read the essay →</a>
     `;
   }
@@ -1482,7 +1579,8 @@
 
     const validEssays = essays.filter(Boolean);
 
-    // Wait for map style to load before adding markers
+    const countEl = document.getElementById('tabCount');
+    if (countEl) countEl.textContent = validEssays.length;
     const addMarkers = () => {
       validEssays.forEach(e => {
         // Wrapper div is the anchor point (bottom-left = tip of teardrop)
@@ -1533,6 +1631,7 @@
       `;
       li.addEventListener('click', () => {
         activateSidebarItem(e.id);
+        if (window.matchMedia('(max-width: 680px)').matches) switchTab('map');
         if (currentOpenPopup) { currentOpenPopup.remove(); currentOpenPopup = null; }
         map.flyTo({ center: [e.lng, e.lat], zoom: 8, speed: 1.2 });
         map.once('moveend', () => {
@@ -1544,6 +1643,29 @@
       });
       list.appendChild(li);
     });
+  }
+
+  // ── Mobile tab switcher ───────────────────────────────────────────────────
+  function switchTab(tab) {
+    const tabMap  = document.getElementById('tabMap');
+    const tabList = document.getElementById('tabList');
+    if (tab === 'map') {
+      document.body.classList.remove('show-list');
+      document.body.classList.add('show-map');
+      tabMap.classList.add('active');
+      tabList.classList.remove('active');
+      setTimeout(() => map.resize(), 50);
+    } else {
+      document.body.classList.remove('show-map');
+      document.body.classList.add('show-list');
+      tabList.classList.add('active');
+      tabMap.classList.remove('active');
+    }
+  }
+
+  // Initialize tab state on mobile
+  if (window.matchMedia('(max-width: 680px)').matches) {
+    document.body.classList.add('show-map');
   }
 
   loadEssays();
