@@ -104,7 +104,7 @@ function map() {
         var zoomHome = L.Control.zoomHome();
         zoomHome.addTo(map);
 
-        L.tileLayer('https://api.mapbox.com/styles/v1/mapbox/light-v9/tiles/256/{z}/{x}/{y}?access_token=pk.eyJ1Ijoic2ZyYW1lOTM4IiwiYSI6ImNqN2RweG9ydjBkenIycWt5Z2c5NWtsajcifQ.bA0BviPhPcygQREBZd0cdQ', {
+        L.tileLayer('https://api.mapbox.com/styles/v1/sframe938/cmsndbf5f016o01s60k6x6ww7/wmts?access_token=pk.eyJ1Ijoic2ZyYW1lOTM4IiwiYSI6ImNqN2RweG9ydjBkenIycWt5Z2c5NWtsajcifQ.bA0BviPhPcygQREBZd0cdQ', {
             minZoom: 3,
             maxZoom: 14,
             detectRetina: true
