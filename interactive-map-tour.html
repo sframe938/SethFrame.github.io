@@ -283,7 +283,7 @@
 <header class="imt-header">
   <h1>Interactive Map Tour</h1>
   <div class="rule"></div>
-  <a class="back-link" href="../index.html">&larr; Back to site</a>
+  <a class="back-link" href="index.html">&larr; Back to site</a>
 </header>
 
 <div class="imt-layout">
@@ -328,21 +328,8 @@
   // - tour: 'career' | 'watercolor' | 'cartography' | 'writing'
   // - lat/lng: required, decimal degrees
   // - zoom, venue, thumbnail, url, excerpt, date: optional, leave blank if unused
-  // This page lives in /index, one level below the repo root, while the CSV
-  // stays at the repo-root /data — hence the '../' below.
-  const DATA_URL = '../data/tour-locations.csv';
-
-  // The CSV's thumbnail/url paths (e.g. "img/watercolors/...",
-  // "assets/cartography/...") are written root-relative to match how
-  // they're referenced elsewhere on the site (index.html). Prefix internal
-  // paths with '../' so they resolve correctly from /index; leave external
-  // links (https://...) untouched.
-  const ASSET_BASE = '../';
-  function assetPath(path) {
-    if (!path) return '';
-    if (/^https?:\/\//i.test(path)) return path;
-    return ASSET_BASE + path;
-  }
+  // This page and data/tour-locations.csv both live at the repo root.
+  const DATA_URL = 'data/tour-locations.csv';
 
   // ── Map init ──────────────────────────────────────────────────────────
   mapboxgl.accessToken = MAPBOX_TOKEN;
@@ -504,9 +491,9 @@
   }
 
   function makePopupHTML(stop) {
-    const thumb = stop.thumbnail ? `<img class="popup-thumb" src="${assetPath(stop.thumbnail)}" alt="${stop.title}">` : '';
+    const thumb = stop.thumbnail ? `<img class="popup-thumb" src="${stop.thumbnail}" alt="${stop.title}">` : '';
     const linkLabel = stop.type === 'writing' ? 'Read essay' : 'View piece';
-    const link = stop.url ? `<a class="popup-link" href="${assetPath(stop.url)}" target="_blank" rel="noopener">${linkLabel} &rarr;</a>` : '';
+    const link = stop.url ? `<a class="popup-link" href="${stop.url}" target="_blank" rel="noopener">${linkLabel} &rarr;</a>` : '';
     const meta = stop.venue
       ? `${stop.venue}${stop.date ? ' &middot; ' + stop.date : ''}`
       : `${stop.location}${stop.date ? ' &middot; ' + stop.date : ''}`;
