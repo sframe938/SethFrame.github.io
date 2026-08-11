@@ -8,3 +8,70 @@
   color: #fff;
   text-decoration: none;
 }
+
+/* ── Cover hover effect ──────────────────────────────────────────────
+   Applied consistently to the Map Tour teaser, ceramics cover, and
+   watercolors cover: a subtle scale-up + brightness shift on hover,
+   signaling "clickable" without relying on color (site stays monochrome). */
+#ceramics .box:first-of-type a,
+#watercolors .box:first-of-type a,
+.maptour-teaser a {
+  display: block;
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.25rem;
+}
+
+#ceramics .box:first-of-type a img,
+#watercolors .box:first-of-type a img,
+.maptour-teaser a img {
+  transition: transform 0.25s ease, filter 0.25s ease;
+}
+
+#ceramics .box:first-of-type a:hover img,
+#watercolors .box:first-of-type a:hover img,
+.maptour-teaser a:hover img {
+  transform: scale(1.035);
+  filter: brightness(1.06);
+}
+
+/* ── Map Tour teaser overlay text ───────────────────────────────────── */
+.maptour-teaser {
+  max-width: 100%;
+}
+
+.maptour-link {
+  text-decoration: none;
+}
+
+.maptour-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.maptour-overlay span {
+  font-family: 'Cardo', serif;
+  font-size: 1.5rem;
+  font-style: italic;
+  color: #fff;
+  background: rgba(30, 30, 30, 0.55);
+  padding: 0.6rem 1.6rem;
+  border-radius: 2px;
+  letter-spacing: 0.02em;
+  transition: background 0.25s ease;
+}
+
+.maptour-teaser a:hover .maptour-overlay span {
+  background: rgba(20, 20, 20, 0.7);
+}
+
+@media (max-width: 767px) {
+  .maptour-overlay span {
+    font-size: 1.05rem;
+    padding: 0.5rem 1rem;
+  }
+}
