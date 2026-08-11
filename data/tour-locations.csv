@@ -1,8 +1,8 @@
 tour,id,title,type,order,location,lat,lng,zoom,venue,date,thumbnail,url,excerpt
-career,tyler,Tyler Technologies,job,1,"Latham, NY",42.75685,-73.8228,,,Aug. 2016 – Present,,,GIS Supervisor/Analyst
-career,landmark,Landmark Archaeology,job,3,"Altamont, NY",42.70011,-73.99513,,,June 2016–Aug. 2016,,,GPS/GIS Specialist
+career,tyler,Tyler Technologies,job,1,"Latham, NY",42.75685,-73.8228,,,Aug. 2016 – Present,,,"Increased communication between departments by building an internal tracking website that visualizes project status, assignments, and estimated completion dates."
+career,landmark,Landmark Archaeology,job,3,"Altamont, NY",42.70011,-73.99513,,,June 2016–Aug. 2016,,,"Recommended a GNSS receiver upgrade that cut field data collection time by 50%, increasing the amount of data collected per day."
 career,uwm,University of Wisconsin–Madison,school,2,"Madison, WI",43.073885,-89.4109526,,,Aug. 2017–Aug. 2018,,,"Master of Science, Cartography and GIS"
-career,alpine,Alpine Archaeological Consultants,job,5,"Montrose, CO",38.47132,-107.87024,,,Nov. 2009–June 2016,,,GIS Lab Supervisor
+career,alpine,Alpine Archaeological Consultants,job,5,"Montrose, CO",38.47132,-107.87024,,,Nov. 2009–June 2016,,,"Built a Python tool that auto-generates a rough-draft archaeological site map from field data, boosting mapping efficiency by 30%."
 career,western,Western Land Services,job,6,"Sheridan, WY",44.73995,-106.94674,,,Aug. 2005–Apr. 2009,,,Archaeological GIS Specialist
 career,auditor,St. Joseph County Auditor's Office,job,7,"South Bend, IN",41.6754,-86.25309,,,May 2004–July 2005,,,GIS Coordinator
 career,csu,Colorado State University,school,4,"Fort Collins, CO",40.5749824,-105.0838675,,,Aug. 2014–Dec. 2016,,,"Bachelor of Arts, Anthropology — Summa Cum Laude"
@@ -36,12 +36,12 @@ watercolor,yellowstone-falls,Yellowstone Falls,watercolor,13,"Yellowstone Nation
 watercolor,boathouse-yellowstone,Boathouse in Yellowstone,watercolor,14,"Yellowstone Lake shore, Yellowstone National Park, WY",44.5555,-110.4028,,,,img/watercolors/thumbs/Boathouse-in-Yellowstone-thumb.jpg,img/watercolors/Boathouse%20in%20Yesllowstone.jpg,
 watercolor,port-townsend,Port Townsend,watercolor,15,"Port Townsend, WA",48.1173,-122.7604,,,,img/watercolors/thumbs/Port-Townsend-thumb.jpg,img/watercolors/Port%20Townsend.jpg,
 watercolor,indiana-dunes-1,Indiana Dunes No. 1,watercolor,16,"Indiana Dunes National Park, IN",41.6625,-87.0575,,,,img/watercolors/thumbs/Indiana-Dunes-1-thumb.jpg,img/watercolors/Indiana%20Dunes%201.jpg,
-writing,stapled-pages,Stapled Pages,writing,1,"Schenectady, NY",42.8142,-73.9396,,Under the Gum Tree,Forthcoming,,,
-writing,border-of-their-kingdoms,The Border of Their Kingdoms,writing,2,"Schenectady, NY",42.8142,-73.9396,,"Sky Island Journal, Issue 36",Summer 2026,,https://www.skyislandjournal.com/s/Seth-Frame_Creative-Nonfiction_The-Border-of-Their-Kingdoms-aee6.docx,
-writing,something-carried-back-down,Something Carried Back Down,writing,3,"Prospect Mountain, NY",43.427,-73.7132,,Muleskinner Journal,2026,,https://www.muleskinnerjournal.com/something-carried-back-down,
-writing,black-caps,Black-Caps,writing,4,"Stone Ridge, NY",41.8232,-74.1204,,The Argyle,Mar. 2026,,https://www.theargylelitmag.com/nonfiction-4/black-caps,
-writing,water-in-the-wall,Water in the Wall,writing,5,"Aztec Ruins, NM",36.8378,-107.9997,,"Thin Places Journal, Issue Two",Jul. 2026,,https://thin-places.org/wp-content/uploads/2026/07/thin-places-issue-two-8.pdf,
-writing,gods-of-heat-and-wind,The Gods of Heat and Wind,writing,6,"Fort Bottom Ruins, Canyonlands, UT",38.42,-109.96,,"Thomasonian, Issue 2",,,https://readthomasonian.my.canva.site/issue-2/the-gods-of-heat-and-wind,
-writing,gestures-not-songs,"Gestures, Not Songs",writing,7,"Kaycee, WY",43.7247,-106.6382,,"Sky Island Journal, Issue 35",Spring 2026,,https://www.skyislandjournal.com/s/Seth-Frame_Creative-Nonfiction_Gestures-Not-Songs.docx,
-writing,what-the-lake-holds,What the Lake Holds,writing,8,"Indiana Dunes National Park, IN",41.6625,-87.0575,,Great Lakes Review,Forthcoming,,,
-writing,soft-edged-stars,Soft-Edged Stars,writing,9,"Guadalupe Peak, TX",31.8912,-104.8608,,Blood+Honey,Jan. 2026,,https://www.bloodhoneylit.com/cnf/soft-edged-stars,
+writing,stapled-pages,Stapled Pages,writing,1,"Schenectady, NY",42.8142,-73.9396,,Under the Gum Tree,Forthcoming,,,I didn't need him to say “I love you.” I felt it.
+writing,border-of-their-kingdoms,The Border of Their Kingdoms,writing,2,"Schenectady, NY",42.8142,-73.9396,,"Sky Island Journal, Issue 36",Summer 2026,,https://www.skyislandjournal.com/s/Seth-Frame_Creative-Nonfiction_The-Border-of-Their-Kingdoms-aee6.docx,"I lie at the border of their kingdoms of sleep, careful not to tip the balance."
+writing,something-carried-back-down,Something Carried Back Down,writing,3,"Prospect Mountain, NY",43.427,-73.7132,,Muleskinner Journal,2026,,https://www.muleskinnerjournal.com/something-carried-back-down,I had spent my whole life looking at distance. I just hadn't known it could stand up.
+writing,black-caps,Black-Caps,writing,4,"Stone Ridge, NY",41.8232,-74.1204,,The Argyle,Mar. 2026,,https://www.theargylelitmag.com/nonfiction-4/black-caps,"Along the fence were rows of wild black-caps, their fruits falling away at a touch."
+writing,water-in-the-wall,Water in the Wall,writing,5,"Aztec Ruins, NM",36.8378,-107.9997,,"Thin Places Journal, Issue Two",Jul. 2026,,https://thin-places.org/wp-content/uploads/2026/07/thin-places-issue-two-8.pdf,The green stone remains inside the wall.
+writing,gods-of-heat-and-wind,The Gods of Heat and Wind,writing,6,"Fort Bottom Ruins, Canyonlands, UT",38.42,-109.96,,"Thomasonian, Issue 2",,,https://readthomasonian.my.canva.site/issue-2/the-gods-of-heat-and-wind,I thanked the gods who helped me get back to the car. I cursed the gods who tried to blow me off the rock.
+writing,gestures-not-songs,"Gestures, Not Songs",writing,7,"Kaycee, WY",43.7247,-106.6382,,"Sky Island Journal, Issue 35",Spring 2026,,https://www.skyislandjournal.com/s/Seth-Frame_Creative-Nonfiction_Gestures-Not-Songs.docx,We reconstruct gestures but not songs.
+writing,what-the-lake-holds,What the Lake Holds,writing,8,"Indiana Dunes National Park, IN",41.6625,-87.0575,,Great Lakes Review,Forthcoming,,,The lake holds what I cannot release.
+writing,soft-edged-stars,Soft-Edged Stars,writing,9,"Guadalupe Peak, TX",31.8912,-104.8608,,Blood+Honey,Jan. 2026,,https://www.bloodhoneylit.com/cnf/soft-edged-stars,It was enough simply to be there.
