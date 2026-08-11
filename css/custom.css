@@ -15,6 +15,7 @@
    signaling "clickable" without relying on color (site stays monochrome). */
 #ceramics .box:first-of-type a,
 #watercolors .box:first-of-type a,
+#examples .box:first-of-type a,
 .maptour-teaser a {
   display: block;
   position: relative;
@@ -24,12 +25,14 @@
 
 #ceramics .box:first-of-type a img,
 #watercolors .box:first-of-type a img,
+#examples .box:first-of-type a img,
 .maptour-teaser a img {
   transition: transform 0.25s ease, filter 0.25s ease;
 }
 
 #ceramics .box:first-of-type a:hover img,
 #watercolors .box:first-of-type a:hover img,
+#examples .box:first-of-type a:hover img,
 .maptour-teaser a:hover img {
   transform: scale(1.035);
   filter: brightness(1.06);
