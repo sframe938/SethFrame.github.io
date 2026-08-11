@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive Map Tour – Seth Frame</title>
+
+  <!-- Mapbox GL JS -->
+  <link href="https://api.mapbox.com/mapbox-gl-js/v3.18.1/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v3.18.1/mapbox-gl.js"></script>
+
+  <!-- Fonts matching the main site: Cardo (serif headings) + Montserrat (sans body/UI) -->
+  <link href="https://fonts.googleapis.com/css2?family=Cardo:ital,wght@0,400;0,700;1,400&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink:      #2b2b2b;
+      --paper:    #ffffff;
+      --bg:       #f7f7f7;
+      --border:   #e2e2e2;
+      --muted:    #767676;
+      --muted-lt: #a8a8a8;
+      --accent:   #2b2b2b; /* monochrome site — no color accent by default */
+    }
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+    }
+
+    /* ── Header ── */
+    .imt-header {
+      display: flex;
+      align-items: baseline;
+      gap: 1.25rem;
+      padding: 1.1rem 2rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--paper);
+    }
+
+    .imt-header h1 {
+      font-family: 'Cardo', serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: .01em;
+    }
+
+    .imt-header .rule {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(to right, var(--border), transparent);
+    }
+
+    .imt-header .back-link {
+      font-size: .78rem;
+      color: var(--muted);
+      text-decoration: none;
+      border-bottom: 1px solid var(--muted-lt);
+      white-space: nowrap;
+    }
+    .imt-header .back-link:hover { color: var(--ink); border-color: var(--ink); }
+
+    /* ── Layout ── */
+    .imt-layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      height: calc(100vh - 66px);
+    }
+
+    /* ── Sidebar ── */
+    .imt-sidebar {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--border);
+      background: var(--paper);
+      overflow: hidden;
+    }
+
+    .sidebar-controls {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: .5rem;
+    }
+
+    .tour-select {
+      flex: 1;
+      font-family: 'Montserrat', sans-serif;
+      font-size: .85rem;
+      font-weight: 600;
+      color: var(--ink);
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: .5rem .6rem;
+      cursor: pointer;
+    }
+
+    .show-all-btn {
+      font-family: 'Montserrat', sans-serif;
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .04em;
+      white-space: nowrap;
+      color: var(--ink);
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: .5rem .7rem;
+      cursor: pointer;
+      transition: background .15s, color .15s, border-color .15s;
+    }
+    .show-all-btn:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+    .stop-nav {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      padding: .8rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .stop-nav button {
+      font-family: 'Montserrat', sans-serif;
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--ink);
+      background: var(--paper);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: .45rem .75rem;
+      cursor: pointer;
+      transition: background .15s, border-color .15s;
+    }
+    .stop-nav button:hover:not(:disabled) { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+    .stop-nav button:disabled { opacity: .35; cursor: default; }
+
+    .stop-indicator {
+      flex: 1;
+      text-align: center;
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .stop-list {
+      list-style: none;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .stop-item {
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .stop-item:hover,
+    .stop-item.active { background: #f0f0f0; }
+    .stop-item.active { box-shadow: inset 3px 0 0 var(--ink); }
+
+    .stop-inner { padding: .9rem 1.25rem; }
+
+    .stop-tag {
+      display: inline-block;
+      font-size: .62rem;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      padding: .12rem .4rem;
+      margin-bottom: .4rem;
+    }
+
+    .stop-title {
+      font-family: 'Cardo', serif;
+      font-weight: 700;
+      font-size: 1rem;
+      line-height: 1.3;
+      margin-bottom: .2rem;
+    }
+
+    .stop-meta {
+      font-size: .76rem;
+      color: var(--muted);
+    }
+
+    /* ── Map ── */
+    #map { width: 100%; height: 100%; background: #d8d8d8; }
+
+    .mapboxgl-ctrl-attrib { font-size: .65rem; }
+    .mapboxgl-ctrl-home {
+      display: flex; align-items: center; justify-content: center;
+      width: 29px; height: 29px; background: #fff; border: none;
+      cursor: pointer; color: var(--ink); padding: 0;
+    }
+    .mapboxgl-ctrl-home:hover { background: #f0f0f0; }
+
+    .mapboxgl-popup-content {
+      border-radius: 2px;
+      box-shadow: 0 4px 18px rgba(0,0,0,.15);
+      border: 1px solid var(--border);
+      font-family: 'Montserrat', sans-serif;
+      padding: 0;
+      max-width: 280px;
+      overflow: hidden;
+    }
+    .mapboxgl-popup-tip { border-top-color: #fff !important; }
+
+    .popup-thumb {
+      width: 100%;
+      height: 140px;
+      object-fit: cover;
+      display: block;
+      background: var(--bg);
+    }
+    .popup-body { padding: .9rem 1rem 1rem; }
+    .popup-tag {
+      font-size: .62rem; font-weight: 600; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--muted);
+    }
+    .popup-title {
+      font-family: 'Cardo', serif;
+      font-weight: 700;
+      font-size: 1rem;
+      margin: .3rem 0 .15rem;
+    }
+    .popup-meta { font-size: .74rem; color: var(--muted); margin-bottom: .5rem; }
+    .popup-excerpt { font-size: .78rem; line-height: 1.5; color: var(--ink); margin-bottom: .55rem; }
+    .popup-link {
+      font-size: .74rem; font-weight: 600; color: var(--ink);
+      text-decoration: none; border-bottom: 1px solid var(--muted-lt);
+    }
+    .popup-link:hover { border-color: var(--ink); }
+
+    /* ── Markers ── */
+    .imt-marker-wrap { width: 22px; height: 22px; cursor: pointer; will-change: transform; }
+    .imt-marker {
+      position: relative;
+      width: 22px; height: 22px;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      background: var(--ink);
+      border: 2px solid #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,.28);
+      transition: transform .15s;
+    }
+    .imt-marker-wrap:hover .imt-marker { transform: rotate(-45deg) scale(1.15); }
+    .imt-marker-icon {
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 11px; height: 11px;
+      transform: translate(-50%, -50%) rotate(45deg); /* counter-rotate so icon reads upright */
+      color: #fff;
+      pointer-events: none;
+    }
+    .imt-marker-icon svg { width: 100%; height: 100%; display: block; }
+
+    /* ── Scrollbar ── */
+    .stop-list::-webkit-scrollbar { width: 5px; }
+    .stop-list::-webkit-scrollbar-track { background: transparent; }
+    .stop-list::-webkit-scrollbar-thumb { background: #d0d0d0; border-radius: 3px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 680px) {
+      .imt-layout { grid-template-columns: 1fr; grid-template-rows: 50vh 1fr; }
+      #map { height: 100%; }
+      .imt-sidebar { height: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="imt-header">
+  <h1>Interactive Map Tour</h1>
+  <div class="rule"></div>
+  <a class="back-link" href="index.html">&larr; Back to site</a>
+</header>
+
+<div class="imt-layout">
+
+  <!-- Sidebar -->
+  <aside class="imt-sidebar">
+    <div class="sidebar-controls">
+      <select class="tour-select" id="tourSelect">
+        <option value="career">Career</option>
+        <option value="cartography">Cartography</option>
+        <option value="watercolor">Watercolors</option>
+        <option value="writing">Writing</option>
+        <option value="all">Explore All</option>
+      </select>
+      <button class="show-all-btn" id="showAllBtn" title="Fit map to all stops in this tour">Show All</button>
+    </div>
+
+    <div class="stop-nav">
+      <button id="backBtn" title="Previous stop">&larr; Back</button>
+      <div class="stop-indicator" id="stopIndicator">Stop 1 of 1</div>
+      <button id="nextBtn" title="Next stop">Next &rarr;</button>
+    </div>
+
+    <ul class="stop-list" id="stopList"></ul>
+  </aside>
+
+  <!-- Map -->
+  <div id="map"></div>
+
+</div>
+
+<script>
+  // ── Configuration ──────────────────────────────────────────────────────
+  const MAPBOX_TOKEN = 'pk.eyJ1Ijoic2ZyYW1lOTM4IiwiYSI6ImNqN2RweG9ydjBkenIycWt5Z2c5NWtsajcifQ.bA0BviPhPcygQREBZd0cdQ';
+  const MAPBOX_STYLE = 'mapbox://styles/sframe938/cmsndbf5f016o01s60k6x6ww7';
+
+  // ── Tour data source ─────────────────────────────────────────────────
+  // All tour stops are read from a single CSV at data/tour-locations.csv,
+  // hosted alongside this page in the repo (no external service needed).
+  // Expected columns (order doesn't matter, header names do):
+  //   tour,id,title,type,order,location,lat,lng,zoom,venue,date,thumbnail,url,excerpt
+  // - tour: 'career' | 'watercolor' | 'cartography' | 'writing'
+  // - lat/lng: required, decimal degrees
+  // - zoom, venue, thumbnail, url, excerpt, date: optional, leave blank if unused
+  const DATA_URL = 'data/tour-locations.csv';
+
+  // ── Map init ──────────────────────────────────────────────────────────
+  mapboxgl.accessToken = MAPBOX_TOKEN;
+
+  const HOME_CENTER = [-95.0, 40.0];
+  const HOME_ZOOM = 3.6;
+
+  const map = new mapboxgl.Map({
+    container: 'map',
+    style: MAPBOX_STYLE,
+    center: HOME_CENTER,
+    zoom: HOME_ZOOM,
+    minZoom: 3,
+    maxZoom: 14
+  });
+
+  map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+  // ── Home control ─────────────────────────────────────────────────────
+  class HomeControl {
+    onAdd(mapRef) {
+      this._map = mapRef;
+      this._container = document.createElement('div');
+      this._container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
+      this._container.innerHTML = `
+        <button class="mapboxgl-ctrl-home" title="Return to full extent" aria-label="Return to full extent">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/>
+            <polyline points="9 21 9 13 15 13 15 21"/>
+          </svg>
+        </button>`;
+      this._container.querySelector('button').addEventListener('click', () => {
+        map.flyTo({ center: HOME_CENTER, zoom: HOME_ZOOM, speed: 1.1 });
+        setActive(-1);
+      });
+      return this._container;
+    }
+    onRemove() { this._container.parentNode.removeChild(this._container); this._map = undefined; }
+  }
+  map.addControl(new HomeControl(), 'top-right');
+
+  // ── State ─────────────────────────────────────────────────────────────
+  let currentTourKey = 'career';
+  let currentStops = [];
+  let currentIndex = 0;
+  let markers = [];
+  const activePopup = new mapboxgl.Popup({ offset: [11, -11], maxWidth: '290px', closeOnClick: false });
+
+  // ── CSV parser — handles quoted fields with embedded commas/newlines ───
+  // (adapted from glr-narrative-map-sheets.html)
+  function parseCSV(text) {
+    text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const rows = [];
+    let i = 0;
+
+    function parseField() {
+      if (text[i] === '"') {
+        i++;
+        let field = '';
+        while (i < text.length) {
+          if (text[i] === '"' && text[i + 1] === '"') { field += '"'; i += 2; }
+          else if (text[i] === '"') { i++; break; }
+          else { field += text[i++]; }
+        }
+        return field;
+      } else {
+        let field = '';
+        while (i < text.length && text[i] !== ',' && text[i] !== '\n') {
+          field += text[i++];
+        }
+        return field;
+      }
+    }
+
+    function parseRow() {
+      const cols = [];
+      while (i < text.length && text[i] !== '\n') {
+        cols.push(parseField());
+        if (text[i] === ',') i++;
+      }
+      if (text[i] === '\n') i++;
+      return cols;
+    }
+
+    const headers = parseRow().map(h => h.trim());
+    while (i < text.length) {
+      const cols = parseRow();
+      if (cols.length < 2) continue;
+      const row = {};
+      headers.forEach((h, j) => { row[h] = (cols[j] || '').trim(); });
+      if (row.title) rows.push(row);
+    }
+    return rows;
+  }
+
+  function rowToStop(row) {
+    return {
+      id: row.id,
+      title: row.title,
+      tour: row.tour,
+      type: row.type || row.tour,
+      order: row.order ? parseInt(row.order, 10) : 0,
+      location: row.location || '',
+      lat: parseFloat(row.lat),
+      lng: parseFloat(row.lng),
+      zoom: row.zoom ? parseFloat(row.zoom) : undefined,
+      venue: row.venue || '',
+      date: row.date || '',
+      thumbnail: row.thumbnail || '',
+      url: row.url || '',
+      excerpt: row.excerpt || ''
+    };
+  }
+
+  // ── Data loading ──────────────────────────────────────────────────────
+  let allStopsCache = null;
+
+  async function fetchAllStops() {
+    if (allStopsCache) return allStopsCache;
+    const res = await fetch(DATA_URL);
+    if (!res.ok) throw new Error(`Could not load ${DATA_URL} (${res.status})`);
+    const text = await res.text();
+    allStopsCache = parseCSV(text).map(rowToStop).filter(s => !isNaN(s.lat) && !isNaN(s.lng));
+    return allStopsCache;
+  }
+
+  async function loadTourData(tourKey) {
+    const all = await fetchAllStops();
+    if (tourKey === 'all') {
+      // CSV rows are already grouped by tour in file order; just reassign
+      // a fresh sequential order so Next/Back and the sidebar don't collide
+      // on duplicate per-tour order values (e.g. career #1 and watercolor #1).
+      return all.map((stop, i) => ({ ...stop, order: i + 1 }));
+    }
+    return all.filter(s => s.tour === tourKey);
+  }
+
+  // ── Marker icons per type ─────────────────────────────────────────────
+  // Simple stroke-style SVG glyphs, sized to sit inside the teardrop marker.
+  // Falls back to a plain dot if a type has no dedicated icon.
+  const ICONS = {
+    job: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="1.5"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
+    school: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9l10-5 10 5-10 5-10-5z"/><path d="M6 11v5c0 1.5 3 3 6 3s6-1.5 6-3v-5"/></svg>`,
+    watercolor: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 3l3 3-11 11H7v-3z"/><path d="M3 21c1-2 1-4 0-6 2 0 4 1 4 3s-2 3-4 3z"/></svg>`,
+    cartography: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15 9l-2 6-6 2 2-6 6-2z"/></svg>`,
+    writing: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>`
+  };
+  const DEFAULT_ICON = `<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/></svg>`;
+
+  function iconFor(stop) {
+    return ICONS[stop.type] || ICONS[stop.tour] || DEFAULT_ICON;
+  }
+
+  const TYPE_LABELS = {
+    job: 'Career', school: 'Education', watercolor: 'Watercolor', cartography: 'Cartography', writing: 'Writing'
+  };
+  function labelFor(stop) {
+    return TYPE_LABELS[stop.type] || stop.tour;
+  }
+
+  function makePopupHTML(stop) {
+    const thumb = stop.thumbnail ? `<img class="popup-thumb" src="${stop.thumbnail}" alt="${stop.title}">` : '';
+    const linkLabel = stop.type === 'writing' ? 'Read essay' : 'View piece';
+    const link = stop.url ? `<a class="popup-link" href="${stop.url}" target="_blank" rel="noopener">${linkLabel} &rarr;</a>` : '';
+    const meta = stop.venue
+      ? `${stop.venue}${stop.date ? ' &middot; ' + stop.date : ''}`
+      : `${stop.location}${stop.date ? ' &middot; ' + stop.date : ''}`;
+    return `
+      ${thumb}
+      <div class="popup-body">
+        <div class="popup-tag">${labelFor(stop)}</div>
+        <div class="popup-title">${stop.title}</div>
+        <div class="popup-meta">${meta}</div>
+        <div class="popup-excerpt">${stop.excerpt || ''}</div>
+        ${link}
+      </div>`;
+  }
+
+  function setActive(index) {
+    currentIndex = index;
+    document.querySelectorAll('.stop-item').forEach(el => el.classList.remove('active'));
+    if (index >= 0 && currentStops[index]) {
+      const el = document.getElementById(`stop-${currentStops[index].id}`);
+      if (el) { el.classList.add('active'); el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+    }
+    updateStopNav();
+  }
+
+  function updateStopNav() {
+    const indicator = document.getElementById('stopIndicator');
+    const backBtn = document.getElementById('backBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    if (currentStops.length === 0) {
+      indicator.textContent = 'No stops';
+      backBtn.disabled = true;
+      nextBtn.disabled = true;
+      return;
+    }
+    if (currentIndex < 0) {
+      indicator.textContent = `Showing all ${currentStops.length}`;
+      backBtn.disabled = true;
+      nextBtn.disabled = false;
+      return;
+    }
+    indicator.textContent = `Stop ${currentIndex + 1} of ${currentStops.length}`;
+    backBtn.disabled = currentIndex <= 0;
+    nextBtn.disabled = currentIndex >= currentStops.length - 1;
+  }
+
+  function goToStop(index, { openPopup = true } = {}) {
+    const stop = currentStops[index];
+    if (!stop) return;
+    setActive(index);
+    map.flyTo({ center: [stop.lng, stop.lat], zoom: stop.zoom || 8, speed: 1.2 });
+    if (openPopup) {
+      map.once('moveend', () => {
+        activePopup.setLngLat([stop.lng, stop.lat]).setHTML(makePopupHTML(stop)).addTo(map);
+      });
+    }
+  }
+
+  document.getElementById('backBtn').addEventListener('click', () => {
+    if (currentIndex > 0) goToStop(currentIndex - 1);
+  });
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    if (currentIndex < currentStops.length - 1) goToStop(currentIndex + 1);
+  });
+
+  function clearMarkers() {
+    markers.forEach(m => m.remove());
+    markers = [];
+  }
+
+  function renderMarkers() {
+    clearMarkers();
+    currentStops.forEach((stop, i) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'imt-marker-wrap';
+      const inner = document.createElement('div');
+      inner.className = 'imt-marker';
+      const icon = document.createElement('div');
+      icon.className = 'imt-marker-icon';
+      icon.innerHTML = iconFor(stop);
+      inner.appendChild(icon);
+      wrap.appendChild(inner);
+
+      const popup = new mapboxgl.Popup({ offset: [11, -11], maxWidth: '290px' }).setHTML(makePopupHTML(stop));
+      const marker = new mapboxgl.Marker({ element: wrap, anchor: 'bottom-left' })
+        .setLngLat([stop.lng, stop.lat])
+        .setPopup(popup)
+        .addTo(map);
+
+      wrap.addEventListener('click', () => setActive(i));
+      markers.push(marker);
+    });
+  }
+
+  function renderSidebarList() {
+    const list = document.getElementById('stopList');
+    list.innerHTML = '';
+    currentStops.forEach((stop, i) => {
+      const li = document.createElement('li');
+      li.className = 'stop-item';
+      li.id = `stop-${stop.id}`;
+      li.innerHTML = `
+        <div class="stop-inner">
+          <span class="stop-tag">${labelFor(stop)}</span>
+          <div class="stop-title">${stop.title}</div>
+          <div class="stop-meta">${stop.location}</div>
+        </div>`;
+      li.addEventListener('click', () => goToStop(i));
+      list.appendChild(li);
+    });
+  }
+
+  function fitToStops({ animate = false } = {}) {
+    if (currentStops.length === 0) return;
+    const bounds = new mapboxgl.LngLatBounds();
+    currentStops.forEach(s => bounds.extend([s.lng, s.lat]));
+    map.fitBounds(bounds, { padding: 80, maxZoom: 8, duration: animate ? 800 : 0 });
+  }
+
+  function showAll() {
+    activePopup.remove();
+    currentIndex = -1;
+    document.querySelectorAll('.stop-item').forEach(el => el.classList.remove('active'));
+    fitToStops({ animate: true });
+    updateStopNav();
+  }
+
+  async function loadTour(tourKey) {
+    currentTourKey = tourKey;
+    try {
+      currentStops = (await loadTourData(tourKey)).sort((a, b) => (a.order || 0) - (b.order || 0));
+    } catch (err) {
+      console.error(err);
+      document.getElementById('stopList').innerHTML =
+        `<li style="padding:1rem 1.25rem; font-size:.8rem; color:var(--muted);">
+          Couldn't load tour data from <code>${DATA_URL}</code>. If you're
+          opening this file directly (file://), that will fail — serve it
+          over http (e.g. <code>python3 -m http.server</code>) or view it on
+          GitHub Pages instead.
+        </li>`;
+      currentStops = [];
+      updateStopNav();
+      return;
+    }
+    currentIndex = -1;
+    renderSidebarList();
+
+    const render = () => { renderMarkers(); fitToStops(); updateStopNav(); };
+    if (map.isStyleLoaded()) render();
+    else map.once('load', render);
+  }
+
+  document.getElementById('tourSelect').addEventListener('change', (e) => {
+    activePopup.remove();
+    loadTour(e.target.value);
+  });
+
+  document.getElementById('showAllBtn').addEventListener('click', showAll);
+
+  // ── Init ──────────────────────────────────────────────────────────────
+  loadTour(currentTourKey);
+</script>
+
+</body>
+</html>
