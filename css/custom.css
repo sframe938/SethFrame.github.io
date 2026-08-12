@@ -78,3 +78,21 @@
     padding: 0.5rem 1rem;
   }
 }
+
+/* ── Featured gallery images (Voyages / Mucha row) ───────────────────
+   Fixed height keeps the two thumbnails, and their captions below
+   them, aligned on desktop where the columns sit side by side. On
+   mobile the column goes full-width, so the same fixed height makes
+   the image (and therefore its caption) unnecessarily tall/far down
+   the page — shrink it at the mobile breakpoint. */
+.featured-map-img {
+  width: 100%;
+  height: 280px;
+  object-fit: cover;
+}
+
+@media (max-width: 767.98px) {
+  .featured-map-img {
+    height: 200px;
+  }
+}
