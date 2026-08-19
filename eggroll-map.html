@@ -263,7 +263,7 @@
       <p>Capital District, NY</p>
       <div id="reviewer-toggle"></div>
       <input id="search-box" type="text" placeholder="Search restaurants…" />
-      <button id="surprise-btn" type="button">🎲 Surprise me</button>
+      <button id="surprise-btn" type="button">Surprise me</button>
       <a id="log-review-link" href="https://forms.gle/oiB696Sb8hZkNUWS8" target="_blank" rel="noopener">
         + Log a review
       </a>
@@ -514,6 +514,7 @@
         download: true,
         header: true,
         skipEmptyLines: true,
+        transformHeader: (h) => h.trim(),
         complete: (results) => resolve(results.data),
         error: reject
       });
