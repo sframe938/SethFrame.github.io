@@ -18,6 +18,7 @@
     --accent-soft: #E4777B;/* dusty rose — secondary accent, alt rows */
     --sage: #99AFA2;       /* sage — low end of score ramp */
     --sage-dark: #799B8A;  /* deep sage — muted text, borders */
+    --gold: #C79A3D;       /* gold — marker ring, active states */
     --row-alt: #EEF3F0;
   }
 
@@ -67,7 +68,7 @@
     letter-spacing: 0.02em;
     text-decoration: none;
     border-radius: 3px;
-    border: 2px solid #C79A3D;
+    border: 2px solid var(--gold);
   }
   #log-review-link:hover { background: #FFF6E8; }
   #restaurant-list { list-style: none; margin: 0; padding: 0; }
@@ -82,7 +83,7 @@
   }
   .r-row:nth-child(even) { background: var(--row-alt); }
   .r-row:hover { background: rgba(228,119,123,0.18); }
-  .r-row.active { background: var(--sage-dark); color: #fff; }
+  .r-row.active { background: var(--gold); color: #1a1a1a; }
   .r-num { font-weight: 800; opacity: 0.55; font-size: 11px; margin-right: 6px; }
   .r-name { font-size: 13px; font-weight: 600; }
   .r-city { font-size: 10px; opacity: 0.65; display: block; }
@@ -182,6 +183,20 @@
     cursor: pointer; color: var(--ink); padding: 0;
   }
   .mapboxgl-ctrl-home:hover { background: var(--row-alt); }
+
+  /* ---------------- mobile ---------------- */
+  @media (max-width: 680px) {
+    #app { flex-direction: column; }
+    #sidebar {
+      width: 100%;
+      min-width: 0;
+      height: 45vh;
+      border-right: none;
+      border-bottom: 3px solid var(--accent);
+    }
+    #map { height: 55vh; }
+    #loading { left: 12px; }
+  }
 </style>
 </head>
 <body>
@@ -394,7 +409,7 @@
       inner.style.height = '100%';
       inner.style.background = '#FC474C';
       inner.style.border = '2px solid #fff';
-      inner.style.boxShadow = '0 0 0 2px #C79A3D, 0 1px 3px rgba(0,0,0,0.4)';
+      inner.style.boxShadow = '0 0 0 2px var(--gold), 0 1px 3px rgba(0,0,0,0.4)';
       inner.style.transform = 'rotate(45deg)';
       inner.style.display = 'flex';
       inner.style.alignItems = 'center';
