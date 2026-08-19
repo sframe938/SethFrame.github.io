@@ -329,7 +329,10 @@
       this._container.querySelector('button').addEventListener('click', () => {
         map.easeTo({ center: CENTER, zoom: ZOOM, duration: 900 });
         activePopup.remove();
-        document.querySelectorAll('.r-row').forEach(el => el.classList.remove('active'));
+        document.getElementById('search-box').value = '';
+        currentReviewer = 'all';
+        renderReviewerToggle();
+        applyFilters();
       });
       return this._container;
     }
