@@ -54,6 +54,22 @@
     font-size: 11px;
     opacity: 0.9;
   }
+  #log-review-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 10px;
+    padding: 6px 12px;
+    background: #fff;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-decoration: none;
+    border-radius: 3px;
+    border: 2px solid #C79A3D;
+  }
+  #log-review-link:hover { background: #FFF6E8; }
   #restaurant-list { list-style: none; margin: 0; padding: 0; }
   .r-row {
     display: flex;
@@ -175,6 +191,9 @@
     <div id="sidebar-header">
       <h1>518 EGGROLLS</h1>
       <p>Capital District, NY</p>
+      <a id="log-review-link" href="https://forms.gle/oiB696Sb8hZkNUWS8" target="_blank" rel="noopener">
+        + Log a review
+      </a>
     </div>
     <ul id="restaurant-list"><li class="r-empty">Loading restaurants…</li></ul>
   </div>
