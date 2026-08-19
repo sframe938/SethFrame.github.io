@@ -230,7 +230,7 @@
           </svg>
         </button>`;
       this._container.querySelector('button').addEventListener('click', () => {
-        map.flyTo({ center: CENTER, zoom: ZOOM, speed: 1.1 });
+        map.easeTo({ center: CENTER, zoom: ZOOM, duration: 900 });
         activePopup.remove();
         document.querySelectorAll('.r-row').forEach(el => el.classList.remove('active'));
       });
@@ -343,37 +343,45 @@
       if (isNaN(lat) || isNaN(lon)) return;
 
       const count = parseInt(row['Number of Reviews'], 10) || 0;
-      const size = 14 + Math.min(count, 10) * 1.6;
+      const size = 26 + Math.min(count, 10) * 2.2;
 
-      const el = document.createElement('div');
-      el.style.width = `${size}px`;
-      el.style.height = `${size}px`;
-      el.style.background = '#FC474C';
-      el.style.border = '2px solid #fff';
-      el.style.boxShadow = '0 1px 3px rgba(0,0,0,0.4)';
-      el.style.cursor = 'pointer';
-      el.style.transform = 'rotate(45deg)';
-      el.style.display = 'flex';
-      el.style.alignItems = 'center';
-      el.style.justifyContent = 'center';
+      // Wrapper is what Mapbox positions (it sets this element's transform
+      // itself, so any rotation on the SAME element gets overwritten). The
+      // diamond rotation lives on an inner element instead.
+      const wrap = document.createElement('div');
+      wrap.style.width = `${size}px`;
+      wrap.style.height = `${size}px`;
+      wrap.style.cursor = 'pointer';
 
-      const iconSize = Math.round(size * 0.5);
-      el.innerHTML = `
+      const inner = document.createElement('div');
+      inner.style.width = '100%';
+      inner.style.height = '100%';
+      inner.style.background = '#FC474C';
+      inner.style.border = '2px solid #fff';
+      inner.style.boxShadow = '0 1px 3px rgba(0,0,0,0.4)';
+      inner.style.transform = 'rotate(45deg)';
+      inner.style.display = 'flex';
+      inner.style.alignItems = 'center';
+      inner.style.justifyContent = 'center';
+
+      const iconSize = Math.round(size * 0.46);
+      inner.innerHTML = `
         <svg width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none"
              stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
              style="transform: rotate(-45deg);">
-          <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path>
-          <path d="M7 2v20"></path>
-          <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path>
+          <path d="M9 5c0-2 1.3-3 3-3s3 1 3 3"></path>
+          <path d="M6 8h12l-1.4 12.1a1 1 0 0 1-1 .9H8.4a1 1 0 0 1-1-.9L6 8z"></path>
+          <path d="M12 8v13"></path>
         </svg>
       `;
+      wrap.appendChild(inner);
 
-      el.addEventListener('click', (e) => {
+      wrap.addEventListener('click', (e) => {
         e.stopPropagation();
         openPopupFor(row);
       });
 
-      const marker = new mapboxgl.Marker(el)
+      const marker = new mapboxgl.Marker({ element: wrap, anchor: 'center' })
         .setLngLat([lon, lat])
         .addTo(map);
 
