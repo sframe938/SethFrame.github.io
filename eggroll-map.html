@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>518 Eggrolls</title>
+
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet" />
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+<style>
+  :root {
+    /* ---- "518 Rolls" palette ---- */
+    --ink: #4d6058;        /* darkened sage, used for body text */
+    --paper: #FEFEFE;
+    --accent: #FC474C;     /* coral red — primary */
+    --accent-soft: #E4777B;/* dusty rose — secondary accent, alt rows */
+    --sage: #99AFA2;       /* sage — low end of score ramp */
+    --sage-dark: #799B8A;  /* deep sage — muted text, borders */
+    --row-alt: #EEF3F0;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Arial, Helvetica, sans-serif; color: var(--ink); }
+
+  #app { display: flex; height: 100vh; width: 100vw; }
+
+  /* ---------------- sidebar ---------------- */
+  #sidebar {
+    width: 320px;
+    min-width: 320px;
+    height: 100%;
+    overflow-y: auto;
+    background: var(--paper);
+    border-right: 3px solid var(--accent);
+  }
+  #sidebar-header {
+    background: var(--accent);
+    color: #fff;
+    padding: 16px 14px 12px;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+  #sidebar-header h1 {
+    margin: 0;
+    font-size: 19px;
+    letter-spacing: 0.03em;
+    font-weight: 800;
+  }
+  #sidebar-header p {
+    margin: 4px 0 0;
+    font-size: 11px;
+    opacity: 0.9;
+  }
+  #restaurant-list { list-style: none; margin: 0; padding: 0; }
+  .r-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 9px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+  .r-row:nth-child(even) { background: var(--row-alt); }
+  .r-row:hover { background: rgba(228,119,123,0.18); }
+  .r-row.active { background: var(--accent); color: #fff; }
+  .r-num { font-weight: 800; opacity: 0.55; font-size: 11px; margin-right: 6px; }
+  .r-name { font-size: 13px; font-weight: 600; }
+  .r-city { font-size: 10px; opacity: 0.65; display: block; }
+  .r-score {
+    font-weight: 800;
+    font-size: 13px;
+    min-width: 30px;
+    text-align: right;
+  }
+  .r-count { font-size: 9px; opacity: 0.6; display: block; text-align: right; }
+  .r-empty { padding: 24px 16px; font-size: 12px; opacity: 0.6; text-align: center; }
+
+  /* ---------------- map ---------------- */
+  #map { flex: 1; height: 100%; }
+
+  /* ---------------- popup ---------------- */
+  .mapboxgl-popup-content {
+    padding: 0 !important;
+    border-radius: 2px !important;
+    border: 3px solid var(--accent);
+    overflow: hidden;
+    font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+  }
+  .mapboxgl-popup-close-button {
+    color: #fff;
+    font-size: 18px;
+    right: 4px;
+    top: 2px;
+  }
+  .popup-head {
+    background: var(--accent);
+    color: #fff;
+    padding: 8px 28px 8px 12px;
+    font-weight: 800;
+    font-size: 14px;
+    letter-spacing: 0.02em;
+  }
+  .popup-addr {
+    font-size: 11px;
+    color: var(--sage-dark);
+    padding: 6px 12px 0;
+  }
+  .popup-body { padding: 8px 12px 10px; }
+  .popup-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    padding: 3px 0;
+    border-bottom: 1px dotted #ccc;
+  }
+  .popup-row:last-of-type { border-bottom: none; }
+  .popup-row span:last-child { font-weight: 700; }
+  .popup-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    padding-top: 6px;
+    border-top: 1px solid #eee;
+  }
+  .popup-count { font-size: 10px; opacity: 0.7; }
+  .popup-stamp {
+    background: var(--accent);
+    color: #fff;
+    font-weight: 800;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .popup-notes {
+    font-size: 11px;
+    font-style: italic;
+    color: #555;
+    margin-top: 6px;
+  }
+
+  #loading {
+    position: absolute;
+    top: 12px;
+    left: 340px;
+    background: rgba(0,0,0,0.75);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 3px;
+    font-size: 12px;
+    z-index: 5;
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <h1>518 EGGROLLS</h1>
+      <p>Capital District, NY</p>
+    </div>
+    <ul id="restaurant-list"><li class="r-empty">Loading restaurants…</li></ul>
+  </div>
+  <div id="map"></div>
+</div>
+<div id="loading" style="display:none;">Fetching latest reviews…</div>
+
+<script>
+  // ---------------- CONFIG ----------------
+  mapboxgl.accessToken = 'pk.eyJ1Ijoic2ZyYW1lOTM4IiwiYSI6ImNqN2RweG9ydjBkenIycWt5Z2c5NWtsajcifQ.bA0BviPhPcygQREBZd0cdQ';
+
+  const STYLE_URL = 'mapbox://styles/sframe938/cmt05ag4a000901s40636cx0r';
+
+  // Published Map Data tab, CSV output
+  const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSM9qEiTB8KglBmd5NLpCZnYUrYLr0Q4X5n3UsQZgvf-4SUuDhK9xoXDHBV7tmEsSLQ7ZgwZCWZZ4O9/pub?gid=1967588823&single=true&output=csv';
+
+  // Capital District, NY
+  const CENTER = [-73.80, 42.75];
+  const ZOOM = 9.2;
+
+  // Roughly the Capital District / 518 area-code footprint — Saratoga Springs
+  // down through Albany/Troy/Schenectady. Adjust if you want it looser/tighter.
+  const MAX_BOUNDS = [
+    [-74.55, 42.25], // southwest
+    [-73.05, 43.35]  // northeast
+  ];
+  const MIN_ZOOM = 8.5;
+  const MAX_ZOOM = 16;
+
+  // ---------------- MAP INIT ----------------
+  const map = new mapboxgl.Map({
+    container: 'map',
+    style: STYLE_URL,
+    center: CENTER,
+    zoom: ZOOM,
+    minZoom: MIN_ZOOM,
+    maxZoom: MAX_ZOOM,
+    maxBounds: MAX_BOUNDS
+  });
+  map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+  let markers = [];
+  let popups = {};
+
+  function scoreColor(score) {
+    // 518 Rolls ramp: sage (#99AFA2) at low end -> coral red (#FC474C) at high end
+    if (score === null || isNaN(score)) return '#99AFA2';
+    const t = Math.max(0, Math.min(1, (score - 1) / 9));
+    const r1 = 0x99, g1 = 0xAF, b1 = 0xA2; // sage
+    const r2 = 0xFC, g2 = 0x47, b2 = 0x4C; // coral red
+    const r = Math.round(r1 + (r2 - r1) * t);
+    const g = Math.round(g1 + (g2 - g1) * t);
+    const b = Math.round(b1 + (b2 - b1) * t);
+    return `rgb(${r},${g},${b})`;
+  }
+
+  function buildPopupHTML(row) {
+    const score = parseFloat(row['Avg Overall Score']);
+    const count = parseInt(row['Number of Reviews'], 10) || 0;
+    const scoreDisplay = isNaN(score) ? '—' : score.toFixed(1);
+    return `
+      <div class="popup-head">${escapeHTML(row['Restaurant Name'] || '')}</div>
+      <div class="popup-addr">${escapeHTML([row['Address'], row['City']].filter(Boolean).join(', '))}</div>
+      <div class="popup-body">
+        <div class="popup-foot" style="margin-top:6px;padding-top:0;border-top:none;">
+          <span class="popup-count">${count} review${count === 1 ? '' : 's'} logged</span>
+          <span class="popup-stamp">${scoreDisplay}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  function escapeHTML(str) {
+    return String(str).replace(/[&<>"']/g, (m) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[m]));
+  }
+
+  function renderSidebar(rows) {
+    const list = document.getElementById('restaurant-list');
+    list.innerHTML = '';
+
+    if (!rows.length) {
+      list.innerHTML = '<li class="r-empty">No restaurants found in the sheet yet.</li>';
+      return;
+    }
+
+    // sort by score desc, unscored restaurants at the bottom
+    const sorted = [...rows].sort((a, b) => {
+      const sa = parseFloat(a['Avg Overall Score']);
+      const sb = parseFloat(b['Avg Overall Score']);
+      if (isNaN(sa) && isNaN(sb)) return 0;
+      if (isNaN(sa)) return 1;
+      if (isNaN(sb)) return -1;
+      return sb - sa;
+    });
+
+    sorted.forEach((row, i) => {
+      const score = parseFloat(row['Avg Overall Score']);
+      const count = parseInt(row['Number of Reviews'], 10) || 0;
+      const li = document.createElement('li');
+      li.className = 'r-row';
+      li.dataset.name = row['Restaurant Name'];
+      li.innerHTML = `
+        <span>
+          <span class="r-num">${String(i + 1).padStart(2, '0')}</span>
+          <span class="r-name">${escapeHTML(row['Restaurant Name'] || '')}</span>
+          <span class="r-city">${escapeHTML(row['City'] || '')}</span>
+        </span>
+        <span>
+          <span class="r-score">${isNaN(score) ? '—' : score.toFixed(1)}</span>
+          <span class="r-count">${count} rev.</span>
+        </span>
+      `;
+      li.addEventListener('click', () => focusRestaurant(row));
+      list.appendChild(li);
+    });
+  }
+
+  function focusRestaurant(row) {
+    const lat = parseFloat(row['Latitude']);
+    const lon = parseFloat(row['Longitude']);
+    if (isNaN(lat) || isNaN(lon)) return;
+
+    document.querySelectorAll('.r-row').forEach(el => el.classList.remove('active'));
+    const target = [...document.querySelectorAll('.r-row')]
+      .find(el => el.dataset.name === row['Restaurant Name']);
+    if (target) target.classList.add('active');
+
+    map.flyTo({ center: [lon, lat], zoom: 13.5, speed: 0.9 });
+
+    const key = row['Restaurant Name'];
+    if (popups[key]) {
+      popups[key].addTo(map);
+    }
+  }
+
+  function plotMarkers(rows) {
+    markers.forEach(m => m.remove());
+    markers = [];
+    popups = {};
+
+    rows.forEach(row => {
+      const lat = parseFloat(row['Latitude']);
+      const lon = parseFloat(row['Longitude']);
+      if (isNaN(lat) || isNaN(lon)) return;
+
+      const score = parseFloat(row['Avg Overall Score']);
+      const count = parseInt(row['Number of Reviews'], 10) || 0;
+      const size = 14 + Math.min(count, 10) * 1.6;
+
+      const el = document.createElement('div');
+      el.style.width = `${size}px`;
+      el.style.height = `${size}px`;
+      el.style.borderRadius = '50%';
+      el.style.background = scoreColor(score);
+      el.style.border = '2px solid #fff';
+      el.style.boxShadow = '0 1px 3px rgba(0,0,0,0.4)';
+      el.style.cursor = 'pointer';
+
+      const popup = new mapboxgl.Popup({ offset: size / 2 + 4 }).setHTML(buildPopupHTML(row));
+      popups[row['Restaurant Name']] = popup;
+
+      const marker = new mapboxgl.Marker(el)
+        .setLngLat([lon, lat])
+        .setPopup(popup)
+        .addTo(map);
+
+      markers.push(marker);
+    });
+  }
+
+  function loadData() {
+    document.getElementById('loading').style.display = 'block';
+    Papa.parse(CSV_URL, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        document.getElementById('loading').style.display = 'none';
+        const rows = results.data.filter(r => r['Restaurant Name']);
+        renderSidebar(rows);
+        plotMarkers(rows);
+      },
+      error: (err) => {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('restaurant-list').innerHTML =
+          '<li class="r-empty">Could not load data. Check the published CSV link.</li>';
+        console.error('CSV load error:', err);
+      }
+    });
+  }
+
+  map.on('load', loadData);
+</script>
+
+</body>
+</html>
