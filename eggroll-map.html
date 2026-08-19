@@ -82,7 +82,7 @@
   }
   .r-row:nth-child(even) { background: var(--row-alt); }
   .r-row:hover { background: rgba(228,119,123,0.18); }
-  .r-row.active { background: var(--accent); color: #fff; }
+  .r-row.active { background: var(--sage-dark); color: #fff; }
   .r-num { font-weight: 800; opacity: 0.55; font-size: 11px; margin-right: 6px; }
   .r-name { font-size: 13px; font-weight: 600; }
   .r-city { font-size: 10px; opacity: 0.65; display: block; }
@@ -268,11 +268,28 @@
     const score = parseFloat(row['Avg Overall Score']);
     const count = parseInt(row['Number of Reviews'], 10) || 0;
     const scoreDisplay = isNaN(score) ? '—' : score.toFixed(1);
+
+    const crisp = parseFloat(row['Avg Crispiness']);
+    const filling = parseFloat(row['Avg Filling Quality']);
+    const size = parseFloat(row['Avg Size']);
+    const price = parseFloat(row['Avg Price ($)']);
+
+    const metricRow = (label, val, formatter) =>
+      isNaN(val) ? '' : `<div class="popup-row"><span>${label}</span><span>${formatter ? formatter(val) : val.toFixed(1)}</span></div>`;
+
+    const metrics = [
+      metricRow('Crispiness', crisp),
+      metricRow('Filling quality', filling),
+      metricRow('Size', size),
+      metricRow('Avg price', price, (v) => `$${v.toFixed(2)}`),
+    ].join('');
+
     return `
       <div class="popup-head">${escapeHTML(row['Restaurant Name'] || '')}</div>
       <div class="popup-addr">${escapeHTML([row['Address'], row['City']].filter(Boolean).join(', '))}</div>
       <div class="popup-body">
-        <div class="popup-foot" style="margin-top:6px;padding-top:0;border-top:none;">
+        ${metrics}
+        <div class="popup-foot">
           <span class="popup-count">${count} review${count === 1 ? '' : 's'} logged</span>
           <span class="popup-stamp">${scoreDisplay}</span>
         </div>
