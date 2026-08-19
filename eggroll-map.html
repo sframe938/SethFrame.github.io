@@ -55,6 +55,61 @@
     font-size: 11px;
     opacity: 0.9;
   }
+  #reviewer-toggle {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+  }
+  #reviewer-toggle button {
+    flex: 1;
+    padding: 5px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    background: transparent;
+    color: #fff;
+    border: 2px solid #fff;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  #reviewer-toggle button.active {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: #1a1a1a;
+  }
+  #reviewer-toggle button:hover:not(.active) { background: rgba(255,255,255,0.15); }
+
+  #search-box {
+    width: 100%;
+    margin-top: 10px;
+    padding: 7px 10px;
+    font-size: 12px;
+    font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+    border: none;
+    border-radius: 3px;
+    box-sizing: border-box;
+  }
+  #search-box::placeholder { color: #999; }
+
+  #surprise-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 8px;
+    padding: 6px 12px;
+    background: transparent;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    border-radius: 3px;
+    border: 2px solid #fff;
+    cursor: pointer;
+    width: 100%;
+    justify-content: center;
+  }
+  #surprise-btn:hover { background: rgba(255,255,255,0.15); }
+
   #log-review-link {
     display: inline-flex;
     align-items: center;
@@ -206,6 +261,9 @@
     <div id="sidebar-header">
       <h1>518 EGGROLLS</h1>
       <p>Capital District, NY</p>
+      <div id="reviewer-toggle"></div>
+      <input id="search-box" type="text" placeholder="Search restaurants…" />
+      <button id="surprise-btn" type="button">🎲 Surprise me</button>
       <a id="log-review-link" href="https://forms.gle/oiB696Sb8hZkNUWS8" target="_blank" rel="noopener">
         + Log a review
       </a>
@@ -224,6 +282,11 @@
 
   // Published Map Data tab, CSV output
   const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSM9qEiTB8KglBmd5NLpCZnYUrYLr0Q4X5n3UsQZgvf-4SUuDhK9xoXDHBV7tmEsSLQ7ZgwZCWZZ4O9/pub?gid=1967588823&single=true&output=csv';
+
+  // Raw per-review data (Form Responses 1) — used to compute reviewer-filtered aggregates client-side
+  const REVIEWS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSM9qEiTB8KglBmd5NLpCZnYUrYLr0Q4X5n3UsQZgvf-4SUuDhK9xoXDHBV7tmEsSLQ7ZgwZCWZZ4O9/pub?gid=1370775962&single=true&output=csv';
+
+  const REVIEWERS = ['Darlene', 'Seth'];
 
   // Capital District, NY
   const CENTER = [-73.80, 42.75];
@@ -308,6 +371,7 @@
           <span class="popup-count">${count} review${count === 1 ? '' : 's'} logged</span>
           <span class="popup-stamp">${scoreDisplay}</span>
         </div>
+        ${row['Last Reviewed'] ? `<div class="popup-notes">Last reviewed ${escapeHTML(row['Last Reviewed'])}</div>` : ''}
       </div>
     `;
   }
@@ -393,8 +457,7 @@
       const lon = parseFloat(row['Longitude']);
       if (isNaN(lat) || isNaN(lon)) return;
 
-      const count = parseInt(row['Number of Reviews'], 10) || 0;
-      const size = 34 + Math.min(count, 10) * 2.4;
+      const size = 34;
 
       // Wrapper is what Mapbox positions (it sets this element's transform
       // itself, so any rotation on the SAME element gets overwritten). The
@@ -440,25 +503,132 @@
     });
   }
 
+  let locations = [];   // Map Data rows — name/address/city/county/lat/lon only
+  let reviews = [];     // Form Responses 1 rows — one per submitted review
+  let allRows = [];     // computed: locations merged with aggregates for the current reviewer filter
+  let currentReviewer = 'all';
+
+  function parseCSVPromise(url) {
+    return new Promise((resolve, reject) => {
+      Papa.parse(url, {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => resolve(results.data),
+        error: reject
+      });
+    });
+  }
+
+  function computeRows(reviewerFilter) {
+    const filteredReviews = reviewerFilter === 'all'
+      ? reviews
+      : reviews.filter(r => (r['Reviewer'] || '').trim() === reviewerFilter);
+
+    return locations
+      .filter(loc => loc['Restaurant Name'])
+      .map(loc => {
+        const name = loc['Restaurant Name'];
+        const forThis = filteredReviews.filter(r => (r['Restaurant'] || '').trim() === name.trim());
+
+        const avg = (key) => {
+          const nums = forThis.map(r => parseFloat(r[key])).filter(n => !isNaN(n));
+          return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : NaN;
+        };
+
+        const crisp = avg('Crispiness');
+        const filling = avg('Filling Quality');
+        const size = avg('Size');
+        const price = avg('Price ($)');
+        const overallVals = forThis
+          .map(r => {
+            const c = parseFloat(r['Crispiness']), f = parseFloat(r['Filling Quality']), s = parseFloat(r['Size']);
+            const vals = [c, f, s].filter(n => !isNaN(n));
+            return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : NaN;
+          })
+          .filter(n => !isNaN(n));
+        const overall = overallVals.length ? overallVals.reduce((a, b) => a + b, 0) / overallVals.length : NaN;
+
+        const dates = forThis.map(r => new Date(r['Date Visited'])).filter(d => !isNaN(d));
+        const lastReviewed = dates.length
+          ? new Date(Math.max(...dates)).toISOString().slice(0, 10)
+          : '';
+
+        return {
+          'Restaurant Name': name,
+          'Address': loc['Address'],
+          'City': loc['City'],
+          'County': loc['County'],
+          'Latitude': loc['Latitude'],
+          'Longitude': loc['Longitude'],
+          'Avg Overall Score': isNaN(overall) ? '' : overall,
+          'Number of Reviews': forThis.length,
+          'Avg Crispiness': isNaN(crisp) ? '' : crisp,
+          'Avg Filling Quality': isNaN(filling) ? '' : filling,
+          'Avg Size': isNaN(size) ? '' : size,
+          'Avg Price ($)': isNaN(price) ? '' : price,
+          'Last Reviewed': lastReviewed
+        };
+      });
+  }
+
+  function renderReviewerToggle() {
+    const container = document.getElementById('reviewer-toggle');
+    const options = ['All', ...REVIEWERS];
+    container.innerHTML = options.map(opt => {
+      const val = opt === 'All' ? 'all' : opt;
+      const isActive = currentReviewer === val;
+      return `<button type="button" data-val="${escapeHTML(val)}" class="${isActive ? 'active' : ''}">${escapeHTML(opt)}</button>`;
+    }).join('');
+    container.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        currentReviewer = btn.dataset.val;
+        allRows = computeRows(currentReviewer);
+        renderReviewerToggle();
+        applyFilters();
+      });
+    });
+  }
+
+  function applyFilters() {
+    const q = document.getElementById('search-box').value.trim().toLowerCase();
+    const filtered = q
+      ? allRows.filter(r => (r['Restaurant Name'] || '').toLowerCase().includes(q))
+      : allRows;
+    renderSidebar(filtered);
+    plotMarkers(filtered);
+  }
+
+  document.getElementById('search-box').addEventListener('input', applyFilters);
+
+  document.getElementById('surprise-btn').addEventListener('click', () => {
+    const withCoords = allRows.filter(r => !isNaN(parseFloat(r['Latitude'])) && !isNaN(parseFloat(r['Longitude'])));
+    if (!withCoords.length) return;
+    const unreviewed = withCoords.filter(r => (parseInt(r['Number of Reviews'], 10) || 0) === 0);
+    const pool = unreviewed.length ? unreviewed : withCoords;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    document.getElementById('search-box').value = '';
+    applyFilters();
+    focusRestaurant(pick);
+  });
+
   function loadData() {
     document.getElementById('loading').style.display = 'block';
-    Papa.parse(CSV_URL, {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
+    Promise.all([parseCSVPromise(CSV_URL), parseCSVPromise(REVIEWS_CSV_URL)])
+      .then(([locRows, reviewRows]) => {
         document.getElementById('loading').style.display = 'none';
-        const rows = results.data.filter(r => r['Restaurant Name']);
-        renderSidebar(rows);
-        plotMarkers(rows);
-      },
-      error: (err) => {
+        locations = locRows.filter(r => r['Restaurant Name']);
+        reviews = reviewRows.filter(r => r['Restaurant']);
+        allRows = computeRows(currentReviewer);
+        renderReviewerToggle();
+        applyFilters();
+      })
+      .catch((err) => {
         document.getElementById('loading').style.display = 'none';
         document.getElementById('restaurant-list').innerHTML =
-          '<li class="r-empty">Could not load data. Check the published CSV link.</li>';
+          '<li class="r-empty">Could not load data. Check the published CSV links.</li>';
         console.error('CSV load error:', err);
-      }
-    });
+      });
   }
 
   map.on('load', loadData);
