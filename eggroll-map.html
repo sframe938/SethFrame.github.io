@@ -159,6 +159,13 @@
     font-size: 12px;
     z-index: 5;
   }
+
+  .mapboxgl-ctrl-home {
+    display: flex; align-items: center; justify-content: center;
+    width: 29px; height: 29px; background: #fff; border: none;
+    cursor: pointer; color: var(--ink); padding: 0;
+  }
+  .mapboxgl-ctrl-home:hover { background: var(--row-alt); }
 </style>
 </head>
 <body>
@@ -209,20 +216,34 @@
   });
   map.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-  let markers = [];
-  let popups = {};
-
-  function scoreColor(score) {
-    // 518 Rolls ramp: sage (#99AFA2) at low end -> coral red (#FC474C) at high end
-    if (score === null || isNaN(score)) return '#99AFA2';
-    const t = Math.max(0, Math.min(1, (score - 1) / 9));
-    const r1 = 0x99, g1 = 0xAF, b1 = 0xA2; // sage
-    const r2 = 0xFC, g2 = 0x47, b2 = 0x4C; // coral red
-    const r = Math.round(r1 + (r2 - r1) * t);
-    const g = Math.round(g1 + (g2 - g1) * t);
-    const b = Math.round(b1 + (b2 - b1) * t);
-    return `rgb(${r},${g},${b})`;
+  // ── Home control (matches the tour map's HomeControl) ──────────────────
+  class HomeControl {
+    onAdd(mapRef) {
+      this._map = mapRef;
+      this._container = document.createElement('div');
+      this._container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
+      this._container.innerHTML = `
+        <button class="mapboxgl-ctrl-home" title="Return to full extent" aria-label="Return to full extent">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/>
+            <polyline points="9 21 9 13 15 13 15 21"/>
+          </svg>
+        </button>`;
+      this._container.querySelector('button').addEventListener('click', () => {
+        map.flyTo({ center: CENTER, zoom: ZOOM, speed: 1.1 });
+        activePopup.remove();
+        document.querySelectorAll('.r-row').forEach(el => el.classList.remove('active'));
+      });
+      return this._container;
+    }
+    onRemove() { this._container.parentNode.removeChild(this._container); this._map = undefined; }
   }
+  map.addControl(new HomeControl(), 'top-right');
+
+  let markers = [];
+  // Single shared popup instance — reused/repositioned on every click so
+  // opening a new one automatically replaces whatever was open before.
+  const activePopup = new mapboxgl.Popup({ offset: 16, closeOnClick: false });
 
   function buildPopupHTML(row) {
     const score = parseFloat(row['Avg Overall Score']);
@@ -287,53 +308,73 @@
     });
   }
 
+  function setActiveRow(name) {
+    document.querySelectorAll('.r-row').forEach(el => el.classList.remove('active'));
+    const target = [...document.querySelectorAll('.r-row')]
+      .find(el => el.dataset.name === name);
+    if (target) target.classList.add('active');
+  }
+
+  function openPopupFor(row) {
+    const lat = parseFloat(row['Latitude']);
+    const lon = parseFloat(row['Longitude']);
+    if (isNaN(lat) || isNaN(lon)) return;
+    activePopup.setLngLat([lon, lat]).setHTML(buildPopupHTML(row)).addTo(map);
+    setActiveRow(row['Restaurant Name']);
+  }
+
   function focusRestaurant(row) {
     const lat = parseFloat(row['Latitude']);
     const lon = parseFloat(row['Longitude']);
     if (isNaN(lat) || isNaN(lon)) return;
 
-    document.querySelectorAll('.r-row').forEach(el => el.classList.remove('active'));
-    const target = [...document.querySelectorAll('.r-row')]
-      .find(el => el.dataset.name === row['Restaurant Name']);
-    if (target) target.classList.add('active');
-
+    setActiveRow(row['Restaurant Name']);
     map.flyTo({ center: [lon, lat], zoom: 13.5, speed: 0.9 });
-
-    const key = row['Restaurant Name'];
-    if (popups[key]) {
-      popups[key].addTo(map);
-    }
+    map.once('moveend', () => openPopupFor(row));
   }
 
   function plotMarkers(rows) {
     markers.forEach(m => m.remove());
     markers = [];
-    popups = {};
 
     rows.forEach(row => {
       const lat = parseFloat(row['Latitude']);
       const lon = parseFloat(row['Longitude']);
       if (isNaN(lat) || isNaN(lon)) return;
 
-      const score = parseFloat(row['Avg Overall Score']);
       const count = parseInt(row['Number of Reviews'], 10) || 0;
       const size = 14 + Math.min(count, 10) * 1.6;
 
       const el = document.createElement('div');
       el.style.width = `${size}px`;
       el.style.height = `${size}px`;
-      el.style.borderRadius = '50%';
-      el.style.background = scoreColor(score);
+      el.style.background = '#FC474C';
       el.style.border = '2px solid #fff';
       el.style.boxShadow = '0 1px 3px rgba(0,0,0,0.4)';
       el.style.cursor = 'pointer';
+      el.style.transform = 'rotate(45deg)';
+      el.style.display = 'flex';
+      el.style.alignItems = 'center';
+      el.style.justifyContent = 'center';
 
-      const popup = new mapboxgl.Popup({ offset: size / 2 + 4 }).setHTML(buildPopupHTML(row));
-      popups[row['Restaurant Name']] = popup;
+      const iconSize = Math.round(size * 0.5);
+      el.innerHTML = `
+        <svg width="${iconSize}" height="${iconSize}" viewBox="0 0 24 24" fill="none"
+             stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+             style="transform: rotate(-45deg);">
+          <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"></path>
+          <path d="M7 2v20"></path>
+          <path d="M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"></path>
+        </svg>
+      `;
+
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openPopupFor(row);
+      });
 
       const marker = new mapboxgl.Marker(el)
         .setLngLat([lon, lat])
-        .setPopup(popup)
         .addTo(map);
 
       markers.push(marker);
