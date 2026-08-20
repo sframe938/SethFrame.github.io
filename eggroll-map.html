@@ -289,7 +289,7 @@
   // Raw per-review data (Form Responses 1) — used to compute reviewer-filtered aggregates client-side
   const REVIEWS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSM9qEiTB8KglBmd5NLpCZnYUrYLr0Q4X5n3UsQZgvf-4SUuDhK9xoXDHBV7tmEsSLQ7ZgwZCWZZ4O9/pub?gid=1370775962&single=true&output=csv';
 
-  const REVIEWERS = ['Darlene', 'Seth'];
+  const REVIEWERS = ['Darlene', 'Seth', 'Other'];
 
   // Capital District, NY
   const CENTER = [-73.80, 42.75];
@@ -330,12 +330,23 @@
           </svg>
         </button>`;
       this._container.querySelector('button').addEventListener('click', () => {
-        map.easeTo({ center: CENTER, zoom: ZOOM, duration: 900 });
         activePopup.remove();
         document.getElementById('search-box').value = '';
         currentReviewer = 'all';
         renderReviewerToggle();
         applyFilters();
+
+        if (locations.length) {
+          const bounds = new mapboxgl.LngLatBounds();
+          locations.forEach(l => {
+            const lat = parseFloat(l['Latitude']);
+            const lon = parseFloat(l['Longitude']);
+            if (!isNaN(lat) && !isNaN(lon)) bounds.extend([lon, lat]);
+          });
+          map.fitBounds(bounds, { padding: 50, duration: 900 });
+        } else {
+          map.easeTo({ center: CENTER, zoom: ZOOM, duration: 900 });
+        }
       });
       return this._container;
     }
@@ -650,6 +661,16 @@
         allRows = computeRows(currentReviewer);
         renderReviewerToggle();
         applyFilters();
+
+        const bounds = new mapboxgl.LngLatBounds();
+        locations.forEach(l => {
+          const lat = parseFloat(l['Latitude']);
+          const lon = parseFloat(l['Longitude']);
+          if (!isNaN(lat) && !isNaN(lon)) bounds.extend([lon, lat]);
+        });
+        if (!bounds.isEmpty()) {
+          map.fitBounds(bounds, { padding: 50, duration: 0 });
+        }
       })
       .catch((err) => {
         document.getElementById('loading').style.display = 'none';
