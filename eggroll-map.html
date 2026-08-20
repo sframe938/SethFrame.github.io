@@ -180,7 +180,10 @@
     font-size: 11px;
     color: var(--sage-dark);
     padding: 6px 12px 0;
+    display: block;
+    text-decoration: none;
   }
+  .popup-addr:hover { text-decoration: underline; }
   .popup-body { padding: 8px 12px 10px; }
   .popup-row {
     display: flex;
@@ -369,7 +372,9 @@
 
     return `
       <div class="popup-head">${escapeHTML(row['Restaurant Name'] || '')}</div>
-      <div class="popup-addr">${escapeHTML([row['Address'], row['City']].filter(Boolean).join(', '))}</div>
+      <a class="popup-addr" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([row['Restaurant Name'], row['Address'], row['City']].filter(Boolean).join(', '))}" target="_blank" rel="noopener">
+        ${escapeHTML([row['Address'], row['City']].filter(Boolean).join(', '))}
+      </a>
       <div class="popup-body">
         ${metrics}
         <div class="popup-foot">
