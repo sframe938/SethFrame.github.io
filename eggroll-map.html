@@ -351,7 +351,8 @@
     const scoreDisplay = isNaN(score) ? '—' : score.toFixed(1);
 
     const crisp = parseFloat(row['Avg Crispiness']);
-    const filling = parseFloat(row['Avg Filling Quality']);
+    const flavor = parseFloat(row['Avg Flavor']);
+    const filling = parseFloat(row['Avg Filling']);
     const size = parseFloat(row['Avg Size']);
     const price = parseFloat(row['Avg Price ($)']);
 
@@ -360,7 +361,8 @@
 
     const metrics = [
       metricRow('Crispiness', crisp),
-      metricRow('Filling quality', filling),
+      metricRow('Flavor', flavor),
+      metricRow('Filling', filling),
       metricRow('Size', size),
       metricRow('Avg price', price, (v) => `$${v.toFixed(2)}`),
     ].join('');
@@ -375,6 +377,7 @@
           <span class="popup-stamp">${scoreDisplay}</span>
         </div>
         ${row['Last Reviewed'] ? `<div class="popup-notes">Last reviewed ${escapeHTML(row['Last Reviewed'])}</div>` : ''}
+        ${row['Dining Summary'] ? `<div class="popup-notes">${escapeHTML(row['Dining Summary'])}</div>` : ''}
       </div>
     `;
   }
@@ -541,13 +544,14 @@
         };
 
         const crisp = avg('Crispiness');
-        const filling = avg('Filling Quality');
+        const flavor = avg('Flavor');
+        const filling = avg('Filling');
         const size = avg('Size');
         const price = avg('Price ($)');
         const overallVals = forThis
           .map(r => {
-            const c = parseFloat(r['Crispiness']), f = parseFloat(r['Filling Quality']), s = parseFloat(r['Size']);
-            const vals = [c, f, s].filter(n => !isNaN(n));
+            const c = parseFloat(r['Crispiness']), fl = parseFloat(r['Flavor']), f = parseFloat(r['Filling']), s = parseFloat(r['Size']);
+            const vals = [c, fl, f, s].filter(n => !isNaN(n));
             return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : NaN;
           })
           .filter(n => !isNaN(n));
@@ -557,6 +561,16 @@
         const lastReviewed = dates.length
           ? new Date(Math.max(...dates)).toISOString().slice(0, 10)
           : '';
+
+        // Dining type tally — informational only, not a filter yet.
+        const diningCounts = {};
+        forThis.forEach(r => {
+          const dt = (r['Dining'] || '').trim();
+          if (dt) diningCounts[dt] = (diningCounts[dt] || 0) + 1;
+        });
+        const diningSummary = Object.entries(diningCounts)
+          .map(([type, n]) => `${type} ×${n}`)
+          .join(', ');
 
         return {
           'Restaurant Name': name,
@@ -568,10 +582,12 @@
           'Avg Overall Score': isNaN(overall) ? '' : overall,
           'Number of Reviews': forThis.length,
           'Avg Crispiness': isNaN(crisp) ? '' : crisp,
-          'Avg Filling Quality': isNaN(filling) ? '' : filling,
+          'Avg Flavor': isNaN(flavor) ? '' : flavor,
+          'Avg Filling': isNaN(filling) ? '' : filling,
           'Avg Size': isNaN(size) ? '' : size,
           'Avg Price ($)': isNaN(price) ? '' : price,
-          'Last Reviewed': lastReviewed
+          'Last Reviewed': lastReviewed,
+          'Dining Summary': diningSummary
         };
       });
   }
