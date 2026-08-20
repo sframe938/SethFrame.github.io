@@ -262,7 +262,7 @@
       <h1>518 EGGROLLS</h1>
       <p>Capital District, NY</p>
       <div id="reviewer-toggle"></div>
-      <input id="search-box" type="text" placeholder="Search restaurants…" />
+      <input id="search-box" type="text" placeholder="Search restaurants or cities…" />
       <button id="surprise-btn" type="button">Surprise me</button>
       <a id="log-review-link" href="https://forms.gle/oiB696Sb8hZkNUWS8" target="_blank" rel="noopener">
         + Log a review
@@ -597,7 +597,10 @@
   function applyFilters() {
     const q = document.getElementById('search-box').value.trim().toLowerCase();
     const filtered = q
-      ? allRows.filter(r => (r['Restaurant Name'] || '').toLowerCase().includes(q))
+      ? allRows.filter(r =>
+          (r['Restaurant Name'] || '').toLowerCase().includes(q) ||
+          (r['City'] || '').toLowerCase().includes(q)
+        )
       : allRows;
     renderSidebar(filtered);
     plotMarkers(filtered);
