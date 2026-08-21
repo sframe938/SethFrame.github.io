@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>518 Eggrolls — Backend Test (with Sign-In)</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 560px; margin: 40px auto; padding: 0 16px; }
+  button { padding: 10px 16px; font-size: 14px; cursor: pointer; margin-top: 8px; }
+  pre { background: #f0f0f0; padding: 12px; border-radius: 4px; white-space: pre-wrap; word-break: break-word; }
+  input { width: 100%; padding: 6px; margin: 4px 0 10px; box-sizing: border-box; }
+  fieldset { margin-top: 24px; }
+  #signedInAs { font-weight: bold; margin-top: 10px; }
+</style>
+</head>
+<body>
+  <h2>Backend Test — Full (Review / Add Restaurant / Suggest)</h2>
+
+  <label>Web App URL</label>
+  <input id="url" value="https://script.google.com/macros/s/AKfycbzQX3nVdtQ7mm_hVoHibArwxkVYEeaO3Ol-nnFUebnee2yg045VKVCwpdvM0gfL2qDhyg/exec" />
+
+  <div id="g_id_signin_container"></div>
+  <div id="signedInAs">Not signed in</div>
+
+  <fieldset>
+    <legend>Test: Review (requires sign-in + allowlist)</legend>
+    <label>Restaurant (must match Restaurants sheet exactly)</label>
+    <input id="rv_restaurant" value="Test Restaurant" />
+    <label>Reviewer</label>
+    <input id="rv_reviewer" value="Seth" />
+    <label>Date Visited (yyyy-mm-dd)</label>
+    <input id="rv_date" value="2026-08-21" />
+    <label>Price</label>
+    <input id="rv_price" value="5.00" />
+    <label>Crispiness / Flavor / Filling / Size (1-10 each)</label>
+    <input id="rv_crisp" value="8" />
+    <input id="rv_flavor" value="8" />
+    <input id="rv_filling" value="7" />
+    <input id="rv_size" value="6" />
+    <label>Notes</label>
+    <input id="rv_notes" value="backend test entry" />
+    <label>Dining</label>
+    <input id="rv_dining" value="Carry-out" />
+    <button onclick="submitReview()">Send Test Review</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>Test: Add Restaurant (requires sign-in + allowlist)</legend>
+    <label>Name</label>
+    <input id="ar_name" value="Test Added Restaurant" />
+    <label>Address</label>
+    <input id="ar_address" value="123 Test St" />
+    <label>City</label>
+    <input id="ar_city" value="Albany" />
+    <label>Latitude</label>
+    <input id="ar_lat" value="42.6526" />
+    <label>Longitude</label>
+    <input id="ar_lng" value="-73.7562" />
+    <button onclick="submitAddRestaurant()">Send Test Add Restaurant</button>
+  </fieldset>
+
+  <fieldset>
+    <legend>Test: Suggest (no sign-in required — already proven working)</legend>
+    <button onclick="submitSuggest()">Send Test Suggestion</button>
+  </fieldset>
+
+  <pre id="output">Result will appear here...</pre>
+
+  <script>
+    let idToken = null;
+
+    function handleCredentialResponse(response) {
+      idToken = response.credential;
+      const payload = JSON.parse(atob(idToken.split('.')[1]));
+      document.getElementById('signedInAs').textContent = 'Signed in as: ' + payload.email;
+    }
+
+    window.onload = function () {
+      google.accounts.id.initialize({
+        client_id: '204303957512-nv0v3eitsl0s08r9rov8ujg8fnpvffse.apps.googleusercontent.com',
+        callback: handleCredentialResponse
+      });
+      google.accounts.id.renderButton(
+        document.getElementById('g_id_signin_container'),
+        { theme: 'outline', size: 'large' }
+      );
+    };
+
+    async function postAction(body) {
+      const out = document.getElementById('output');
+      out.textContent = 'Sending...';
+      try {
+        const res = await fetch(document.getElementById('url').value, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(body)
+        });
+        const text = await res.text();
+        out.textContent = 'Status: ' + res.status + '\n\n' + text;
+      } catch (err) {
+        out.textContent = 'Error: ' + err;
+      }
+    }
+
+    function submitReview() {
+      postAction({
+        action: 'review',
+        idToken: idToken,
+        payload: {
+          restaurant: document.getElementById('rv_restaurant').value,
+          reviewer: document.getElementById('rv_reviewer').value,
+          dateVisited: document.getElementById('rv_date').value,
+          price: document.getElementById('rv_price').value,
+          crispiness: document.getElementById('rv_crisp').value,
+          flavor: document.getElementById('rv_flavor').value,
+          filling: document.getElementById('rv_filling').value,
+          size: document.getElementById('rv_size').value,
+          notes: document.getElementById('rv_notes').value,
+          dining: document.getElementById('rv_dining').value
+        }
+      });
+    }
+
+    function submitAddRestaurant() {
+      postAction({
+        action: 'addRestaurant',
+        idToken: idToken,
+        payload: {
+          name: document.getElementById('ar_name').value,
+          address: document.getElementById('ar_address').value,
+          city: document.getElementById('ar_city').value,
+          latitude: document.getElementById('ar_lat').value,
+          longitude: document.getElementById('ar_lng').value
+        }
+      });
+    }
+
+    function submitSuggest() {
+      postAction({
+        action: 'suggest',
+        payload: {
+          name: 'Suggest Test',
+          city: 'Albany',
+          note: 'testing suggest again from full page'
+        }
+      });
+    }
+  </script>
+</body>
+</html>
