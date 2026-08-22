@@ -277,6 +277,7 @@
   /* ---------------- form views (Review / Add Restaurant / Suggest) ---------------- */
   .form-view {
     display: none;
+    position: relative;
     width: 380px;
     min-width: 380px;
     height: 100vh;
@@ -351,6 +352,21 @@
     border-radius: 3px;
     cursor: pointer;
   }
+  .panel-close-btn {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: var(--row-alt);
+    color: var(--ink);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .panel-close-btn:hover { background: var(--sage); color: #fff; }
   .clear-btn:hover { background: var(--row-alt); }
   .form-msg {
     margin-top: 12px;
@@ -421,26 +437,34 @@
       height: 45vh;
       border-right: none;
       border-bottom: 3px solid var(--accent);
+      overflow: visible; /* desktop-only concern; harmless here */
     }
+    /* Tabs drop out of the absolute-overhang positioning and sit as a normal
+       row directly under the Sign-In button instead. */
     #side-tabs {
-      width: 100%;
-      min-width: 0;
+      position: static;
+      display: flex;
       flex-direction: row;
-      padding: 6px 10px;
-      justify-content: center;
+      gap: 8px;
+      margin-top: 10px;
+      padding: 0;
     }
     .side-tab-btn {
       writing-mode: horizontal-tb;
       border-radius: 4px;
-      margin-left: 0;
     }
+    /* Open panels become a true full-screen overlay — covers both the
+       restaurant list and the map underneath, not just a partial strip. */
     .form-view {
+      position: fixed;
+      inset: 0;
       width: 100%;
       min-width: 0;
-      height: auto;
-      max-height: 70vh;
-      border-right: none;
-      border-bottom: 3px solid var(--accent);
+      height: 100vh;
+      max-height: none;
+      border: none;
+      padding: 20px 18px 60px;
+      z-index: 40;
     }
     #map { height: 55vh; }
     #loading { left: 12px; }
@@ -462,17 +486,18 @@
           <span id="signed-in-label"></span>
           <div id="g_id_signin_container"></div>
         </div>
+        <div id="side-tabs">
+          <button class="side-tab-btn" data-panel="review" style="display:none;">Review</button>
+          <button class="side-tab-btn" data-panel="restaurant" style="display:none;">Restaurant</button>
+          <button class="side-tab-btn" data-panel="suggest">Suggest</button>
+        </div>
       </div>
       <ul id="restaurant-list"><li class="r-empty">Loading restaurants…</li></ul>
-    </div>
-    <div id="side-tabs">
-      <button class="side-tab-btn" data-panel="review" style="display:none;">Review</button>
-      <button class="side-tab-btn" data-panel="restaurant" style="display:none;">Restaurant</button>
-      <button class="side-tab-btn" data-panel="suggest">Suggest</button>
     </div>
   </div>
 
   <div id="review-panel" class="form-view">
+    <button class="panel-close-btn" type="button" onclick="closePanel('review-panel')" aria-label="Close">×</button>
     <h2>Log a Review</h2>
     <div class="form-sub">Signed in and on the allowlist? Fill this out and it goes straight to the sheet.</div>
 
@@ -521,6 +546,7 @@
   </div>
 
   <div id="restaurant-panel" class="form-view">
+    <button class="panel-close-btn" type="button" onclick="closePanel('restaurant-panel')" aria-label="Close">×</button>
     <h2>Add a Restaurant</h2>
     <div class="form-sub">Search for the place — name, address, and location fill in automatically.</div>
 
@@ -549,6 +575,7 @@
   </div>
 
   <div id="suggest-panel" class="form-view">
+    <button class="panel-close-btn" type="button" onclick="closePanel('suggest-panel')" aria-label="Close">×</button>
     <h2>Suggest a Restaurant</h2>
     <div class="form-sub">Know a spot we should try? No sign-in needed — we'll review it and add it.</div>
 
@@ -1004,6 +1031,15 @@
       setTimeout(() => map.resize(), 260);
     });
   });
+
+  // Explicit close (×) button on each panel — needed on mobile, where an open
+  // panel covers the tab strip itself (buried under the full-screen overlay),
+  // so there'd otherwise be no way back without this.
+  function closePanel(panelId) {
+    document.getElementById(panelId).classList.remove('open');
+    document.querySelectorAll('.side-tab-btn').forEach(b => b.classList.remove('active'));
+    setTimeout(() => map.resize(), 260);
+  }
 
   function populateReviewRestaurantDropdown() {
     const select = document.getElementById('rv_restaurant');
