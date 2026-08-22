@@ -236,7 +236,8 @@
   /* ---------------- sidebar pull-tab (overhangs the map, no strip container) ---------------- */
   #side-tabs {
     position: absolute;
-    top: 90px;
+    top: 50%;
+    transform: translateY(-50%);
     right: -1px;
     z-index: 6;
   }
@@ -342,7 +343,7 @@
     font-size: 13px;
     display: none;
   }
-  .form-msg.success { display: block; background: #E8F3EA; color: #2d5a35; }
+  .form-msg.success { display: block; background: #E8EFEA; color: var(--sage-dark); }
   .form-msg.error { display: block; background: #FCE6E6; color: #9c2b2b; }
   .signin-required-note {
     font-size: 12px;
@@ -358,11 +359,13 @@
     bottom: 24px;
     left: 50%;
     transform: translateX(-50%);
-    background: var(--ink);
-    color: #fff;
+    background: #E8EFEA;
+    color: var(--sage-dark);
+    border: 1.5px solid var(--sage);
     padding: 10px 18px;
     border-radius: 4px;
     font-size: 13px;
+    font-weight: 600;
     z-index: 50;
     display: none;
   }
@@ -436,6 +439,7 @@
     <select id="rv_reviewer">
       <option value="Darlene">Darlene</option>
       <option value="Seth">Seth</option>
+      <option value="Other">Other</option>
     </select>
 
     <label>Date</label>
