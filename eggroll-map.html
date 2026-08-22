@@ -33,10 +33,15 @@
     width: 320px;
     min-width: 320px;
     height: 100%;
-    overflow-y: auto;
     background: var(--paper);
     border-right: 3px solid var(--accent);
     position: relative;
+    overflow: visible; /* lets #side-tabs overhang onto the map — the inner
+                           #sidebar-scroll wrapper below is what scrolls instead */
+  }
+  #sidebar-scroll {
+    height: 100%;
+    overflow-y: auto;
   }
   #sidebar-header {
     background: var(--accent);
@@ -401,20 +406,22 @@
 
 <div id="app">
   <div id="sidebar">
-    <div id="sidebar-header">
-      <h1>518 EGGROLLS</h1>
-      <p>Capital District, NY</p>
-      <div id="reviewer-toggle"></div>
-      <input id="search-box" type="text" placeholder="Search restaurants or cities…" />
-      <button id="surprise-btn" type="button">Surprise me</button>
-      <div id="signin-area">
-        <span id="signed-in-label"></span>
-        <div id="g_id_signin_container"></div>
+    <div id="sidebar-scroll">
+      <div id="sidebar-header">
+        <h1>518 EGGROLLS</h1>
+        <p>Capital District, NY</p>
+        <div id="reviewer-toggle"></div>
+        <input id="search-box" type="text" placeholder="Search restaurants or cities…" />
+        <button id="surprise-btn" type="button">Surprise me</button>
+        <div id="signin-area">
+          <span id="signed-in-label"></span>
+          <div id="g_id_signin_container"></div>
+        </div>
       </div>
+      <ul id="restaurant-list"><li class="r-empty">Loading restaurants…</li></ul>
     </div>
-    <ul id="restaurant-list"><li class="r-empty">Loading restaurants…</li></ul>
     <div id="side-tabs">
-      <button class="side-tab-btn" data-panel="review">Review</button>
+      <button class="side-tab-btn" data-panel="review" style="display:none;">Review</button>
     </div>
   </div>
 
@@ -924,6 +931,12 @@
 
     document.getElementById('rv_submit').disabled = false;
     document.getElementById('rv_signin_note').style.display = 'none';
+
+    // Reveal the Review pull-tab now that there's someone signed in — it stays
+    // hidden for anonymous visitors. Note: this only hides the tab from casual
+    // view; the actual security is the allowlist check in Apps Script, since
+    // hiding UI elements is never a real access control on its own.
+    document.querySelector('.side-tab-btn[data-panel="review"]').style.display = 'block';
   }
 
   window.addEventListener('load', () => {
