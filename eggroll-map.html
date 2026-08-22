@@ -25,12 +25,8 @@
 
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Arial, Helvetica, sans-serif; color: var(--ink); }
-  body { display: flex; flex-direction: column; }
 
-  .view { display: none; }
-  .view.active { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-
-  #app { display: flex; flex: 1; min-height: 0; width: 100%; }
+  #app { display: flex; height: 100vh; width: 100vw; }
 
   /* ---------------- sidebar ---------------- */
   #sidebar {
@@ -247,48 +243,59 @@
   }
   .mapboxgl-ctrl-home:hover { background: var(--row-alt); }
 
-  /* ---------------- top tab bar ---------------- */
-  #top-bar {
-    display: flex;
-    align-items: center;
-    gap: 4px;
+  /* ---------------- sidebar pull-tabs ---------------- */
+  #side-tabs {
+    width: 34px;
+    min-width: 34px;
     background: var(--ink);
-    padding: 8px 14px;
-    flex-wrap: wrap;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 24px;
+    gap: 6px;
   }
-  #top-bar .tab-btn {
-    padding: 7px 14px;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    background: transparent;
+  .side-tab-btn {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    background: var(--accent);
     color: #fff;
     border: none;
-    border-radius: 3px;
+    padding: 12px 6px;
+    border-radius: 0 4px 4px 0;
+    margin-left: -1px;
     cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
   }
-  #top-bar .tab-btn.active { background: var(--accent); }
-  #top-bar .tab-btn:hover:not(.active) { background: rgba(255,255,255,0.15); }
-  #top-bar-spacer { flex: 1; }
-  #signin-area { display: flex; align-items: center; gap: 8px; }
+  .side-tab-btn.active { background: var(--gold); color: #1a1a1a; }
+  .side-tab-btn:hover:not(.active) { filter: brightness(1.1); }
+
+  #signin-area {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
   #signed-in-label {
     color: #fff;
-    font-size: 12px;
+    font-size: 11px;
     display: none;
   }
 
   /* ---------------- form views (Review / Add Restaurant / Suggest) ---------------- */
   .form-view {
     display: none;
-    max-width: 480px;
-    margin: 0 auto;
-    padding: 24px 16px 60px;
-    width: 100%;
+    width: 380px;
+    min-width: 380px;
+    height: 100vh;
     overflow-y: auto;
-    flex: 1;
-    min-height: 0;
+    padding: 20px 18px 60px;
+    background: var(--paper);
+    border-right: 3px solid var(--accent);
   }
-  .form-view.active { display: block; }
+  .form-view.open { display: block; }
   .form-view h2 {
     font-size: 20px;
     color: var(--ink);
@@ -362,11 +369,31 @@
 
   /* ---------------- mobile ---------------- */
   @media (max-width: 680px) {
-    #app { flex-direction: column; }
+    #app { flex-direction: column; height: auto; min-height: 100vh; }
     #sidebar {
       width: 100%;
       min-width: 0;
       height: 45vh;
+      border-right: none;
+      border-bottom: 3px solid var(--accent);
+    }
+    #side-tabs {
+      width: 100%;
+      min-width: 0;
+      flex-direction: row;
+      padding: 6px 10px;
+      justify-content: center;
+    }
+    .side-tab-btn {
+      writing-mode: horizontal-tb;
+      border-radius: 4px;
+      margin-left: 0;
+    }
+    .form-view {
+      width: 100%;
+      min-width: 0;
+      height: auto;
+      max-height: 70vh;
       border-right: none;
       border-bottom: 3px solid var(--accent);
     }
@@ -377,81 +404,78 @@
 </head>
 <body>
 
-<div id="top-bar">
-  <button class="tab-btn active" data-view="map">Map</button>
-  <button class="tab-btn" data-view="review">Review</button>
-  <div id="top-bar-spacer"></div>
-  <div id="signin-area">
-    <span id="signed-in-label"></span>
-    <div id="g_id_signin_container"></div>
-  </div>
-</div>
-
-<div id="view-map" class="view active">
-  <div id="app">
-    <div id="sidebar">
-      <div id="sidebar-header">
-        <h1>518 EGGROLLS</h1>
-        <p>Capital District, NY</p>
-        <div id="reviewer-toggle"></div>
-        <input id="search-box" type="text" placeholder="Search restaurants or cities…" />
-        <button id="surprise-btn" type="button">Surprise me</button>
-        <a id="log-review-link" href="https://forms.gle/oiB696Sb8hZkNUWS8" target="_blank" rel="noopener">
-          + Log a review
-        </a>
+<div id="app">
+  <div id="sidebar">
+    <div id="sidebar-header">
+      <h1>518 EGGROLLS</h1>
+      <p>Capital District, NY</p>
+      <div id="signin-area">
+        <span id="signed-in-label"></span>
+        <div id="g_id_signin_container"></div>
       </div>
-      <ul id="restaurant-list"><li class="r-empty">Loading restaurants…</li></ul>
+      <div id="reviewer-toggle"></div>
+      <input id="search-box" type="text" placeholder="Search restaurants or cities…" />
+      <button id="surprise-btn" type="button">Surprise me</button>
+      <a id="log-review-link" href="https://forms.gle/oiB696Sb8hZkNUWS8" target="_blank" rel="noopener">
+        + Log a review
+      </a>
     </div>
-    <div id="map"></div>
+    <ul id="restaurant-list"><li class="r-empty">Loading restaurants…</li></ul>
   </div>
-  <div id="loading" style="display:none;">Fetching latest reviews…</div>
+
+  <div id="side-tabs">
+    <button class="side-tab-btn" data-panel="review">Review</button>
+  </div>
+
+  <div id="review-panel" class="form-view">
+    <h2>Log a Review</h2>
+    <div class="form-sub">Signed in and on the allowlist? Fill this out and it goes straight to the sheet.</div>
+
+    <label>Restaurant</label>
+    <select id="rv_restaurant"><option value="">Loading restaurants…</option></select>
+
+    <label>Reviewer</label>
+    <select id="rv_reviewer">
+      <option value="Darlene">Darlene</option>
+      <option value="Seth">Seth</option>
+    </select>
+
+    <label>Date</label>
+    <input id="rv_date" type="date" />
+
+    <label>Dining</label>
+    <select id="rv_dining">
+      <option value="Eat-In">Eat-In</option>
+      <option value="Carry-out">Carry-out</option>
+      <option value="Leftover">Leftover</option>
+    </select>
+
+    <label>Price ($)</label>
+    <input id="rv_price" type="number" step="0.01" placeholder="0.00" />
+
+    <label>Size <span id="rv_size_val" class="rating-value">7</span></label>
+    <input id="rv_size" type="range" min="1" max="10" value="7" oninput="document.getElementById('rv_size_val').textContent=this.value" />
+
+    <label>Crispiness <span id="rv_crisp_val" class="rating-value">7</span></label>
+    <input id="rv_crisp" type="range" min="1" max="10" value="7" oninput="document.getElementById('rv_crisp_val').textContent=this.value" />
+
+    <label>Filling <span id="rv_filling_val" class="rating-value">7</span></label>
+    <input id="rv_filling" type="range" min="1" max="10" value="7" oninput="document.getElementById('rv_filling_val').textContent=this.value" />
+
+    <label>Flavor <span id="rv_flavor_val" class="rating-value">7</span></label>
+    <input id="rv_flavor" type="range" min="1" max="10" value="7" oninput="document.getElementById('rv_flavor_val').textContent=this.value" />
+
+    <label>Notes</label>
+    <textarea id="rv_notes" placeholder="Extra crispy, generous filling…"></textarea>
+
+    <button class="submit-btn" id="rv_submit" onclick="submitReview()">Save Review</button>
+    <div id="rv_msg" class="form-msg"></div>
+    <div id="rv_signin_note" class="signin-required-note" style="display:none;">Sign in above to submit a review.</div>
+  </div>
+
+  <div id="map"></div>
 </div>
-
-<div id="view-review" class="form-view">
-  <h2>Log a Review</h2>
-  <div class="form-sub">Signed in and on the allowlist? Fill this out and it goes straight to the sheet.</div>
-
-  <label>Restaurant</label>
-  <select id="rv_restaurant"><option value="">Loading restaurants…</option></select>
-
-  <label>Reviewer</label>
-  <select id="rv_reviewer">
-    <option value="Darlene">Darlene</option>
-    <option value="Seth">Seth</option>
-  </select>
-
-  <label>Date Visited</label>
-  <input id="rv_date" type="date" />
-
-  <label>Dining</label>
-  <select id="rv_dining">
-    <option value="Eat-In">Eat-In</option>
-    <option value="Carry-out">Carry-out</option>
-    <option value="Leftover">Leftover</option>
-  </select>
-
-  <label>Price ($)</label>
-  <input id="rv_price" type="number" step="0.01" placeholder="0.00" />
-
-  <label>Crispiness <span id="rv_crisp_val" class="rating-value">7</span></label>
-  <input id="rv_crisp" type="range" min="1" max="10" value="7" oninput="document.getElementById('rv_crisp_val').textContent=this.value" />
-
-  <label>Flavor <span id="rv_flavor_val" class="rating-value">7</span></label>
-  <input id="rv_flavor" type="range" min="1" max="10" value="7" oninput="document.getElementById('rv_flavor_val').textContent=this.value" />
-
-  <label>Filling <span id="rv_filling_val" class="rating-value">7</span></label>
-  <input id="rv_filling" type="range" min="1" max="10" value="7" oninput="document.getElementById('rv_filling_val').textContent=this.value" />
-
-  <label>Size <span id="rv_size_val" class="rating-value">7</span></label>
-  <input id="rv_size" type="range" min="1" max="10" value="7" oninput="document.getElementById('rv_size_val').textContent=this.value" />
-
-  <label>Notes</label>
-  <textarea id="rv_notes" placeholder="Extra crispy, generous filling…"></textarea>
-
-  <button class="submit-btn" id="rv_submit" onclick="submitReview()">Save Review</button>
-  <div id="rv_msg" class="form-msg"></div>
-  <div id="rv_signin_note" class="signin-required-note" style="display:none;">Sign in above to submit a review.</div>
-</div>
+<div id="loading" style="display:none;">Fetching latest reviews…</div>
 
 <script>
   // ---------------- CONFIG ----------------
@@ -859,25 +883,27 @@
 
   map.on('load', loadData);
 
-  // ---------------- TAB SWITCHING ----------------
-  document.querySelectorAll('#top-bar .tab-btn').forEach(btn => {
+  // ---------------- SIDEBAR PULL-TABS ----------------
+  document.querySelectorAll('.side-tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('#top-bar .tab-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const target = btn.dataset.view;
+      const panelId = btn.dataset.panel + '-panel';
+      const panel = document.getElementById(panelId);
+      const isOpening = !panel.classList.contains('open');
 
-      document.getElementById('view-map').classList.remove('active');
-      document.getElementById('view-review').classList.remove('active');
+      // Only one panel open at a time.
+      document.querySelectorAll('.form-view').forEach(p => p.classList.remove('open'));
+      document.querySelectorAll('.side-tab-btn').forEach(b => b.classList.remove('active'));
 
-      if (target === 'map') {
-        document.getElementById('view-map').classList.add('active');
-        map.resize(); // Mapbox needs a nudge after being hidden/shown via display:none
-      } else if (target === 'review') {
-        document.getElementById('view-review').classList.add('active');
-        if (!document.getElementById('rv_date').value) {
+      if (isOpening) {
+        panel.classList.add('open');
+        btn.classList.add('active');
+        if (panelId === 'review-panel' && !document.getElementById('rv_date').value) {
           document.getElementById('rv_date').value = new Date().toISOString().slice(0, 10);
         }
       }
+
+      // Map's container width just changed — Mapbox needs a nudge to redraw correctly.
+      setTimeout(() => map.resize(), 260);
     });
   });
 
