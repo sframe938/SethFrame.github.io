@@ -36,11 +36,16 @@
     background: var(--paper);
     border-right: 3px solid var(--accent);
     position: relative;
-    overflow: visible; /* lets #side-tabs overhang onto the map — the inner
-                           #sidebar-scroll wrapper below is what scrolls instead */
+    overflow: visible;
+    display: flex;
+    flex-direction: column;
   }
-  #sidebar-scroll {
-    height: 100%;
+  /* Only the restaurant list scrolls. Header and #side-tabs live outside
+     this, so neither is subject to the overflow-y:auto -> overflow-x:auto
+     side effect that was clipping the overhanging tab. */
+  #list-scroll {
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
   }
   #sidebar-header {
@@ -475,23 +480,23 @@
 
 <div id="app">
   <div id="sidebar">
-    <div id="sidebar-scroll">
-      <div id="sidebar-header">
-        <h1>518 EGGROLLS</h1>
-        <p>Capital District, NY</p>
-        <div id="reviewer-toggle"></div>
-        <input id="search-box" type="text" placeholder="Search restaurants or cities…" />
-        <button id="surprise-btn" type="button">Surprise me</button>
-        <div id="signin-area">
-          <span id="signed-in-label"></span>
-          <div id="g_id_signin_container"></div>
-        </div>
-        <div id="side-tabs">
-          <button class="side-tab-btn" data-panel="review" style="display:none;">Review</button>
-          <button class="side-tab-btn" data-panel="restaurant" style="display:none;">Restaurant</button>
-          <button class="side-tab-btn" data-panel="suggest">Suggest</button>
-        </div>
+    <div id="sidebar-header">
+      <h1>518 EGGROLLS</h1>
+      <p>Capital District, NY</p>
+      <div id="reviewer-toggle"></div>
+      <input id="search-box" type="text" placeholder="Search restaurants or cities…" />
+      <button id="surprise-btn" type="button">Surprise me</button>
+      <div id="signin-area">
+        <span id="signed-in-label"></span>
+        <div id="g_id_signin_container"></div>
       </div>
+    </div>
+    <div id="side-tabs">
+      <button class="side-tab-btn" data-panel="review" style="display:none;">Review</button>
+      <button class="side-tab-btn" data-panel="restaurant" style="display:none;">Restaurant</button>
+      <button class="side-tab-btn" data-panel="suggest">Suggest</button>
+    </div>
+    <div id="list-scroll">
       <ul id="restaurant-list"><li class="r-empty">Loading restaurants…</li></ul>
     </div>
   </div>
