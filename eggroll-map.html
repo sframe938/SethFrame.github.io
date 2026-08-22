@@ -236,10 +236,12 @@
   /* ---------------- sidebar pull-tab (overhangs the map, no strip container) ---------------- */
   #side-tabs {
     position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
+    top: 16px;
     left: 100%;
-    margin-left: -3px; /* slight overlap onto the sidebar border for a "tucked in" look */
+    margin-left: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
     z-index: 6;
   }
   .side-tab-btn {
@@ -354,6 +356,32 @@
     border-radius: 3px;
     margin-top: 16px;
   }
+  .hp-field {
+    position: absolute !important;
+    left: -9999px !important;
+    width: 1px !important;
+    height: 1px !important;
+    overflow: hidden !important;
+  }
+  .suggest-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    border: 1.5px solid var(--sage);
+    border-top: none;
+    border-radius: 0 0 3px 3px;
+    max-height: 180px;
+    overflow-y: auto;
+  }
+  .suggest-list li {
+    padding: 8px 10px;
+    font-size: 13px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--row-alt);
+  }
+  .suggest-list li:last-child { border-bottom: none; }
+  .suggest-list li:hover { background: var(--row-alt); }
+  .suggest-list li .sg-sub { font-size: 11px; color: var(--sage-dark); display: block; }
 
   #toast {
     position: fixed;
@@ -426,6 +454,8 @@
     </div>
     <div id="side-tabs">
       <button class="side-tab-btn" data-panel="review" style="display:none;">Review</button>
+      <button class="side-tab-btn" data-panel="restaurant" style="display:none;">Restaurant</button>
+      <button class="side-tab-btn" data-panel="suggest">Suggest</button>
     </div>
   </div>
 
@@ -474,6 +504,54 @@
     <button class="submit-btn" id="rv_submit" onclick="submitReview()">Save Review</button>
     <div id="rv_msg" class="form-msg"></div>
     <div id="rv_signin_note" class="signin-required-note" style="display:none;">Sign in above to submit a review.</div>
+  </div>
+
+  <div id="restaurant-panel" class="form-view">
+    <h2>Add a Restaurant</h2>
+    <div class="form-sub">Search for the place — name, address, and location fill in automatically.</div>
+
+    <label>Search</label>
+    <input id="ar_search" type="text" placeholder="Start typing a restaurant name…" autocomplete="off" />
+    <ul id="ar_suggestions" class="suggest-list"></ul>
+
+    <div id="ar_selected" style="display:none;">
+      <label>Name</label>
+      <input id="ar_name" type="text" />
+
+      <label>Address</label>
+      <input id="ar_address" type="text" />
+
+      <label>City</label>
+      <input id="ar_city" type="text" />
+
+      <input type="hidden" id="ar_lat" />
+      <input type="hidden" id="ar_lng" />
+
+      <button class="submit-btn" id="ar_submit" onclick="submitAddRestaurant()">Add Restaurant</button>
+    </div>
+    <div id="ar_msg" class="form-msg"></div>
+    <div id="ar_signin_note" class="signin-required-note" style="display:none;">Sign in above to add a restaurant.</div>
+  </div>
+
+  <div id="suggest-panel" class="form-view">
+    <h2>Suggest a Restaurant</h2>
+    <div class="form-sub">Know a spot we should try? No sign-in needed — we'll review it and add it.</div>
+
+    <label>Restaurant Name</label>
+    <input id="sg_name" type="text" />
+
+    <label>City / Area</label>
+    <input id="sg_city" type="text" />
+
+    <label>Note (optional)</label>
+    <textarea id="sg_note" placeholder="Anything we should know…"></textarea>
+
+    <!-- Honeypot — hidden from real visitors via CSS, invisible to screen readers via tabindex/aria.
+         A bot filling this out is how the backend silently discards spam. -->
+    <input id="sg_hp" type="text" name="hp_field" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true" />
+
+    <button class="submit-btn" id="sg_submit" onclick="submitSuggest()">Send Suggestion</button>
+    <div id="sg_msg" class="form-msg"></div>
   </div>
 
   <div id="map"></div>
@@ -941,7 +1019,10 @@
     // hidden for anonymous visitors. Note: this only hides the tab from casual
     // view; the actual security is the allowlist check in Apps Script, since
     // hiding UI elements is never a real access control on its own.
+    // Reveal the sign-in-gated pull-tabs now that there's someone signed in —
+    // Suggest stays visible regardless, it never required sign-in.
     document.querySelector('.side-tab-btn[data-panel="review"]').style.display = 'block';
+    document.querySelector('.side-tab-btn[data-panel="restaurant"]').style.display = 'block';
   }
 
   window.addEventListener('load', () => {
@@ -1042,6 +1123,174 @@
     } finally {
       btn.disabled = false;
       btn.textContent = 'Save Review';
+    }
+  }
+  // ---------------- ADD RESTAURANT (Mapbox Search Box API) ----------------
+  const searchSessionToken = crypto.randomUUID();
+
+  let searchDebounce = null;
+  document.getElementById('ar_search').addEventListener('input', (e) => {
+    clearTimeout(searchDebounce);
+    const q = e.target.value.trim();
+    const list = document.getElementById('ar_suggestions');
+    if (q.length < 3) {
+      list.innerHTML = '';
+      return;
+    }
+    searchDebounce = setTimeout(() => runPlaceSuggest(q), 300);
+  });
+
+  async function runPlaceSuggest(query) {
+    const list = document.getElementById('ar_suggestions');
+    try {
+      const url = 'https://api.mapbox.com/search/searchbox/v1/suggest' +
+        '?q=' + encodeURIComponent(query) +
+        '&access_token=' + mapboxgl.accessToken +
+        '&session_token=' + searchSessionToken +
+        '&types=poi' +
+        '&proximity=' + CENTER[0] + ',' + CENTER[1] +
+        '&limit=6';
+      const res = await fetch(url);
+      const data = await res.json();
+      list.innerHTML = (data.suggestions || []).map(s => `
+        <li data-mapbox-id="${escapeHTML(s.mapbox_id)}">
+          ${escapeHTML(s.name)}
+          <span class="sg-sub">${escapeHTML(s.place_formatted || '')}</span>
+        </li>
+      `).join('');
+      list.querySelectorAll('li').forEach(li => {
+        li.addEventListener('click', () => retrievePlace(li.dataset.mapboxId));
+      });
+    } catch (err) {
+      list.innerHTML = '<li>Search failed — try again.</li>';
+      console.error('Mapbox suggest error:', err);
+    }
+  }
+
+  async function retrievePlace(mapboxId) {
+    try {
+      const url = 'https://api.mapbox.com/search/searchbox/v1/retrieve/' + encodeURIComponent(mapboxId) +
+        '?access_token=' + mapboxgl.accessToken +
+        '&session_token=' + searchSessionToken;
+      const res = await fetch(url);
+      const data = await res.json();
+      const feature = data.features && data.features[0];
+      if (!feature) return;
+
+      const props = feature.properties;
+      const coords = feature.geometry.coordinates; // [lon, lat]
+
+      document.getElementById('ar_name').value = props.name || '';
+      document.getElementById('ar_address').value = props.address || props.place_formatted || '';
+      document.getElementById('ar_city').value = (props.context && props.context.place && props.context.place.name) || '';
+      document.getElementById('ar_lng').value = coords[0];
+      document.getElementById('ar_lat').value = coords[1];
+
+      document.getElementById('ar_selected').style.display = 'block';
+      document.getElementById('ar_suggestions').innerHTML = '';
+      document.getElementById('ar_search').value = props.name || '';
+    } catch (err) {
+      console.error('Mapbox retrieve error:', err);
+      showFormMsg('ar_msg', 'error', 'Could not load that place — try again.');
+    }
+  }
+
+  async function submitAddRestaurant() {
+    if (!currentIdToken) {
+      showFormMsg('ar_msg', 'error', 'Sign in first.');
+      return;
+    }
+    const name = document.getElementById('ar_name').value.trim();
+    if (!name) {
+      showFormMsg('ar_msg', 'error', 'Search for and select a restaurant first.');
+      return;
+    }
+
+    const payload = {
+      name: name,
+      address: document.getElementById('ar_address').value,
+      city: document.getElementById('ar_city').value,
+      latitude: document.getElementById('ar_lat').value,
+      longitude: document.getElementById('ar_lng').value
+    };
+
+    const btn = document.getElementById('ar_submit');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    try {
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'addRestaurant', idToken: currentIdToken, payload: payload })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Restaurant added!');
+        document.getElementById('ar_search').value = '';
+        document.getElementById('ar_name').value = '';
+        document.getElementById('ar_address').value = '';
+        document.getElementById('ar_city').value = '';
+        document.getElementById('ar_lat').value = '';
+        document.getElementById('ar_lng').value = '';
+        document.getElementById('ar_selected').style.display = 'none';
+        document.getElementById('restaurant-panel').classList.remove('open');
+        document.querySelectorAll('.side-tab-btn').forEach(b => b.classList.remove('active'));
+        setTimeout(() => map.resize(), 260);
+        loadData();
+      } else {
+        showFormMsg('ar_msg', 'error', data.error || 'Something went wrong.');
+      }
+    } catch (err) {
+      showFormMsg('ar_msg', 'error', 'Network error: ' + err);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Add Restaurant';
+    }
+  }
+
+  // ---------------- SUGGEST (no sign-in required) ----------------
+  async function submitSuggest() {
+    const name = document.getElementById('sg_name').value.trim();
+    if (!name) {
+      showFormMsg('sg_msg', 'error', 'Give it a name at least.');
+      return;
+    }
+
+    const payload = {
+      name: name,
+      city: document.getElementById('sg_city').value,
+      note: document.getElementById('sg_note').value,
+      hp: document.getElementById('sg_hp').value
+    };
+
+    const btn = document.getElementById('sg_submit');
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+
+    try {
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'suggest', payload: payload })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Thanks for the suggestion!');
+        document.getElementById('sg_name').value = '';
+        document.getElementById('sg_city').value = '';
+        document.getElementById('sg_note').value = '';
+        document.getElementById('suggest-panel').classList.remove('open');
+        document.querySelectorAll('.side-tab-btn').forEach(b => b.classList.remove('active'));
+        setTimeout(() => map.resize(), 260);
+      } else {
+        showFormMsg('sg_msg', 'error', data.error || 'Something went wrong.');
+      }
+    } catch (err) {
+      showFormMsg('sg_msg', 'error', 'Network error: ' + err);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Send Suggestion';
     }
   }
 </script>
