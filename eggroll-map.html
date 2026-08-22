@@ -281,7 +281,7 @@
     min-width: 380px;
     height: 100vh;
     overflow-y: auto;
-    padding: 20px 18px 60px;
+    padding: 20px 18px 60px 46px; /* extra left padding — the pull-tabs overhang this edge */
     background: var(--paper);
     border-right: 3px solid var(--accent);
   }
@@ -339,6 +339,19 @@
     cursor: pointer;
   }
   .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .clear-btn {
+    margin-top: 8px;
+    width: 100%;
+    padding: 9px;
+    background: transparent;
+    color: var(--sage-dark);
+    font-size: 13px;
+    font-weight: 700;
+    border: 1.5px solid var(--sage);
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .clear-btn:hover { background: var(--row-alt); }
   .form-msg {
     margin-top: 12px;
     padding: 10px 12px;
@@ -502,6 +515,7 @@
     <textarea id="rv_notes" placeholder="Extra crispy, generous filling…"></textarea>
 
     <button class="submit-btn" id="rv_submit" onclick="submitReview()">Save Review</button>
+    <button class="clear-btn" type="button" onclick="resetReviewForm()">Clear Form</button>
     <div id="rv_msg" class="form-msg"></div>
     <div id="rv_signin_note" class="signin-required-note" style="display:none;">Sign in above to submit a review.</div>
   </div>
@@ -528,6 +542,7 @@
       <input type="hidden" id="ar_lng" />
 
       <button class="submit-btn" id="ar_submit" onclick="submitAddRestaurant()">Add Restaurant</button>
+      <button class="clear-btn" type="button" onclick="resetAddRestaurantForm()">Clear Form</button>
     </div>
     <div id="ar_msg" class="form-msg"></div>
     <div id="ar_signin_note" class="signin-required-note" style="display:none;">Sign in above to add a restaurant.</div>
@@ -551,6 +566,7 @@
     <input id="sg_hp" type="text" name="hp_field" class="hp-field" tabindex="-1" autocomplete="off" aria-hidden="true" />
 
     <button class="submit-btn" id="sg_submit" onclick="submitSuggest()">Send Suggestion</button>
+    <button class="clear-btn" type="button" onclick="resetSuggestForm()">Clear Form</button>
     <div id="sg_msg" class="form-msg"></div>
   </div>
 
@@ -1055,6 +1071,24 @@
     el.textContent = text;
   }
 
+  function resetReviewForm() {
+    document.getElementById('rv_restaurant').value = '';
+    document.getElementById('rv_reviewer').value = 'Darlene';
+    document.getElementById('rv_date').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('rv_dining').value = 'Eat-In';
+    document.getElementById('rv_price').value = '';
+    document.getElementById('rv_size').value = 7;
+    document.getElementById('rv_size_val').textContent = '7';
+    document.getElementById('rv_crisp').value = 7;
+    document.getElementById('rv_crisp_val').textContent = '7';
+    document.getElementById('rv_filling').value = 7;
+    document.getElementById('rv_filling_val').textContent = '7';
+    document.getElementById('rv_flavor').value = 7;
+    document.getElementById('rv_flavor_val').textContent = '7';
+    document.getElementById('rv_notes').value = '';
+    document.getElementById('rv_msg').className = 'form-msg';
+  }
+
   async function submitReview() {
     if (!currentIdToken) {
       showFormMsg('rv_msg', 'error', 'Sign in first.');
@@ -1093,22 +1127,7 @@
       const data = await res.json();
       if (data.success) {
         showToast('Review saved!');
-
-        // Reset the form back to defaults
-        document.getElementById('rv_restaurant').value = '';
-        document.getElementById('rv_reviewer').value = 'Darlene';
-        document.getElementById('rv_date').value = new Date().toISOString().slice(0, 10);
-        document.getElementById('rv_dining').value = 'Eat-In';
-        document.getElementById('rv_price').value = '';
-        document.getElementById('rv_size').value = 7;
-        document.getElementById('rv_size_val').textContent = '7';
-        document.getElementById('rv_crisp').value = 7;
-        document.getElementById('rv_crisp_val').textContent = '7';
-        document.getElementById('rv_filling').value = 7;
-        document.getElementById('rv_filling_val').textContent = '7';
-        document.getElementById('rv_flavor').value = 7;
-        document.getElementById('rv_flavor_val').textContent = '7';
-        document.getElementById('rv_notes').value = '';
+        resetReviewForm();
 
         // Close the panel and refresh the map's data so the new review shows up
         document.getElementById('review-panel').classList.remove('open');
@@ -1195,6 +1214,18 @@
     }
   }
 
+  function resetAddRestaurantForm() {
+    document.getElementById('ar_search').value = '';
+    document.getElementById('ar_suggestions').innerHTML = '';
+    document.getElementById('ar_name').value = '';
+    document.getElementById('ar_address').value = '';
+    document.getElementById('ar_city').value = '';
+    document.getElementById('ar_lat').value = '';
+    document.getElementById('ar_lng').value = '';
+    document.getElementById('ar_selected').style.display = 'none';
+    document.getElementById('ar_msg').className = 'form-msg';
+  }
+
   async function submitAddRestaurant() {
     if (!currentIdToken) {
       showFormMsg('ar_msg', 'error', 'Sign in first.');
@@ -1227,13 +1258,7 @@
       const data = await res.json();
       if (data.success) {
         showToast('Restaurant added!');
-        document.getElementById('ar_search').value = '';
-        document.getElementById('ar_name').value = '';
-        document.getElementById('ar_address').value = '';
-        document.getElementById('ar_city').value = '';
-        document.getElementById('ar_lat').value = '';
-        document.getElementById('ar_lng').value = '';
-        document.getElementById('ar_selected').style.display = 'none';
+        resetAddRestaurantForm();
         document.getElementById('restaurant-panel').classList.remove('open');
         document.querySelectorAll('.side-tab-btn').forEach(b => b.classList.remove('active'));
         setTimeout(() => map.resize(), 260);
@@ -1250,6 +1275,13 @@
   }
 
   // ---------------- SUGGEST (no sign-in required) ----------------
+  function resetSuggestForm() {
+    document.getElementById('sg_name').value = '';
+    document.getElementById('sg_city').value = '';
+    document.getElementById('sg_note').value = '';
+    document.getElementById('sg_msg').className = 'form-msg';
+  }
+
   async function submitSuggest() {
     const name = document.getElementById('sg_name').value.trim();
     if (!name) {
@@ -1277,9 +1309,7 @@
       const data = await res.json();
       if (data.success) {
         showToast('Thanks for the suggestion!');
-        document.getElementById('sg_name').value = '';
-        document.getElementById('sg_city').value = '';
-        document.getElementById('sg_note').value = '';
+        resetSuggestForm();
         document.getElementById('suggest-panel').classList.remove('open');
         document.querySelectorAll('.side-tab-btn').forEach(b => b.classList.remove('active'));
         setTimeout(() => map.resize(), 260);
