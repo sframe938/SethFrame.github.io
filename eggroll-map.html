@@ -8,6 +8,7 @@
 <link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet" />
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 
 <style>
   :root {
@@ -24,8 +25,12 @@
 
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Arial, Helvetica, sans-serif; color: var(--ink); }
+  body { display: flex; flex-direction: column; }
 
-  #app { display: flex; height: 100vh; width: 100vw; }
+  .view { display: none; }
+  .view.active { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+  #app { display: flex; flex: 1; min-height: 0; width: 100%; }
 
   /* ---------------- sidebar ---------------- */
   #sidebar {
@@ -242,6 +247,119 @@
   }
   .mapboxgl-ctrl-home:hover { background: var(--row-alt); }
 
+  /* ---------------- top tab bar ---------------- */
+  #top-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--ink);
+    padding: 8px 14px;
+    flex-wrap: wrap;
+  }
+  #top-bar .tab-btn {
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    background: transparent;
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  #top-bar .tab-btn.active { background: var(--accent); }
+  #top-bar .tab-btn:hover:not(.active) { background: rgba(255,255,255,0.15); }
+  #top-bar-spacer { flex: 1; }
+  #signin-area { display: flex; align-items: center; gap: 8px; }
+  #signed-in-label {
+    color: #fff;
+    font-size: 12px;
+    display: none;
+  }
+
+  /* ---------------- form views (Review / Add Restaurant / Suggest) ---------------- */
+  .form-view {
+    display: none;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 24px 16px 60px;
+    width: 100%;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+  }
+  .form-view.active { display: block; }
+  .form-view h2 {
+    font-size: 20px;
+    color: var(--ink);
+    margin-bottom: 4px;
+  }
+  .form-view .form-sub {
+    font-size: 13px;
+    color: var(--sage-dark);
+    margin-bottom: 20px;
+  }
+  .form-view label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--ink);
+    margin: 14px 0 4px;
+  }
+  .form-view select,
+  .form-view input[type="text"],
+  .form-view input[type="date"],
+  .form-view input[type="number"],
+  .form-view textarea {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 14px;
+    border: 1.5px solid var(--sage);
+    border-radius: 3px;
+    box-sizing: border-box;
+    font-family: inherit;
+  }
+  .form-view textarea { resize: vertical; min-height: 70px; }
+  .form-view .rating-value {
+    font-family: 'Segoe UI', monospace;
+    font-weight: 700;
+    color: var(--accent);
+    float: right;
+  }
+  .form-view input[type="range"] { width: 100%; accent-color: var(--accent); margin-top: 4px; }
+  .submit-btn {
+    margin-top: 24px;
+    width: 100%;
+    padding: 12px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .form-msg {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 3px;
+    font-size: 13px;
+    display: none;
+  }
+  .form-msg.success { display: block; background: #E8F3EA; color: #2d5a35; }
+  .form-msg.error { display: block; background: #FCE6E6; color: #9c2b2b; }
+  .signin-required-note {
+    font-size: 12px;
+    color: var(--sage-dark);
+    background: var(--row-alt);
+    padding: 8px 10px;
+    border-radius: 3px;
+    margin-top: 16px;
+  }
+
   /* ---------------- mobile ---------------- */
   @media (max-width: 680px) {
     #app { flex-direction: column; }
@@ -259,23 +377,81 @@
 </head>
 <body>
 
-<div id="app">
-  <div id="sidebar">
-    <div id="sidebar-header">
-      <h1>518 EGGROLLS</h1>
-      <p>Capital District, NY</p>
-      <div id="reviewer-toggle"></div>
-      <input id="search-box" type="text" placeholder="Search restaurants or cities…" />
-      <button id="surprise-btn" type="button">Surprise me</button>
-      <a id="log-review-link" href="https://forms.gle/oiB696Sb8hZkNUWS8" target="_blank" rel="noopener">
-        + Log a review
-      </a>
-    </div>
-    <ul id="restaurant-list"><li class="r-empty">Loading restaurants…</li></ul>
+<div id="top-bar">
+  <button class="tab-btn active" data-view="map">Map</button>
+  <button class="tab-btn" data-view="review">Review</button>
+  <div id="top-bar-spacer"></div>
+  <div id="signin-area">
+    <span id="signed-in-label"></span>
+    <div id="g_id_signin_container"></div>
   </div>
-  <div id="map"></div>
 </div>
-<div id="loading" style="display:none;">Fetching latest reviews…</div>
+
+<div id="view-map" class="view active">
+  <div id="app">
+    <div id="sidebar">
+      <div id="sidebar-header">
+        <h1>518 EGGROLLS</h1>
+        <p>Capital District, NY</p>
+        <div id="reviewer-toggle"></div>
+        <input id="search-box" type="text" placeholder="Search restaurants or cities…" />
+        <button id="surprise-btn" type="button">Surprise me</button>
+        <a id="log-review-link" href="https://forms.gle/oiB696Sb8hZkNUWS8" target="_blank" rel="noopener">
+          + Log a review
+        </a>
+      </div>
+      <ul id="restaurant-list"><li class="r-empty">Loading restaurants…</li></ul>
+    </div>
+    <div id="map"></div>
+  </div>
+  <div id="loading" style="display:none;">Fetching latest reviews…</div>
+</div>
+
+<div id="view-review" class="form-view">
+  <h2>Log a Review</h2>
+  <div class="form-sub">Signed in and on the allowlist? Fill this out and it goes straight to the sheet.</div>
+
+  <label>Restaurant</label>
+  <select id="rv_restaurant"><option value="">Loading restaurants…</option></select>
+
+  <label>Reviewer</label>
+  <select id="rv_reviewer">
+    <option value="Darlene">Darlene</option>
+    <option value="Seth">Seth</option>
+  </select>
+
+  <label>Date Visited</label>
+  <input id="rv_date" type="date" />
+
+  <label>Dining</label>
+  <select id="rv_dining">
+    <option value="Eat-In">Eat-In</option>
+    <option value="Carry-out">Carry-out</option>
+    <option value="Leftover">Leftover</option>
+  </select>
+
+  <label>Price ($)</label>
+  <input id="rv_price" type="number" step="0.01" placeholder="0.00" />
+
+  <label>Crispiness <span id="rv_crisp_val" class="rating-value">7</span></label>
+  <input id="rv_crisp" type="range" min="1" max="10" value="7" oninput="document.getElementById('rv_crisp_val').textContent=this.value" />
+
+  <label>Flavor <span id="rv_flavor_val" class="rating-value">7</span></label>
+  <input id="rv_flavor" type="range" min="1" max="10" value="7" oninput="document.getElementById('rv_flavor_val').textContent=this.value" />
+
+  <label>Filling <span id="rv_filling_val" class="rating-value">7</span></label>
+  <input id="rv_filling" type="range" min="1" max="10" value="7" oninput="document.getElementById('rv_filling_val').textContent=this.value" />
+
+  <label>Size <span id="rv_size_val" class="rating-value">7</span></label>
+  <input id="rv_size" type="range" min="1" max="10" value="7" oninput="document.getElementById('rv_size_val').textContent=this.value" />
+
+  <label>Notes</label>
+  <textarea id="rv_notes" placeholder="Extra crispy, generous filling…"></textarea>
+
+  <button class="submit-btn" id="rv_submit" onclick="submitReview()">Save Review</button>
+  <div id="rv_msg" class="form-msg"></div>
+  <div id="rv_signin_note" class="signin-required-note" style="display:none;">Sign in above to submit a review.</div>
+</div>
 
 <script>
   // ---------------- CONFIG ----------------
@@ -661,6 +837,7 @@
         allRows = computeRows(currentReviewer);
         renderReviewerToggle();
         applyFilters();
+        populateReviewRestaurantDropdown();
 
         const bounds = new mapboxgl.LngLatBounds();
         locations.forEach(l => {
@@ -681,6 +858,129 @@
   }
 
   map.on('load', loadData);
+
+  // ---------------- TAB SWITCHING ----------------
+  document.querySelectorAll('#top-bar .tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#top-bar .tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const target = btn.dataset.view;
+
+      document.getElementById('view-map').classList.remove('active');
+      document.getElementById('view-review').classList.remove('active');
+
+      if (target === 'map') {
+        document.getElementById('view-map').classList.add('active');
+        map.resize(); // Mapbox needs a nudge after being hidden/shown via display:none
+      } else if (target === 'review') {
+        document.getElementById('view-review').classList.add('active');
+        if (!document.getElementById('rv_date').value) {
+          document.getElementById('rv_date').value = new Date().toISOString().slice(0, 10);
+        }
+      }
+    });
+  });
+
+  function populateReviewRestaurantDropdown() {
+    const select = document.getElementById('rv_restaurant');
+    const names = locations.map(l => l['Restaurant Name']).filter(Boolean).sort();
+    select.innerHTML = '<option value="">Select a restaurant…</option>' +
+      names.map(n => `<option value="${escapeHTML(n)}">${escapeHTML(n)}</option>`).join('');
+  }
+
+  // ---------------- GOOGLE SIGN-IN ----------------
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzQX3nVdtQ7mm_hVoHibArwxkVYEeaO3Ol-nnFUebnee2yg045VKVCwpdvM0gfL2qDhyg/exec';
+  const GOOGLE_CLIENT_ID = '204303957512-nv0v3eitsl0s08r9rov8ujg8fnpvffse.apps.googleusercontent.com';
+
+  let currentIdToken = null;
+  let currentSignedInEmail = null;
+
+  function handleCredentialResponse(response) {
+    currentIdToken = response.credential;
+    const payload = JSON.parse(atob(currentIdToken.split('.')[1]));
+    currentSignedInEmail = payload.email;
+
+    const label = document.getElementById('signed-in-label');
+    label.textContent = 'Signed in as ' + currentSignedInEmail;
+    label.style.display = 'inline';
+
+    document.getElementById('rv_submit').disabled = false;
+    document.getElementById('rv_signin_note').style.display = 'none';
+  }
+
+  window.addEventListener('load', () => {
+    if (window.google && google.accounts && google.accounts.id) {
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleCredentialResponse
+      });
+      google.accounts.id.renderButton(
+        document.getElementById('g_id_signin_container'),
+        { theme: 'filled_black', size: 'medium' }
+      );
+    }
+    // Review submit starts disabled until sign-in completes.
+    document.getElementById('rv_submit').disabled = true;
+    document.getElementById('rv_signin_note').style.display = 'block';
+  });
+
+  // ---------------- REVIEW SUBMIT ----------------
+  function showFormMsg(elId, type, text) {
+    const el = document.getElementById(elId);
+    el.className = 'form-msg ' + type;
+    el.textContent = text;
+  }
+
+  async function submitReview() {
+    if (!currentIdToken) {
+      showFormMsg('rv_msg', 'error', 'Sign in first.');
+      return;
+    }
+    const restaurant = document.getElementById('rv_restaurant').value;
+    if (!restaurant) {
+      showFormMsg('rv_msg', 'error', 'Pick a restaurant.');
+      return;
+    }
+
+    const payload = {
+      restaurant: restaurant,
+      reviewer: document.getElementById('rv_reviewer').value,
+      dateVisited: document.getElementById('rv_date').value,
+      price: document.getElementById('rv_price').value,
+      crispiness: document.getElementById('rv_crisp').value,
+      flavor: document.getElementById('rv_flavor').value,
+      filling: document.getElementById('rv_filling').value,
+      size: document.getElementById('rv_size').value,
+      notes: document.getElementById('rv_notes').value,
+      dining: document.getElementById('rv_dining').value
+    };
+
+    const btn = document.getElementById('rv_submit');
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+    document.getElementById('rv_msg').className = 'form-msg';
+
+    try {
+      const res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ action: 'review', idToken: currentIdToken, payload: payload })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showFormMsg('rv_msg', 'success', 'Review saved!');
+        document.getElementById('rv_notes').value = '';
+        document.getElementById('rv_price').value = '';
+      } else {
+        showFormMsg('rv_msg', 'error', data.error || 'Something went wrong.');
+      }
+    } catch (err) {
+      showFormMsg('rv_msg', 'error', 'Network error: ' + err);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Save Review';
+    }
+  }
 </script>
 
 </body>
