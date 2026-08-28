@@ -1,0 +1,1223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Adirondack 46 High Peaks Tracker</title>
+
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.25.0/mapbox-gl.css" rel="stylesheet" />
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.25.0/mapbox-gl.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
+<style>
+  :root {
+    /* ---- ADK46er palette, pulled from a High Peaks trail photo ----
+       source swatches: #3F5620 (dark forest green), #82AB57 (mid green),
+       #A0A098 (stone gray), #E1E2E7 (mist), #A5C2EA (light sky),
+       #5385B6 (deep sky blue) — plus #6F1D1B (deep red), added
+       separately for the active/selected color. Everything below is
+       one of those seven, or a tint/shade of one, chosen for contrast
+       at its role. */
+    --ink:        #293815;   /* deep pine — darkened forest green */
+    --paper:      #ffffff;
+    --bg:         #f2f2f4;   /* mist, lightened */
+    --border:     #e6e6eb;   /* mist, lightened */
+    --muted:      #686863;   /* stone gray, darkened for text contrast */
+    --muted-lt:   #a0a098;   /* stone gray */
+    --accent:     #3f5620;   /* dark forest green — summited + selected */
+    --accent-light: #82ab57; /* mid green — summited, unselected */
+    --accent-lt:  #e2e6de;   /* dark forest green, lightened */
+    --unsummited: #d0d0cc;   /* stone gray, lightened — not yet climbed */
+    --unsummited-line: #a0a098;   /* stone gray */
+    --pill-on:    #3f5620;   /* dark forest green */
+    --pill-off:   #f1f1f0;   /* stone gray, lightened */
+    --pill-off-txt: #686863; /* stone gray, darkened */
+    --danger:     #6f1d1b;   /* deep red — active/selected peak + route line */
+    --declutter-fade: 0.25;  /* opacity of OTHER peaks' badges while one is hovered/active — the one knob to retune if 25% ends up wrong */
+    --badge-size:       18px;    /* peak-badge diameter, both at rest and raised */
+    --badge-border-c:   var(--muted-lt);  /* peak-badge ring color */
+    --badge-number-c:   #5385b6; /* deep sky blue — peak-badge digit color; the one palette swatch that had gone unused */
+    --badge-rest-gap:   5px;     /* peak-badge's rest-state gap above its own peak's apex — the one knob to retune if 5px ends up wrong */
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Arial, Helvetica, sans-serif; color: var(--ink); background: var(--bg); }
+
+  #app { display: flex; flex-direction: column; height: 100vh; width: 100vw; overflow: hidden; }
+
+  /* ---------------- header ---------------- */
+  #topbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 12px 20px;
+    background: var(--paper);
+    border-bottom: 1px solid var(--border);
+    z-index: 3;
+  }
+  #topbar h1 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  #topbar h1 span { color: var(--accent); }
+  #stats {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  #stats .stat-num { font-weight: 800; color: var(--ink); }
+  #stats .stat-num.winter { color: var(--pill-on); }
+  #search-box {
+    margin-left: auto;
+    padding: 7px 10px;
+    font-size: 12px;
+    font-family: inherit;
+    border: 1.5px solid var(--border);
+    border-radius: 3px;
+    min-width: 180px;
+  }
+
+  /* ---------------- main layout ---------------- */
+  #main { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
+  /* Map and the peak sidebar share a row above the (unchanged, full-width)
+     skyline strip below — the sidebar needs to sit beside the map, not
+     inside it, so the skyline keeps its full panoramic width regardless
+     of whether a peak is selected. */
+  #map-row { flex: 1; min-height: 0; display: flex; flex-direction: row; position: relative; }
+  #map { flex: 1; min-height: 0; }
+
+  /* ---------------- peak sidebar ---------------- */
+  /* Closed by default (width: 0, clipped) so the map has the full row to
+     itself until a peak is selected. `.open` is the only thing that ever
+     changes `width` — animating THAT (rather than sliding via transform)
+     is what makes the map actually reflow to reclaim the space when the
+     sidebar closes, not just visually cover/uncover it. The inner content
+     div stays a fixed 340px regardless, so nothing inside re-wraps or
+     reflows mid-transition — it's just progressively revealed/hidden by
+     the outer element's clip. See the `transitionend` listener on this
+     element (search "peak-sidebar').addEventListener('transitionend'")
+     for why width is also what triggers `map.resize()`. */
+  #peak-sidebar {
+    position: relative;
+    width: 0;
+    flex-shrink: 0;
+    overflow: hidden;
+    height: 100%;
+    background: var(--paper);
+    border-left: 2px solid var(--ink);
+    transition: width 0.28s ease;
+  }
+  #peak-sidebar.open { width: 340px; }
+  #peak-sidebar-content { width: 340px; height: 100%; overflow-y: auto; }
+  #sidebar-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: none;
+    background: var(--ink);
+    color: #fff;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 5;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  #sidebar-close:hover { opacity: 0.85; }
+
+  /* ---------------- skyline (desktop) ---------------- */
+  #skyline-wrap {
+    /* Tall enough that a badge sliding up to the fixed row position on
+       hover/active, and the diagonal name callouts, stay fully inside
+       this panel instead of spilling onto the map — see MIN_PCT/MAX_PCT
+       in triHeightPct(), which were scaled down to match so the
+       triangles themselves stay the same size as before; only the
+       headroom above them grew. */
+    flex: 0 0 165px;
+    background: linear-gradient(to bottom, #f2f2f4, var(--paper) 70%);
+    border-top: 2px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  #skyline {
+    position: relative;
+    height: 100%;
+    width: 100%;
+  }
+  /* Each peak is absolutely positioned by its x-center (set inline per
+     peak in JS) rather than laid out in a flex row, so wider triangles
+     can overlap their neighbors' bases — shorter peaks stack on top of
+     (in front of) taller ones via z-index, same as a layered mountain
+     illustration. */
+  .peak-slot {
+    position: absolute;
+    bottom: 0;
+    height: 100%;
+    width: 4%;
+    min-width: 26px;
+    max-width: 54px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    /* The slot's own box is full-height so shorter triangles still sit
+       flush at the bottom, but that leaves empty space above every
+       triangle except the tallest. Without this, a short peak's empty
+       headroom (which, thanks to z-index, sits in FRONT of whatever's
+       behind it) would swallow clicks/hover meant for a taller
+       neighbor's visible tip poking up behind it — e.g. Mount Marcy.
+       Turning hit-testing off here and back on only for the actual
+       painted triangle (below) makes only real pixels clickable. */
+    pointer-events: none;
+  }
+  .peak-tri {
+    width: 100%;
+    display: block;
+    cursor: pointer;
+    pointer-events: auto;
+    transition: filter 0.15s, transform 0.15s ease;
+  }
+  /* Small lift on hover/active — a subtle "this one's picked up" cue,
+     independent of the badge's own hover motion above. Hover only does
+     this while NOTHING is selected (see the `:not(:has(.active))`
+     guard) — once a peak is active/popup-open, passing the mouse over
+     its 45 neighbors on the way there would otherwise keep raising
+     their badges and labels too, which read as visual noise and can
+     collide with the selected peak's own label. The active peak's own
+     lift is unconditional, on the second selector line. */
+  #skyline:not(:has(.peak-slot.active)) .peak-slot:hover .peak-tri,
+  .peak-slot.active .peak-tri {
+    transform: translateY(-2px);
+  }
+  .peak-tri polygon { transition: fill 0.15s; }
+  /* Fill depends on BOTH whether the peak is summited and whether it's
+     the active/selected one: summited peaks are a lighter green until
+     selected, when they deepen to the dark forest green; unsummited
+     peaks stay gray until selected, when they turn red. */
+  .peak-tri polygon.summited { fill: var(--accent-light); }
+  .peak-tri polygon.unsummited { fill: var(--unsummited); }
+  .peak-slot.active .peak-tri polygon.summited { fill: var(--accent) !important; }
+  .peak-slot.active .peak-tri polygon.unsummited { fill: var(--danger) !important; }
+  .peak-slot .peak-label-mobile { display: none; }
+
+  /* Fixed-size number badge that floats just above each peak's own
+     apex — its size never depends on the peak's own height, which is
+     what the very first version of this feature (numbers crammed
+     inside a white "snowcap" shape that scaled down with the
+     triangle) got wrong: the smallest peaks didn't have room for two
+     digits. A plain floating badge sidesteps that entirely.
+     Rest position comes from the `--badge-rest-top` custom property
+     (set per-peak in JS, from the same heightPct used for the
+     triangle) rather than a plain inline `top`, specifically so the
+     hover/active rule below — a plain stylesheet rule — can still win
+     the cascade: an inline `style="top:…"` always beats a class
+     selector regardless of specificity, custom-property or not, but
+     reading the per-peak value THROUGH a variable here means `top`
+     itself is only ever set in the stylesheet, where normal cascade
+     rules (and thus the hover override) apply. `top` is also what
+     animates on hover/active — sliding the SAME element up to the
+     fixed row position rather than swapping in a different one, so
+     the motion reads as "this number is the one that moved," which is
+     what keeps it legible which peak a raised badge belongs to once
+     it's away from its own apex.
+     At rest the badge doesn't center ON the apex point — `top` lands
+     exactly on it, but the transform pulls the badge fully above that
+     point (`-100%`) plus a small extra gap, so it reads as "hovering
+     just above the tip" rather than straddling it. On hover/active the
+     transform reverts to a plain centered `-50%` against the raised
+     `top: 12px`, matching the old fixed-row position exactly — both
+     properties are listed in the transition so the badge slides AND
+     re-centers smoothly in one motion. */
+  .peak-badge {
+    position: absolute;
+    top: var(--badge-rest-top);
+    left: 50%;
+    transform: translate(-50%, calc(-100% - var(--badge-rest-gap)));
+    width: var(--badge-size);
+    height: var(--badge-size);
+    border-radius: 50%;
+    background: var(--paper);
+    border: 1px solid var(--badge-border-c);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 800;
+    color: var(--badge-number-c);
+    pointer-events: none;
+    transition: top 0.2s ease, transform 0.2s ease, opacity 0.15s;
+  }
+  /* On hover/active: this peak's badge slides up to where the old
+     fixed index row lived, re-centering on that point, and gets a
+     high z-index so it rises above neighboring peaks' triangles while
+     in transit rather than being clipped by whichever one currently
+     has a higher stacking order. Same browsing-vs-selected guard as
+     the triangle lift above: hover only raises OTHER badges when
+     nothing is currently selected. */
+  #skyline:not(:has(.peak-slot.active)) .peak-slot:hover .peak-badge,
+  .peak-slot.active .peak-badge {
+    top: 12px;
+    transform: translate(-50%, -50%);
+    z-index: 999;
+  }
+  /* Diagonal name label rising from the triangle's OWN apex (not the
+     fixed row) — shown only for the hovered/active peak. Plain text,
+     no background, matching the rest of the skyline's unboxed look;
+     this is the same callout design from the very first version of
+     this feature, just re-anchored to work alongside the fixed index
+     row added since.
+     `left: 50%` on the outer .peak-callout lands exactly on the peak's
+     true x-position (the slot is itself centered on that point via its
+     own translateX(-50%)), so the nested .callout-text can grow from
+     `left: 0` without ever running past the panel edge, even though
+     the slot's own box may extend past it for peaks near the edge.
+     Left-half peaks lean up-and-right; right-half peaks flip to pivot
+     from their right edge and lean up-and-left instead — both mirror
+     away from Marcy. */
+  .peak-callout {
+    position: absolute;
+    left: 50%;
+    display: none;
+    z-index: 999;
+    pointer-events: none;
+  }
+  /* Same browsing-vs-selected guard as the badge and triangle rules
+     above: a hovered peak's name only shows up when nothing is
+     currently selected, so it can never appear alongside — and
+     collide with — the selected peak's own name. */
+  #skyline:not(:has(.peak-slot.active)) .peak-slot:hover .peak-callout,
+  .peak-slot.active .peak-callout { display: block; }
+  .peak-callout .callout-text {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    transform-origin: 0 100%;
+    transform: rotate(-42deg) translate(6px, -4px);
+    white-space: nowrap;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .peak-callout.flip .callout-text {
+    left: auto;
+    right: 0;
+    transform-origin: 100% 100%;
+    transform: rotate(42deg) translate(-6px, -4px);
+  }
+  /* Marcy sits dead center with no side to lean toward, so instead of
+     picking a side by which way it leans on the panel (it's equally
+     "left-half" and "right-half"), it leans toward whichever side has
+     fewer neighboring peaks — the left, 22 vs. 23 — using the same
+     right-edge-pivot treatment as a flipped/right-half label, just at
+     a much steeper angle so it still reads as close to vertical and
+     clears its own raised badge, which sits dead center beneath it. */
+  .peak-callout.marcy .callout-text {
+    left: auto;
+    right: 0;
+    transform-origin: 100% 100%;
+    transform: rotate(70deg) translate(-10px, -4px);
+  }
+
+  /* Declutter the rest of the row so whichever peak is engaged reads
+     clearly instead of competing with 45 others — but the two "engaged"
+     states behave differently now. Browsing (nothing selected): fade
+     everyone except whichever peak the mouse happens to be over, same
+     as always. Selected (a peak is active/popup-open): fade everyone
+     except the selected peak, full stop — hovering elsewhere no longer
+     exempts that peak from the fade, since hover is otherwise inert in
+     this state (see the badge/callout/triangle rules above) and a
+     de-dimmed-but-not-raised badge would just look like a glitch. */
+  #skyline:not(:has(.peak-slot.active)):has(.peak-slot:hover) .peak-slot:not(:hover) .peak-badge {
+    opacity: var(--declutter-fade);
+  }
+  #skyline:has(.peak-slot.active) .peak-slot:not(.active) .peak-badge {
+    opacity: var(--declutter-fade);
+  }
+
+  /* ---------------- map popup ---------------- */
+  .mapboxgl-popup-content {
+    padding: 0 !important;
+    border-radius: 3px !important;
+    border: 2px solid var(--accent);
+    overflow: hidden;
+    font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+    max-width: 300px;
+  }
+  .mapboxgl-popup-close-button { color: #fff; font-size: 18px; right: 4px; top: 2px; }
+  .popup-head {
+    background: var(--ink);
+    color: #fff;
+    padding: 9px 30px 9px 12px;
+  }
+  .popup-id { font-size: 10px; letter-spacing: 0.08em; opacity: 0.65; text-transform: uppercase; }
+  .popup-name { font-weight: 800; font-size: 15px; margin-top: 1px; }
+  .popup-sub { font-size: 11px; opacity: 0.8; margin-top: 2px; }
+  .popup-body { padding: 10px 12px 12px; }
+  .popup-count { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .popup-count strong { color: var(--ink); }
+  .season-row { display: flex; gap: 6px; margin-bottom: 10px; }
+  .season-pill {
+    flex: 1;
+    text-align: center;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 5px 4px;
+    border-radius: 3px;
+    background: var(--pill-off);
+    color: var(--pill-off-txt);
+    cursor: default;
+  }
+  .season-pill.on {
+    background: var(--pill-on);
+    color: #fff;
+    cursor: pointer;
+  }
+  .season-pill.on.active { outline: 2px solid var(--danger); outline-offset: 1px; }
+  .popup-detail-label { font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: 8px; }
+  .popup-detail-val { font-size: 12px; margin-top: 2px; line-height: 1.4; }
+  .popup-notes { font-style: italic; color: #555; }
+  .popup-photo { width: 100%; height: 120px; object-fit: cover; border-radius: 2px; margin-top: 8px; display: block; background: var(--bg); }
+  .popup-elev-profile { width: 100%; border-radius: 2px; margin-top: 8px; display: block; background: var(--bg); }
+  .popup-unsummited { font-size: 12px; color: var(--muted); padding: 6px 0 2px; }
+
+  /* ---------------- markers ---------------- */
+  /* NOTE: .peak-marker itself must NOT get position:relative/absolute/etc
+     here — Mapbox's own mapbox-gl.css sets `.mapboxgl-marker { position:
+     absolute; ... }` on this exact element (it adds that class to
+     whatever element you pass into `new mapboxgl.Marker({element})`),
+     and it repositions the marker on every pan/zoom via a CSS transform
+     computed against that absolute positioning. Overriding position here
+     fights that and makes markers drift out of place as you zoom. The
+     hover label instead gets its own inner wrapper to anchor to. */
+  .peak-marker { width: 20px; height: 20px; cursor: pointer; }
+  .marker-inner { position: relative; width: 100%; height: 100%; }
+  .marker-label {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 7px;
+    background: var(--ink);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 3px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.12s;
+    z-index: 10;
+  }
+  .marker-label::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 4px solid transparent;
+    border-top-color: var(--ink);
+  }
+  .peak-marker:hover .marker-label { opacity: 1; }
+
+  /* Selected peak on desktop: the sidebar has the details, but with markers
+     packed close together it's easy to lose track of *which* triangle on
+     the map they belong to. Keeping this one marker's label open (rather
+     than only on hover) and giving it a green ring/glow answers that —
+     effectively the old marker-anchored popup, just persistent instead of
+     hover-only. z-index bump keeps its label from being tucked behind a
+     neighboring marker. Mobile ignores this: its sidebar covers the map
+     full-screen, so there's nothing to disambiguate against. */
+  .peak-marker.active-marker { z-index: 20; }
+  .peak-marker.active-marker .marker-label {
+    opacity: 1;
+    background: var(--accent);
+  }
+  .peak-marker.active-marker .marker-label::after { border-top-color: var(--accent); }
+  .peak-marker.active-marker svg polygon {
+    stroke: var(--accent);
+    stroke-width: 10;
+  }
+  .peak-marker.active-marker svg {
+    filter: drop-shadow(0 0 4px var(--accent));
+  }
+
+  .mapboxgl-ctrl-home {
+    display: flex; align-items: center; justify-content: center;
+    width: 29px; height: 29px; background: #fff; border: none;
+    cursor: pointer; color: var(--ink); padding: 0;
+  }
+  .mapboxgl-ctrl-home:hover { background: var(--bg); }
+
+  #loading {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    background: rgba(0,0,0,0.75);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 3px;
+    font-size: 12px;
+    z-index: 5;
+  }
+
+  /* ---------------- mobile: skyline -> stacked list ---------------- */
+  @media (max-width: 760px) {
+    #topbar { flex-wrap: wrap; row-gap: 6px; }
+    #search-box { margin-left: 0; width: 100%; order: 3; }
+
+    #main { flex-direction: column; }
+    #map-row { flex: 0 0 40vh; }
+    #map { flex: 1; }
+
+    /* The side-by-side sidebar doesn't work at phone width — there's no
+       room to shrink the map into. Instead, `.open` takes over the whole
+       viewport as a fixed overlay (map, skyline, topbar and all sit
+       underneath, untouched) with the same close button, just repositioned
+       to sit clear of the phone's status bar/notch. Width is no longer
+       what's animating here, so the desktop transitionend->map.resize()
+       listener won't fire on mobile — harmless, since the map's own size
+       never actually changes underneath a full-screen overlay. */
+    #peak-sidebar { position: static; width: 0; height: 0; border-left: none; transition: none; }
+    #peak-sidebar.open {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 50;
+    }
+    #peak-sidebar-content { width: 100%; }
+    #sidebar-close { top: max(10px, env(safe-area-inset-top)); right: 14px; width: 34px; height: 34px; font-size: 20px; }
+
+    #skyline-wrap { flex: 1; min-height: 0; overflow-y: auto; border-top: 1px solid var(--border); background: var(--paper); }
+    #skyline { display: flex; flex-direction: column; align-items: stretch; height: auto; position: static; }
+    .peak-slot {
+      position: static;
+      width: 100%;
+      min-width: 0;
+      max-width: none;
+      height: auto;
+      transform: none;
+      z-index: auto !important;
+      pointer-events: auto;
+      cursor: pointer;
+      flex: none;
+      justify-content: flex-start;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .peak-slot:nth-child(even) { background: #f4f4f6; }
+    .peak-tri { width: 22px; max-width: 22px; flex-shrink: 0; }
+    .peak-badge, .peak-callout { display: none !important; }
+    .peak-slot .peak-label-mobile {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .peak-label-mobile .pl-name { font-size: 13px; font-weight: 700; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+    .peak-label-mobile .pl-meta { font-size: 10.5px; color: var(--muted); }
+    .peak-slot.active { background: var(--accent-lt); }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="topbar">
+    <h1>Adirondack <span>46</span> High Peaks</h1>
+    <div id="stats">
+      <span><span class="stat-num" id="stat-summited">0</span> / 46 summited</span>
+      <span><span class="stat-num winter" id="stat-winter">0</span> / 46 in winter</span>
+      <span id="stat-feet"></span>
+    </div>
+    <input id="search-box" type="text" placeholder="Search peaks or ranges…" />
+  </div>
+
+  <div id="main">
+    <div id="map-row">
+      <div id="map"></div>
+      <div id="peak-sidebar">
+        <button id="sidebar-close" type="button" aria-label="Close">&times;</button>
+        <div id="peak-sidebar-content"></div>
+      </div>
+    </div>
+    <div id="skyline-wrap">
+      <div id="skyline"></div>
+    </div>
+  </div>
+</div>
+<div id="loading" style="display:none;">Loading your ascent log…</div>
+
+<script>
+/* =====================================================================
+   CONFIG
+   ===================================================================== */
+mapboxgl.accessToken = 'pk.eyJ1Ijoic2ZyYW1lOTM4IiwiYSI6ImNqN2RweG9ydjBkenIycWt5Z2c5NWtsajcifQ.bA0BviPhPcygQREBZd0cdQ';
+
+const STYLE_URL = 'mapbox://styles/sframe938/cmt75d6wj00gv01s47s2q8ml4';
+
+// ---- Ascent log: Google Sheet published as CSV -------------------------
+// This is the ONLY thing you maintain going forward — one row per climb.
+// The 46 peaks themselves (name/elevation/range/coordinates) are baked
+// into PEAKS below since they never change.
+//
+// Expected columns (header names matter, order doesn't):
+//   peak_id   — the number shown in each peak's popup (1-46, by elevation
+//               rank — Marcy is 1, Couchsachraga is 46). This is the ONLY
+//               field that links a sheet row to a peak.
+//   date               — date of the climb (YYYY-MM-DD works best for sorting)
+//   season             — Summer | Winter | Shoulder
+//   with               — who you climbed it with
+//   notes              — trip notes / conditions
+//   route_file         — filename of the AllTrails KML for this ascent,
+//                        living in a routes/ folder next to this page
+//                        (e.g. "07-gray-peak-2024-09.kml")
+//   elevation_profile  — filename of the AllTrails elevation-profile
+//                        screenshot for this ascent, in an
+//                        elevation-profiles/ folder next to this page
+//   photo              — filename of a summit photo, in a photos/ folder
+//                        next to this page
+//
+// Leave any of the optional columns blank if you don't have that piece
+// for a given ascent yet.
+const ASCENTS_CSV_URL = 'PASTE_YOUR_PUBLISHED_SHEET_CSV_LINK_HERE';
+
+const ROUTES_DIR = 'routes/';
+const ELEV_PROFILE_DIR = 'elevation-profiles/';
+const PHOTOS_DIR = 'photos/';
+
+// Roughly the High Peaks region — Lake Placid/Keene/Newcomb/Wilmington.
+const CENTER = [-73.95, 44.13];
+const ZOOM = 10.3;
+const MAX_BOUNDS = [
+  [-74.45, 43.90], // southwest
+  [-73.45, 44.55]  // northeast
+];
+const MIN_ZOOM = 8.5;
+const MAX_ZOOM = 16;
+
+const SEASONS = ['Summer', 'Winter', 'Shoulder'];
+
+/* =====================================================================
+   STATIC PEAK DATA — the 46 High Peaks, ranked by official elevation
+   (adirondack.net's printable 46-peak list, MacNaughton Mountain — the
+   unofficial "47th" — intentionally excluded).
+
+   peak_id = elevation rank, 1 (Marcy) through 46 (Couchsachraga). This
+   is the number to put in the `peak_id` column of your ascent-log sheet,
+   and it's what shows up in each popup for reference.
+
+   Coordinates: all 46 pulled from Wikipedia's "List of Adirondack High
+   Peaks" table (one consistent source, indexed by the same elevation
+   rank used here) — replacing an earlier patchwork pull from individual
+   Wikipedia infoboxes and PeakVisor pages, which had drifted from the
+   basemap by anywhere from a few meters to over 1km on a handful of
+   peaks (Street Mountain and Porter Mountain were the worst offenders).
+   Still worth swapping in your own GPS data below if you have more
+   precise summit fixes from your own tracks.
+   ===================================================================== */
+const PEAKS = [
+  { id: 1,  name: 'Mount Marcy',            elevation: 5344, range: 'Marcy Group',      lat: 44.1127, lng: -73.9237 },
+  { id: 2,  name: 'Algonquin Peak',         elevation: 5114, range: 'MacIntyre Range',  lat: 44.1436, lng: -73.9867 },
+  { id: 3,  name: 'Mount Haystack',         elevation: 4960, range: 'Great Range',      lat: 44.1056, lng: -73.9006 },
+  { id: 4,  name: 'Mount Skylight',         elevation: 4924, range: 'Marcy Group',      lat: 44.0994, lng: -73.9308 },
+  { id: 5,  name: 'Whiteface Mountain',     elevation: 4867, range: 'Sentinel Range',   lat: 44.3658, lng: -73.9028 },
+  { id: 6,  name: 'Dix Mountain',           elevation: 4857, range: 'Dix Range',        lat: 44.0822, lng: -73.7864 },
+  { id: 7,  name: 'Gray Peak',              elevation: 4840, range: 'Marcy Group',      lat: 44.1114, lng: -73.9349 },
+  { id: 8,  name: 'Iroquois Peak',          elevation: 4840, range: 'MacIntyre Range',  lat: 44.1370, lng: -73.9982 },
+  { id: 9,  name: 'Basin Mountain',         elevation: 4827, range: 'Great Range',      lat: 44.1212, lng: -73.8863 },
+  { id: 10, name: 'Gothics',                elevation: 4736, range: 'Great Range',      lat: 44.1281, lng: -73.8571 },
+  { id: 11, name: 'Mount Colden',           elevation: 4714, range: 'Marcy Group',      lat: 44.1270, lng: -73.9599 },
+  { id: 12, name: 'Giant Mountain',         elevation: 4627, range: 'Giant Group',      lat: 44.1611, lng: -73.7202 },
+  { id: 13, name: 'Nippletop',              elevation: 4620, range: 'Colvin Range',     lat: 44.0892, lng: -73.8163 },
+  { id: 14, name: 'Santanoni Peak',         elevation: 4607, range: 'Santanoni Range',  lat: 44.0825, lng: -74.1312 },
+  { id: 15, name: 'Mount Redfield',         elevation: 4606, range: 'Marcy Group',      lat: 44.0948, lng: -73.9499 },
+  { id: 16, name: 'Wright Peak',            elevation: 4580, range: 'MacIntyre Range',  lat: 44.1517, lng: -73.9803 },
+  { id: 17, name: 'Saddleback Mountain',    elevation: 4515, range: 'Great Range',      lat: 44.1267, lng: -73.8752 },
+  { id: 18, name: 'Panther Peak',           elevation: 4442, range: 'Santanoni Range',  lat: 44.0984, lng: -74.1321 },
+  { id: 19, name: 'Table Top Mountain',     elevation: 4427, range: 'Marcy Group',      lat: 44.1407, lng: -73.9163 },
+  { id: 20, name: 'Rocky Peak Ridge',       elevation: 4420, range: 'Giant Group',      lat: 44.1544, lng: -73.7056 },
+  { id: 21, name: 'Macomb Mountain',        elevation: 4405, range: 'Dix Range',        lat: 44.0517, lng: -73.7801 },
+  { id: 22, name: 'Armstrong Mountain',     elevation: 4400, range: 'Great Range',      lat: 44.1348, lng: -73.8490 },
+  { id: 23, name: 'Hough Peak',             elevation: 4400, range: 'Dix Range',        lat: 44.0695, lng: -73.7776 },
+  { id: 24, name: 'Seward Mountain',        elevation: 4361, range: 'Seward Range',     lat: 44.1597, lng: -74.1997 },
+  { id: 25, name: 'Mount Marshall',         elevation: 4360, range: 'MacIntyre Range',  lat: 44.1275, lng: -74.0118 },
+  { id: 26, name: 'Allen Mountain',         elevation: 4340, range: 'Marcy Group',      lat: 44.0708, lng: -73.9397 },
+  { id: 27, name: 'Big Slide Mountain',     elevation: 4240, range: 'Great Range',      lat: 44.1823, lng: -73.8704 },
+  { id: 28, name: 'Esther Mountain',        elevation: 4240, range: 'Sentinel Range',   lat: 44.3870, lng: -73.8899 },
+  { id: 29, name: 'Upper Wolf Jaw Mountain',elevation: 4185, range: 'Great Range',      lat: 44.1405, lng: -73.8453 },
+  { id: 30, name: 'Lower Wolf Jaw Mountain',elevation: 4175, range: 'Great Range',      lat: 44.1484, lng: -73.8326 },
+  { id: 31, name: 'Street Mountain',        elevation: 4166, range: 'Street Range',     lat: 44.1793, lng: -74.0272 },
+  { id: 32, name: 'Phelps Mountain',        elevation: 4161, range: 'Great Range',      lat: 44.1570, lng: -73.9215 },
+  { id: 33, name: 'Mount Donaldson',        elevation: 4140, range: 'Seward Range',     lat: 44.1539, lng: -74.2110 },
+  { id: 34, name: 'Seymour Mountain',       elevation: 4120, range: 'Seward Range',     lat: 44.1582, lng: -74.1727 },
+  { id: 35, name: 'Sawteeth',               elevation: 4100, range: 'Great Range',      lat: 44.1133, lng: -73.8507 },
+  { id: 36, name: 'Cascade Mountain',       elevation: 4098, range: 'Cascade-Porter',   lat: 44.2186, lng: -73.8606 },
+  { id: 37, name: 'South Dix',              elevation: 4060, range: 'Dix Range',        lat: 44.0600, lng: -73.7743 },
+  { id: 38, name: 'Porter Mountain',        elevation: 4059, range: 'Cascade-Porter',   lat: 44.2153, lng: -73.8436 },
+  { id: 39, name: 'Mount Colvin',           elevation: 4057, range: 'Colvin Range',     lat: 44.0939, lng: -73.8344 },
+  { id: 40, name: 'Mount Emmons',           elevation: 4040, range: 'Seward Range',     lat: 44.1437, lng: -74.2140 },
+  { id: 41, name: 'Dial Mountain',          elevation: 4020, range: 'Colvin Range',     lat: 44.1059, lng: -73.7960 },
+  { id: 42, name: 'Grace Peak (East Dix)',  elevation: 4012, range: 'Dix Range',        lat: 44.0653, lng: -73.7574 },
+  { id: 43, name: 'Blake Peak',             elevation: 3960, range: 'Colvin Range',     lat: 44.0814, lng: -73.8446 },
+  { id: 44, name: 'Cliff Mountain',         elevation: 3960, range: 'Marcy Group',      lat: 44.1031, lng: -73.9751 },
+  { id: 45, name: 'Nye Mountain',           elevation: 3895, range: 'Street Range',     lat: 44.1873, lng: -74.0238 },
+  { id: 46, name: 'Couchsachraga Peak',     elevation: 3820, range: 'Santanoni Range',  lat: 44.0956, lng: -74.1602 }
+];
+
+const MIN_ELEV = Math.min(...PEAKS.map(p => p.elevation));
+const MAX_ELEV = Math.max(...PEAKS.map(p => p.elevation));
+
+/* =====================================================================
+   MAP INIT
+   ===================================================================== */
+const map = new mapboxgl.Map({
+  container: 'map',
+  style: STYLE_URL,
+  center: CENTER,
+  zoom: ZOOM,
+  minZoom: MIN_ZOOM,
+  maxZoom: MAX_ZOOM,
+  maxBounds: MAX_BOUNDS
+});
+map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+
+// Shared by the initial view and the Home button, so "start extent" and
+// "Home button extent" can never drift apart again. Passing a bounds
+// object straight into the Map constructor turned out to fit against
+// the container's pre-layout size (effectively 0×0) rather than its
+// real rendered size, producing a wrong initial zoom — calling
+// fitBounds() after the map has loaded (and is correctly sized) is
+// what the Home button already did successfully, so the initial view
+// now just reuses that same call.
+function fitToAllPeaks(duration) {
+  if (!PEAKS.length) {
+    map.easeTo({ center: CENTER, zoom: ZOOM, duration });
+    return;
+  }
+  const bounds = new mapboxgl.LngLatBounds();
+  PEAKS.forEach(p => bounds.extend([p.lng, p.lat]));
+  map.fitBounds(bounds, { padding: 60, duration });
+}
+
+class HomeControl {
+  onAdd(mapRef) {
+    this._map = mapRef;
+    this._container = document.createElement('div');
+    this._container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
+    this._container.innerHTML = `
+      <button class="mapboxgl-ctrl-home" title="Return to full extent" aria-label="Return to full extent">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/>
+          <polyline points="9 21 9 13 15 13 15 21"/>
+        </svg>
+      </button>`;
+    this._container.querySelector('button').addEventListener('click', () => {
+      clearRoute();
+      closeSidebar();
+      document.getElementById('search-box').value = '';
+      filterPeaks('');
+      fitToAllPeaks(900);
+    });
+    return this._container;
+  }
+  onRemove() { this._container.parentNode.removeChild(this._container); this._map = undefined; }
+}
+map.addControl(new HomeControl(), 'top-right');
+
+/* =====================================================================
+   STATE
+   ===================================================================== */
+let ascentsByPeak = {};   // peak_id -> array of ascent rows, newest first
+let activePeakId = null;
+let activeAscentIndex = {}; // peak_id -> index into ascentsByPeak[id] currently shown on map
+
+/* =====================================================================
+   CSV LOADING + JOIN
+   ===================================================================== */
+function parseCSVPromise(url) {
+  return new Promise((resolve, reject) => {
+    Papa.parse(url, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      transformHeader: (h) => h.trim(),
+      complete: (results) => resolve(results.data),
+      error: reject
+    });
+  });
+}
+
+function loadAscents() {
+  document.getElementById('loading').style.display = 'block';
+  parseCSVPromise(ASCENTS_CSV_URL)
+    .then((rows) => {
+      document.getElementById('loading').style.display = 'none';
+      ascentsByPeak = {};
+      rows.forEach(r => {
+        const pid = parseInt((r['peak_id'] || '').toString().trim(), 10);
+        if (!pid) return;
+        if (!ascentsByPeak[pid]) ascentsByPeak[pid] = [];
+        ascentsByPeak[pid].push({
+          date: (r['date'] || '').trim(),
+          season: (r['season'] || '').trim(),
+          companions: (r['with'] || '').trim(),
+          notes: (r['notes'] || '').trim(),
+          routeFile: (r['route_file'] || '').trim(),
+          elevProfile: (r['elevation_profile'] || '').trim(),
+          photo: (r['photo'] || '').trim()
+        });
+      });
+      // newest ascent first within each peak
+      Object.keys(ascentsByPeak).forEach(pid => {
+        ascentsByPeak[pid].sort((a, b) => new Date(b.date) - new Date(a.date));
+      });
+      renderSkyline();
+      renderMarkers();
+      updateStats();
+    })
+    .catch((err) => {
+      document.getElementById('loading').style.display = 'none';
+      console.error('Ascent log load error (check ASCENTS_CSV_URL):', err);
+      // Still render the 46 peaks, all gray/unsummited, so the map works
+      // even before you've published a sheet.
+      renderSkyline();
+      renderMarkers();
+      updateStats();
+    });
+}
+
+function isSummited(peakId) {
+  return !!(ascentsByPeak[peakId] && ascentsByPeak[peakId].length);
+}
+
+/* =====================================================================
+   PROGRESS STATS
+   ===================================================================== */
+function updateStats() {
+  const summitedIds = PEAKS.filter(p => isSummited(p.id));
+  const winterIds = summitedIds.filter(p =>
+    ascentsByPeak[p.id].some(a => a.season === 'Winter')
+  );
+  const totalFeet = summitedIds.reduce((sum, p) => sum + p.elevation, 0);
+
+  document.getElementById('stat-summited').textContent = summitedIds.length;
+  document.getElementById('stat-winter').textContent = winterIds.length;
+  document.getElementById('stat-feet').textContent =
+    summitedIds.length ? totalFeet.toLocaleString() + ' ft climbed' : '';
+}
+
+/* =====================================================================
+   SKYLINE ORDERING
+   Marcy (rank 1) sits in the middle; each subsequent peak by descending
+   elevation alternates outward to the right then the left, so the strip
+   reads as a proper skyline silhouette rather than a straight ramp.
+   ===================================================================== */
+function buildSkylineOrder() {
+  const n = PEAKS.length;
+  const slots = new Array(n);
+  const center = Math.floor((n - 1) / 2); // 22 for n=46 — as centered as an even count allows
+  PEAKS.forEach((peak, i) => {
+    let offset;
+    if (i === 0) offset = 0;                    // Marcy sits dead center
+    else if (i % 2 === 1) offset = Math.ceil(i / 2);   // odd ranks step right
+    else offset = -Math.ceil(i / 2);             // even ranks step left
+    slots[center + offset] = peak;
+  });
+  return slots;
+}
+const SKYLINE_ORDER = buildSkylineOrder();
+
+/* =====================================================================
+   SKYLINE + MOBILE LIST RENDERING
+   (same DOM, styled two different ways by the mobile media query)
+   ===================================================================== */
+function triHeightPct(elevation) {
+  // Scaled between the shortest and tallest of the 46 (not from sea
+  // level) so the 46 peaks — which only span ~1,500ft of each other —
+  // read as visually distinct heights rather than all looking the same.
+  //
+  // Kept well under 100% on purpose: the triangle is stretched with
+  // preserveAspectRatio="none" to exactly fill its CSS box, so the
+  // apex angle is set entirely by that box's width:height ratio, not
+  // by the SVG viewBox. A max height much taller than the (deliberately
+  // wide, overlapping) triangle width is what produces a thin spike —
+  // capping it here keeps even Mount Marcy looking like a peak instead
+  // of a needle.
+  // Scaled down from the original 22/65 in the same ratio the panel
+  // grew (115px -> 165px) so every triangle renders at the exact same
+  // pixel height as before — the panel just gained headroom above them
+  // for labels, not taller mountains.
+  const MIN_PCT = 22 * (115 / 165);
+  const MAX_PCT = 65 * (115 / 165);
+  const t = (elevation - MIN_ELEV) / (MAX_ELEV - MIN_ELEV);
+  return MIN_PCT + t * (MAX_PCT - MIN_PCT);
+}
+
+function triangleSVG(peak, heightPct) {
+  const cls = isSummited(peak.id) ? 'summited' : 'unsummited';
+  // Fill color comes entirely from CSS now (see .peak-tri polygon.summited
+  // / .unsummited, and the .peak-slot.active overrides) so the same
+  // markup drives all four summited x selected color states.
+  // Stroked in the page background color rather than the fill so
+  // overlapping bases (shorter peaks sit in front of taller ones, see
+  // z-index below) get a clean seam between layers instead of a hard
+  // outline.
+  // title lives here (not on .peak-slot) since the slot's own box is
+  // pointer-events:none on desktop — only this painted shape is
+  // actually hoverable, so this is what the browser's native tooltip
+  // needs to be attached to.
+  return `
+    <svg class="peak-tri" viewBox="0 0 100 100" preserveAspectRatio="none"
+         style="height:${heightPct}%;" data-peak-id="${peak.id}">
+      <title>${escapeHTML(peak.name)}</title>
+      <polygon class="${cls}" points="50,0 100,100 0,100" stroke="var(--bg)" stroke-width="1.5"></polygon>
+    </svg>`;
+}
+
+// Desktop positions each peak by inline left%/z-index (computed below),
+// not by DOM order, so the DOM itself is free to be in a more useful
+// order for mobile, where it becomes a plain top-to-bottom list: PEAKS'
+// natural elevation-descending order (highest peak first), rather than
+// the skyline's Marcy-centered zigzag.
+const SKYLINE_INDEX = new Map(SKYLINE_ORDER.map((peak, i) => [peak.id, i]));
+
+function renderSkyline() {
+  const container = document.getElementById('skyline');
+  const n = SKYLINE_ORDER.length;
+  container.innerHTML = PEAKS.map((peak) => {
+    const heightPct = triHeightPct(peak.elevation);
+    const slotIdx = SKYLINE_INDEX.get(peak.id);
+    const leftPct = ((slotIdx + 0.5) / n) * 100;
+    // Marcy (id 1) sits dead center with no side to lean toward, so it
+    // gets the straight-up vertical callout instead of a diagonal one.
+    // Everyone else leans away from Marcy: left-half peaks lean up and
+    // right (default), right-half flip to pivot from their right edge
+    // and lean up and left instead (see .peak-callout.flip).
+    const calloutVariant = peak.id === 1 ? ' marcy' : (leftPct > 50 ? ' flip' : '');
+    // Shorter peaks (higher peak.id / lower elevation) get a higher
+    // z-index so they render in front of, and can overlap, taller ones.
+    return `
+      <div class="peak-slot" data-peak-id="${peak.id}" title="${escapeHTML(peak.name)}"
+           style="left:${leftPct}%; z-index:${peak.id};">
+        ${triangleSVG(peak, heightPct)}
+        <div class="peak-badge" style="--badge-rest-top:${100 - heightPct}%;">${peak.id}</div>
+        <div class="peak-callout${calloutVariant}" style="bottom:calc(${heightPct}% + 6px);">
+          <span class="callout-text">${escapeHTML(peak.name)}</span>
+        </div>
+        <div class="peak-label-mobile">
+          <span class="pl-name">#${peak.id} ${escapeHTML(peak.name)}</span>
+          <span class="pl-meta">${peak.elevation.toLocaleString()} ft &middot; ${escapeHTML(peak.range)}</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  container.querySelectorAll('.peak-slot').forEach(el => {
+    el.addEventListener('click', () => {
+      const peak = PEAKS.find(p => p.id === parseInt(el.dataset.peakId, 10));
+      if (peak) focusPeak(peak);
+    });
+  });
+}
+
+function escapeHTML(str) {
+  return String(str).replace(/[&<>"']/g, (m) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[m]));
+}
+
+function setActivePeak(peakId) {
+  activePeakId = peakId;
+  document.querySelectorAll('.peak-slot').forEach(el => {
+    el.classList.toggle('active', parseInt(el.dataset.peakId, 10) === peakId);
+  });
+  document.querySelectorAll('.peak-marker').forEach(el => {
+    el.classList.toggle('active-marker', parseInt(el.dataset.peakId, 10) === peakId);
+  });
+}
+
+/* =====================================================================
+   MAP MARKERS
+   ===================================================================== */
+let markers = [];
+
+function markerElement(peak) {
+  const wrap = document.createElement('div');
+  wrap.className = 'peak-marker';
+  wrap.dataset.peakId = peak.id;
+  const fill = isSummited(peak.id) ? 'var(--accent)' : 'var(--unsummited)';
+  wrap.innerHTML = `
+    <div class="marker-inner">
+      <div class="marker-label">${escapeHTML(peak.name)}</div>
+      <svg viewBox="0 0 100 100" width="20" height="20">
+        <polygon points="50,4 96,96 4,96" fill="${fill}" stroke="#fff" stroke-width="6"></polygon>
+      </svg>
+    </div>`;
+  wrap.addEventListener('click', (e) => {
+    e.stopPropagation();
+    focusPeak(peak);
+  });
+  return wrap;
+}
+
+function renderMarkers() {
+  markers.forEach(m => m.remove());
+  markers = [];
+  PEAKS.forEach(peak => {
+    const marker = new mapboxgl.Marker({ element: markerElement(peak), anchor: 'bottom' })
+      .setLngLat([peak.lng, peak.lat])
+      .addTo(map);
+    markers.push(marker);
+  });
+}
+
+/* =====================================================================
+   POPUP
+   ===================================================================== */
+function buildPopupHTML(peak, ascents) {
+  const seasonsClimbed = new Set((ascents || []).map(a => a.season));
+  const pills = SEASONS.map(s => {
+    const on = seasonsClimbed.has(s);
+    return `<div class="season-pill ${on ? 'on' : ''}" data-season="${s}">${s}</div>`;
+  }).join('');
+
+  if (!ascents || !ascents.length) {
+    return `
+      <div class="popup-head">
+        <div class="popup-id">Peak #${peak.id}</div>
+        <div class="popup-name">${escapeHTML(peak.name)}</div>
+        <div class="popup-sub">${peak.elevation.toLocaleString()} ft &middot; ${escapeHTML(peak.range)}</div>
+      </div>
+      <div class="popup-body">
+        <div class="season-row">${pills}</div>
+        <div class="popup-unsummited">Not summited yet.</div>
+      </div>`;
+  }
+
+  const idx = activeAscentIndex[peak.id] || 0;
+  const a = ascents[idx];
+
+  return `
+    <div class="popup-head">
+      <div class="popup-id">Peak #${peak.id}</div>
+      <div class="popup-name">${escapeHTML(peak.name)}</div>
+      <div class="popup-sub">${peak.elevation.toLocaleString()} ft &middot; ${escapeHTML(peak.range)}</div>
+    </div>
+    <div class="popup-body">
+      <div class="popup-count">Summited <strong>${ascents.length}</strong> time${ascents.length === 1 ? '' : 's'}</div>
+      <div class="season-row">${pills}</div>
+
+      <div class="popup-detail-label">Date${ascents.length > 1 ? ' (showing ' + a.season + ')' : ''}</div>
+      <div class="popup-detail-val">${escapeHTML(a.date) || '—'}</div>
+
+      ${a.companions ? `<div class="popup-detail-label">With</div><div class="popup-detail-val">${escapeHTML(a.companions)}</div>` : ''}
+      ${a.notes ? `<div class="popup-detail-label">Notes</div><div class="popup-detail-val popup-notes">${escapeHTML(a.notes)}</div>` : ''}
+
+      ${a.photo ? `<img class="popup-photo" src="${PHOTOS_DIR}${encodeURIComponent(a.photo)}" alt="${escapeHTML(peak.name)} summit photo">` : ''}
+      ${a.elevProfile ? `<img class="popup-elev-profile" src="${ELEV_PROFILE_DIR}${encodeURIComponent(a.elevProfile)}" alt="Elevation profile">` : ''}
+    </div>`;
+}
+
+function wirePopupSeasonPills(peak, ascents) {
+  document.querySelectorAll('.season-pill.on').forEach(el => {
+    el.addEventListener('click', () => {
+      const season = el.dataset.season;
+      // Most recent ascent logged in that season.
+      const idx = ascents.findIndex(a => a.season === season);
+      if (idx === -1) return;
+      activeAscentIndex[peak.id] = idx;
+      showRouteForAscent(peak, ascents[idx]);
+      openSidebar(peak, true);
+      document.querySelectorAll('.season-pill').forEach(p => p.classList.remove('active'));
+      el.classList.add('active');
+    });
+  });
+}
+
+// Same content (buildPopupHTML) and season-pill wiring the old Mapbox
+// popup used — only the container changed, from a marker-anchored bubble
+// to this fixed sidebar. `.open` is what actually slides it in (see the
+// #peak-sidebar CSS); the map.resize() the slide needs happens separately,
+// in the transitionend listener set up alongside closeSidebar() below.
+function openSidebar(peak, keepAscentIndex) {
+  const ascents = ascentsByPeak[peak.id] || [];
+  if (!keepAscentIndex) activeAscentIndex[peak.id] = 0;
+  document.getElementById('peak-sidebar-content').innerHTML = buildPopupHTML(peak, ascents);
+  wirePopupSeasonPills(peak, ascents);
+  document.getElementById('peak-sidebar').classList.add('open');
+  setActivePeak(peak.id);
+}
+
+function closeSidebar() {
+  document.getElementById('peak-sidebar').classList.remove('open');
+  setActivePeak(null);
+}
+
+document.getElementById('sidebar-close').addEventListener('click', closeSidebar);
+
+// Width is the only thing that ever transitions on #peak-sidebar (see its
+// CSS) — on open AND on close — so this one listener covers both
+// directions: the map's canvas needs to know its container resized once
+// the animation settles, in either direction, or it renders stale/blurry
+// until the next interaction. Mobile's full-screen overlay doesn't
+// transition width at all (nothing to resize under it), so this simply
+// never fires there.
+document.getElementById('peak-sidebar').addEventListener('transitionend', (e) => {
+  if (e.propertyName === 'width') map.resize();
+});
+
+/* =====================================================================
+   ROUTES (KML) — drawn alongside the marker, map fit to the route extent
+   ===================================================================== */
+const ROUTE_SOURCE_ID = 'ascent-route';
+const ROUTE_LAYER_ID = 'ascent-route-line';
+
+function ensureRouteLayer() {
+  if (map.getSource(ROUTE_SOURCE_ID)) return;
+  map.addSource(ROUTE_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({
+    id: ROUTE_LAYER_ID,
+    type: 'line',
+    source: ROUTE_SOURCE_ID,
+    layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: { 'line-color': '#6f1d1b', 'line-width': 4, 'line-opacity': 0.85 } /* matches --danger, the active/selected color */
+  });
+}
+
+function clearRoute() {
+  if (map.getSource(ROUTE_SOURCE_ID)) {
+    map.getSource(ROUTE_SOURCE_ID).setData({ type: 'FeatureCollection', features: [] });
+  }
+}
+
+// Minimal KML parser using the browser's native XML parser — pulls every
+// <coordinates> block (LineString/Track) and every <gx:coord> element
+// (AllTrails sometimes exports gx:Track instead), then uses whichever
+// single block has the most points as "the route" (so trailhead/summit
+// waypoint placemarks with a single coordinate don't get mistaken for
+// the track).
+function parseKMLToLngLats(kmlText) {
+  const xml = new DOMParser().parseFromString(kmlText, 'text/xml');
+  const candidates = [];
+
+  Array.from(xml.getElementsByTagName('coordinates')).forEach(node => {
+    const pts = node.textContent.trim().split(/\s+/).map(triple => {
+      const [lng, lat] = triple.split(',').map(Number);
+      return [lng, lat];
+    }).filter(pt => !isNaN(pt[0]) && !isNaN(pt[1]));
+    if (pts.length) candidates.push(pts);
+  });
+
+  const gxCoords = Array.from(xml.getElementsByTagName('gx:coord')).map(node => {
+    const [lng, lat] = node.textContent.trim().split(/\s+/).map(Number);
+    return [lng, lat];
+  }).filter(pt => !isNaN(pt[0]) && !isNaN(pt[1]));
+  if (gxCoords.length) candidates.push(gxCoords);
+
+  if (!candidates.length) return [];
+  return candidates.reduce((a, b) => (b.length > a.length ? b : a));
+}
+
+function showRouteForAscent(peak, ascent) {
+  ensureRouteLayer();
+  if (!ascent || !ascent.routeFile) {
+    clearRoute();
+    map.flyTo({ center: [peak.lng, peak.lat], zoom: 13, speed: 0.9 });
+    return;
+  }
+  fetch(ROUTES_DIR + encodeURIComponent(ascent.routeFile))
+    .then(res => {
+      if (!res.ok) throw new Error('Route file not found: ' + ascent.routeFile);
+      return res.text();
+    })
+    .then(text => {
+      const coords = parseKMLToLngLats(text);
+      if (!coords.length) throw new Error('No coordinates parsed from ' + ascent.routeFile);
+      map.getSource(ROUTE_SOURCE_ID).setData({
+        type: 'FeatureCollection',
+        features: [{ type: 'Feature', geometry: { type: 'LineString', coordinates: coords }, properties: {} }]
+      });
+      const bounds = new mapboxgl.LngLatBounds();
+      coords.forEach(c => bounds.extend(c));
+      bounds.extend([peak.lng, peak.lat]);
+      map.fitBounds(bounds, { padding: 60, duration: 900 });
+    })
+    .catch(err => {
+      console.warn(err);
+      clearRoute();
+      map.flyTo({ center: [peak.lng, peak.lat], zoom: 13, speed: 0.9 });
+    });
+}
+
+/* =====================================================================
+   FOCUS / SELECT A PEAK (shared by skyline click + marker click)
+   ===================================================================== */
+function focusPeak(peak) {
+  const ascents = ascentsByPeak[peak.id] || [];
+  activeAscentIndex[peak.id] = 0; // most recent ascent by default
+  setActivePeak(peak.id);
+
+  if (ascents.length) {
+    showRouteForAscent(peak, ascents[0]);
+  } else {
+    clearRoute();
+    map.flyTo({ center: [peak.lng, peak.lat], zoom: 12.5, speed: 0.9 });
+  }
+  // Two ways to trigger the open — 'moveend' normally, or this 950ms
+  // fallback in case the map doesn't need to move at all (already
+  // centered there) and 'moveend' never fires. `opened` makes sure
+  // exactly one of them wins per click, whichever fires first — scoped
+  // to this one focusPeak() call via closure, rather than checked against
+  // any shared/global state. That matters specifically because the
+  // fallback timer can still be pending after the user has already
+  // manually closed the sidebar (closeSidebar() runs well under 950ms
+  // after a click); a global check like "is a peak still active" can't
+  // tell "never opened yet" apart from "opened, then the user closed it,"
+  // so it would wrongly let the stale timer reopen something they just
+  // dismissed. A per-call flag can't make that mistake.
+  let opened = false;
+  const openOnce = () => { if (!opened) { opened = true; openSidebar(peak, true); } };
+  map.once('moveend', openOnce);
+  setTimeout(openOnce, 950);
+}
+
+/* =====================================================================
+   SEARCH (filters skyline/list + map marker opacity)
+   ===================================================================== */
+function filterPeaks(query) {
+  const q = query.trim().toLowerCase();
+  document.querySelectorAll('.peak-slot').forEach(el => {
+    const peak = PEAKS.find(p => p.id === parseInt(el.dataset.peakId, 10));
+    const match = !q || peak.name.toLowerCase().includes(q) || peak.range.toLowerCase().includes(q);
+    el.style.display = match ? '' : 'none';
+  });
+}
+document.getElementById('search-box').addEventListener('input', (e) => filterPeaks(e.target.value));
+
+/* =====================================================================
+   INIT
+   ===================================================================== */
+map.on('load', () => {
+  ensureRouteLayer();
+  renderSkyline();
+  renderMarkers();
+  updateStats();
+  loadAscents();
+  fitToAllPeaks(0);
+});
+</script>
+
+</body>
+</html>
