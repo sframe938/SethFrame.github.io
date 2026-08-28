@@ -391,7 +391,16 @@
   .popup-detail-label { font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: 8px; }
   .popup-detail-val { font-size: 12px; margin-top: 2px; line-height: 1.4; }
   .popup-notes { font-style: italic; color: #555; }
-  .popup-photo { width: 100%; height: 110px; max-height: 110px; object-fit: cover; object-position: center top; border-radius: 2px; margin-top: 8px; display: block; background: var(--bg); }
+  /* object-fit: contain (not cover) on purpose — nothing tells this app
+     whether a given upload is portrait, landscape, or some odd panorama,
+     so any fixed-crop approach guesses wrong on some future photo no
+     matter how it's tuned. `contain` scales the whole photo down to fit
+     inside this box without ever cutting anything off — a landscape
+     photo fills the width with a sliver of empty space above/below, a
+     portrait one fills the height with empty space on the sides. The
+     background color fills that empty space so it reads as intentional
+     letterboxing rather than a layout glitch. */
+  .popup-photo { width: 100%; height: 160px; object-fit: contain; border-radius: 2px; margin-top: 8px; display: block; background: var(--bg); }
   .popup-elev-profile { width: 100%; border-radius: 2px; margin-top: 8px; display: block; background: var(--bg); }
   .popup-unsummited { font-size: 12px; color: var(--muted); padding: 6px 0 2px; }
 
