@@ -110,8 +110,13 @@
     overflow: hidden;
     height: 100%;
     background: var(--paper);
-    border-left: 2px solid var(--ink);
+    border-right: 2px solid var(--ink);
     transition: width 0.28s ease;
+    /* Comes after #map in the markup (renderMarkers()/DOM order elsewhere
+       doesn't care about this element's position), but flex `order` alone
+       moves it to the front of #map-row visually — puts it on the left
+       without touching the HTML or any JS that references these elements. */
+    order: -1;
   }
   #peak-sidebar.open { width: 340px; }
   #peak-sidebar-content { width: 340px; height: 100%; overflow-y: auto; }
@@ -488,7 +493,7 @@
        what's animating here, so the desktop transitionend->map.resize()
        listener won't fire on mobile — harmless, since the map's own size
        never actually changes underneath a full-screen overlay. */
-    #peak-sidebar { position: static; width: 0; height: 0; border-left: none; transition: none; }
+    #peak-sidebar { position: static; width: 0; height: 0; border-right: none; transition: none; order: 0; }
     #peak-sidebar.open {
       position: fixed;
       inset: 0;
