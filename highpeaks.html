@@ -387,10 +387,53 @@
     color: #fff;
     cursor: pointer;
   }
-  .season-pill.on.active { outline: 2px solid var(--danger); outline-offset: 1px; }
   .popup-detail-label { font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-top: 8px; }
   .popup-detail-val { font-size: 12px; margin-top: 2px; line-height: 1.4; }
   .popup-notes { font-style: italic; color: #555; }
+
+  /* ---------------- journal entries ---------------- */
+  /* One block per past ascent of this peak, stacked and scrollable in
+     the sidebar rather than swapped one-at-a-time — repeat visits should
+     read like flipping through diary pages for that peak, not picking a
+     single season to view a snapshot of. Season pills above now scroll
+     to the first matching entry (see wirePopupSeasonPills) instead of
+     replacing what's shown. */
+  .journal-entries { margin-top: 4px; }
+  .journal-entry {
+    padding: 14px 0;
+    border-top: 1px solid var(--border);
+    transition: background-color 0.6s ease;
+  }
+  .journal-entry:first-child { border-top: none; padding-top: 2px; }
+  .journal-entry-flash { background-color: var(--accent-lt); }
+  .journal-entry-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .journal-date { font-family: Georgia, 'Times New Roman', serif; font-size: 16px; font-weight: 700; color: var(--ink); }
+  .journal-season-tag { font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  .journal-companions { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .journal-notes {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-style: italic;
+    font-size: 13.5px;
+    line-height: 1.55;
+    color: #444;
+    margin: 10px 0 0;
+    padding-left: 12px;
+    border-left: 3px solid var(--accent);
+  }
+  .journal-photo { height: 200px; margin-top: 10px; }
+  .journal-route-link {
+    display: inline-block;
+    margin-top: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink);
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--muted);
+    padding: 0;
+    cursor: pointer;
+  }
+  .journal-route-link:hover { border-color: var(--ink); }
   /* object-fit: contain (not cover) on purpose — nothing tells this app
      whether a given upload is portrait, landscape, or some odd panorama,
      so any fixed-crop approach guesses wrong on some future photo no
@@ -1053,6 +1096,41 @@ function renderMarkers() {
 /* =====================================================================
    POPUP
    ===================================================================== */
+// Formats a raw ascent date (whatever was typed on the form, e.g.
+// "5/23/2026") as a diary-style heading ("May 23, 2026"). Falls back to
+// the raw string untouched if it doesn't parse as a date at all, rather
+// than showing something broken.
+function formatDiaryDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d)) return dateStr;
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+// One journal "page" per past ascent. index is this ascent's position in
+// ascentsByPeak[peak.id] (newest first) — carried through to the DOM id
+// (for the season pills' scroll-to) and to the route-link's onclick (so
+// showJournalRoute can look the exact ascent back up without needing the
+// full object serialized into the HTML string).
+function buildJournalEntryHTML(peak, ascent, index) {
+  const routeLink = ascent.routeFile
+    ? `<button type="button" class="journal-route-link" onclick="showJournalRoute(${peak.id}, ${index})">Show this route on the map</button>`
+    : '';
+  const dateLabel = formatDiaryDate(ascent.date);
+  return `
+    <div class="journal-entry" id="journal-entry-${peak.id}-${index}">
+      <div class="journal-entry-head">
+        <div class="journal-date">${escapeHTML(dateLabel) || '—'}</div>
+        ${ascent.season ? `<div class="journal-season-tag">${escapeHTML(ascent.season)}</div>` : ''}
+      </div>
+      ${ascent.companions ? `<div class="journal-companions">With ${escapeHTML(ascent.companions)}</div>` : ''}
+      ${ascent.notes ? `<blockquote class="journal-notes">${escapeHTML(ascent.notes)}</blockquote>` : ''}
+      ${ascent.photo ? `<img class="popup-photo journal-photo" src="${PHOTOS_DIR}${encodeURIComponent(ascent.photo)}" alt="${escapeHTML(peak.name)} summit photo, ${escapeHTML(dateLabel)}" onclick="openLightbox(this)">` : ''}
+      ${ascent.elevProfile ? `<img class="popup-elev-profile" src="${ELEV_PROFILE_DIR}${encodeURIComponent(ascent.elevProfile)}" alt="Elevation profile" onclick="openLightbox(this)">` : ''}
+      ${routeLink}
+    </div>`;
+}
+
 function buildPopupHTML(peak, ascents) {
   const seasonsClimbed = new Set((ascents || []).map(a => a.season));
   const pills = SEASONS.map(s => {
@@ -1073,8 +1151,7 @@ function buildPopupHTML(peak, ascents) {
       </div>`;
   }
 
-  const idx = activeAscentIndex[peak.id] || 0;
-  const a = ascents[idx];
+  const entries = ascents.map((a, i) => buildJournalEntryHTML(peak, a, i)).join('');
 
   return `
     <div class="popup-head">
@@ -1085,32 +1162,38 @@ function buildPopupHTML(peak, ascents) {
     <div class="popup-body">
       <div class="popup-count">Summited <strong>${ascents.length}</strong> time${ascents.length === 1 ? '' : 's'}</div>
       <div class="season-row">${pills}</div>
-
-      <div class="popup-detail-label">Date${ascents.length > 1 ? ' (showing ' + a.season + ')' : ''}</div>
-      <div class="popup-detail-val">${escapeHTML(a.date) || '—'}</div>
-
-      ${a.companions ? `<div class="popup-detail-label">With</div><div class="popup-detail-val">${escapeHTML(a.companions)}</div>` : ''}
-      ${a.notes ? `<div class="popup-detail-label">Notes</div><div class="popup-detail-val popup-notes">${escapeHTML(a.notes)}</div>` : ''}
-
-      ${a.photo ? `<img class="popup-photo" src="${PHOTOS_DIR}${encodeURIComponent(a.photo)}" alt="${escapeHTML(peak.name)} summit photo" onclick="openLightbox(this)">` : ''}
-      ${a.elevProfile ? `<img class="popup-elev-profile" src="${ELEV_PROFILE_DIR}${encodeURIComponent(a.elevProfile)}" alt="Elevation profile" onclick="openLightbox(this)">` : ''}
+      <div class="journal-entries">${entries}</div>
     </div>`;
 }
 
+// Season pills now scroll to that season's most recent entry in the
+// journal list (with a brief highlight flash) rather than replacing the
+// sidebar's content with a single filtered view — every visit stays
+// visible all the time, this is just a shortcut to find one quickly.
 function wirePopupSeasonPills(peak, ascents) {
   document.querySelectorAll('.season-pill.on').forEach(el => {
     el.addEventListener('click', () => {
       const season = el.dataset.season;
-      // Most recent ascent logged in that season.
       const idx = ascents.findIndex(a => a.season === season);
       if (idx === -1) return;
-      activeAscentIndex[peak.id] = idx;
-      showRouteForAscent(peak, ascents[idx]);
-      openSidebar(peak, true);
-      document.querySelectorAll('.season-pill').forEach(p => p.classList.remove('active'));
-      el.classList.add('active');
+      const target = document.getElementById(`journal-entry-${peak.id}-${idx}`);
+      if (!target) return;
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      target.classList.add('journal-entry-flash');
+      setTimeout(() => target.classList.remove('journal-entry-flash'), 900);
     });
   });
+}
+
+// Wired to each entry's "Show this route on the map" button — looks the
+// ascent back up by peak id + its position in ascentsByPeak rather than
+// needing the whole object serialized into the onclick string.
+function showJournalRoute(peakId, index) {
+  const peak = PEAKS.find(p => p.id === peakId);
+  const ascents = ascentsByPeak[peakId];
+  if (!peak || !ascents || !ascents[index]) return;
+  activeAscentIndex[peakId] = index;
+  showRouteForAscent(peak, ascents[index]);
 }
 
 // Same content (buildPopupHTML) and season-pill wiring the old Mapbox
