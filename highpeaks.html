@@ -400,9 +400,50 @@
      portrait one fills the height with empty space on the sides. The
      background color fills that empty space so it reads as intentional
      letterboxing rather than a layout glitch. */
-  .popup-photo { width: 100%; height: 160px; object-fit: contain; border-radius: 2px; margin-top: 8px; display: block; background: var(--bg); }
-  .popup-elev-profile { width: 100%; border-radius: 2px; margin-top: 8px; display: block; background: var(--bg); }
+  .popup-photo { width: 100%; height: 160px; object-fit: contain; border-radius: 2px; margin-top: 8px; display: block; background: var(--bg); cursor: pointer; }
+  .popup-elev-profile { width: 100%; border-radius: 2px; margin-top: 8px; display: block; background: var(--bg); cursor: pointer; }
+  .popup-photo:hover, .popup-elev-profile:hover { opacity: 0.9; }
   .popup-unsummited { font-size: 12px; color: var(--muted); padding: 6px 0 2px; }
+
+  /* ---------------- photo lightbox ---------------- */
+  /* Same fixed-overlay-with-circular-close-button language as the mobile
+     #peak-sidebar takeover, reused here for a click-to-enlarge view —
+     backdrop click or Escape closes it too, not just the button. z-index
+     is above the mobile sidebar's 50 so this always wins regardless of
+     whether it was opened from the sidebar's own contents. */
+  #photo-lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    background: rgba(0, 0, 0, 0.85);
+    align-items: center;
+    justify-content: center;
+    padding: 5vh 5vw;
+  }
+  #photo-lightbox.open { display: flex; }
+  #photo-lightbox img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+  }
+  #lightbox-close {
+    position: absolute;
+    top: max(14px, env(safe-area-inset-top));
+    right: 14px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: none;
+    background: var(--ink);
+    color: #fff;
+    font-size: 20px;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+  #lightbox-close:hover { opacity: 0.85; }
 
   /* ---------------- markers ---------------- */
   /* NOTE: .peak-marker itself must NOT get position:relative/absolute/etc
@@ -573,6 +614,11 @@
   </div>
 </div>
 <div id="loading" style="display:none;">Loading your ascent log…</div>
+
+<div id="photo-lightbox">
+  <button id="lightbox-close" type="button" aria-label="Close">&times;</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
 
 <script>
 /* =====================================================================
@@ -1046,8 +1092,8 @@ function buildPopupHTML(peak, ascents) {
       ${a.companions ? `<div class="popup-detail-label">With</div><div class="popup-detail-val">${escapeHTML(a.companions)}</div>` : ''}
       ${a.notes ? `<div class="popup-detail-label">Notes</div><div class="popup-detail-val popup-notes">${escapeHTML(a.notes)}</div>` : ''}
 
-      ${a.photo ? `<img class="popup-photo" src="${PHOTOS_DIR}${encodeURIComponent(a.photo)}" alt="${escapeHTML(peak.name)} summit photo">` : ''}
-      ${a.elevProfile ? `<img class="popup-elev-profile" src="${ELEV_PROFILE_DIR}${encodeURIComponent(a.elevProfile)}" alt="Elevation profile">` : ''}
+      ${a.photo ? `<img class="popup-photo" src="${PHOTOS_DIR}${encodeURIComponent(a.photo)}" alt="${escapeHTML(peak.name)} summit photo" onclick="openLightbox(this)">` : ''}
+      ${a.elevProfile ? `<img class="popup-elev-profile" src="${ELEV_PROFILE_DIR}${encodeURIComponent(a.elevProfile)}" alt="Elevation profile" onclick="openLightbox(this)">` : ''}
     </div>`;
 }
 
@@ -1097,6 +1143,42 @@ document.getElementById('sidebar-close').addEventListener('click', closeSidebar)
 // never fires there.
 document.getElementById('peak-sidebar').addEventListener('transitionend', (e) => {
   if (e.propertyName === 'width') map.resize();
+});
+
+/* ---------------- photo lightbox ---------------- */
+// Opened from an onclick on the popup-photo/popup-elev-profile <img>
+// themselves (buildPopupHTML injects those via innerHTML, so a wired-up
+// onclick attribute is simpler than re-querying and re-attaching a
+// listener every time the sidebar's content gets replaced). Passing the
+// clicked element through, rather than just its src, means the lightbox
+// always shows the exact same image at full size — no separate lookup
+// that could drift from what's actually in the sidebar.
+function openLightbox(imgEl) {
+  const lightboxImg = document.getElementById('lightbox-img');
+  lightboxImg.src = imgEl.src;
+  lightboxImg.alt = imgEl.alt;
+  document.getElementById('photo-lightbox').classList.add('open');
+}
+
+function closeLightbox() {
+  document.getElementById('photo-lightbox').classList.remove('open');
+  document.getElementById('lightbox-img').src = ''; // stop holding the full-res image in memory once closed
+}
+
+document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
+
+// Clicking the dark backdrop closes it too — but only the backdrop
+// itself, not the image (checking e.target against currentTarget is what
+// tells those apart, since a click on the <img> bubbles up to this same
+// listener on its #photo-lightbox parent).
+document.getElementById('photo-lightbox').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeLightbox();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('photo-lightbox').classList.contains('open')) {
+    closeLightbox();
+  }
 });
 
 /* =====================================================================
