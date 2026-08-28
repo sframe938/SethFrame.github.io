@@ -578,24 +578,28 @@ const STYLE_URL = 'mapbox://styles/sframe938/cmt75d6wj00gv01s47s2q8ml4';
 // The 46 peaks themselves (name/elevation/range/coordinates) are baked
 // into PEAKS below since they never change.
 //
-// Expected columns (header names matter, order doesn't):
-//   peak_id   — the number shown in each peak's popup (1-46, by elevation
-//               rank — Marcy is 1, Couchsachraga is 46). This is the ONLY
-//               field that links a sheet row to a peak.
-//   date               — date of the climb (YYYY-MM-DD works best for sorting)
-//   season             — Summer | Winter | Shoulder
-//   with               — who you climbed it with
-//   notes              — trip notes / conditions
-//   route_file         — filename of the AllTrails route export for this
+// Expected columns (header names matter — these must match the actual
+// question titles on the form / column headers on the "Form Responses"
+// tab exactly, including case; order doesn't matter):
+//   Peak ID            — the number shown in each peak's popup (1-46, by
+//                        elevation rank — Marcy is 1, Couchsachraga is
+//                        46). This is the ONLY field that links a sheet
+//                        row to a peak. (Peak Name is also a column, for
+//                        a human reading the sheet, but isn't used here.)
+//   Date               — date of the climb (YYYY-MM-DD works best for sorting)
+//   Season             — Summer | Winter | Shoulder
+//   Climbed With       — who you climbed it with
+//   Notes              — trip notes / conditions
+//   Route File         — filename of the AllTrails route export for this
 //                        ascent (.kml or .gpx — showRouteForAscent() below
 //                        picks the parser by extension), living in
 //                        assets/highpeaks/routes/ (see ROUTES_DIR
 //                        below) — e.g. "07-gray-peak-2024-09.kml"
-//   elevation_profile  — filename of the AllTrails elevation-profile
+//   Elevation Profile  — filename of the AllTrails elevation-profile
 //                        screenshot for this ascent, in
 //                        assets/highpeaks/elevation-profiles/
 //                        (see ELEV_PROFILE_DIR below)
-//   photo              — filename of a summit photo, in
+//   Photo              — filename of a summit photo, in
 //                        assets/highpeaks/photos/ (see PHOTOS_DIR below)
 //
 // Leave any of the optional columns blank if you don't have that piece
@@ -775,17 +779,17 @@ function loadAscents() {
       document.getElementById('loading').style.display = 'none';
       ascentsByPeak = {};
       rows.forEach(r => {
-        const pid = parseInt((r['peak_id'] || '').toString().trim(), 10);
+        const pid = parseInt((r['Peak ID'] || '').toString().trim(), 10);
         if (!pid) return;
         if (!ascentsByPeak[pid]) ascentsByPeak[pid] = [];
         ascentsByPeak[pid].push({
-          date: (r['date'] || '').trim(),
-          season: (r['season'] || '').trim(),
-          companions: (r['with'] || '').trim(),
-          notes: (r['notes'] || '').trim(),
-          routeFile: (r['route_file'] || '').trim(),
-          elevProfile: (r['elevation_profile'] || '').trim(),
-          photo: (r['photo'] || '').trim()
+          date: (r['Date'] || '').trim(),
+          season: (r['Season'] || '').trim(),
+          companions: (r['Climbed With'] || '').trim(),
+          notes: (r['Notes'] || '').trim(),
+          routeFile: (r['Route File'] || '').trim(),
+          elevProfile: (r['Elevation Profile'] || '').trim(),
+          photo: (r['Photo'] || '').trim()
         });
       });
       // newest ascent first within each peak
