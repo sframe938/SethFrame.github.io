@@ -586,22 +586,25 @@ const STYLE_URL = 'mapbox://styles/sframe938/cmt75d6wj00gv01s47s2q8ml4';
 //   season             — Summer | Winter | Shoulder
 //   with               — who you climbed it with
 //   notes              — trip notes / conditions
-//   route_file         — filename of the AllTrails KML for this ascent,
-//                        living in a routes/ folder next to this page
-//                        (e.g. "07-gray-peak-2024-09.kml")
+//   route_file         — filename of the AllTrails route export for this
+//                        ascent (.kml or .gpx — showRouteForAscent() below
+//                        picks the parser by extension), living in
+//                        assets/highpeaks/routes/ (see ROUTES_DIR
+//                        below) — e.g. "07-gray-peak-2024-09.kml"
 //   elevation_profile  — filename of the AllTrails elevation-profile
-//                        screenshot for this ascent, in an
-//                        elevation-profiles/ folder next to this page
-//   photo              — filename of a summit photo, in a photos/ folder
-//                        next to this page
+//                        screenshot for this ascent, in
+//                        assets/highpeaks/elevation-profiles/
+//                        (see ELEV_PROFILE_DIR below)
+//   photo              — filename of a summit photo, in
+//                        assets/highpeaks/photos/ (see PHOTOS_DIR below)
 //
 // Leave any of the optional columns blank if you don't have that piece
 // for a given ascent yet.
 const ASCENTS_CSV_URL = 'PASTE_YOUR_PUBLISHED_SHEET_CSV_LINK_HERE';
 
-const ROUTES_DIR = 'routes/';
-const ELEV_PROFILE_DIR = 'elevation-profiles/';
-const PHOTOS_DIR = 'photos/';
+const ROUTES_DIR = 'assets/highpeaks/routes/';
+const ELEV_PROFILE_DIR = 'assets/highpeaks/elevation-profiles/';
+const PHOTOS_DIR = 'assets/highpeaks/photos/';
 
 // Roughly the High Peaks region — Lake Placid/Keene/Newcomb/Wilmington.
 const CENTER = [-73.95, 44.13];
@@ -1135,6 +1138,44 @@ function parseKMLToLngLats(kmlText) {
   return candidates.reduce((a, b) => (b.length > a.length ? b : a));
 }
 
+// Minimal GPX parser, same treatment as the KML one above — AllTrails'
+// free tier exports GPX rather than KML, so a route can arrive as either
+// and showRouteForAscent() below picks whichever this is by file
+// extension. Points live as lat/lon *attributes* on <trkpt>/<rtept>
+// here, not a packed coordinate string like KML uses. Segments/routes
+// are kept as separate candidates (same reasoning as KML: don't
+// concatenate unrelated segments into one line), and whichever single
+// one has the most points wins.
+function parseGPXToLngLats(gpxText) {
+  const xml = new DOMParser().parseFromString(gpxText, 'text/xml');
+  const candidates = [];
+
+  const ptsOf = (parent, tagName) => Array.from(parent.getElementsByTagName(tagName)).map(node => {
+    const lat = parseFloat(node.getAttribute('lat'));
+    const lng = parseFloat(node.getAttribute('lon'));
+    return [lng, lat];
+  }).filter(pt => !isNaN(pt[0]) && !isNaN(pt[1]));
+
+  Array.from(xml.getElementsByTagName('trkseg')).forEach(seg => {
+    const pts = ptsOf(seg, 'trkpt');
+    if (pts.length) candidates.push(pts);
+  });
+  Array.from(xml.getElementsByTagName('rte')).forEach(rte => {
+    const pts = ptsOf(rte, 'rtept');
+    if (pts.length) candidates.push(pts);
+  });
+
+  // Fallback: no <trkseg>/<rte> wrapper at all — grab any bare trkpt/rtept
+  // in document order as a single candidate.
+  if (!candidates.length) {
+    const bare = ptsOf(xml, 'trkpt').length ? ptsOf(xml, 'trkpt') : ptsOf(xml, 'rtept');
+    if (bare.length) candidates.push(bare);
+  }
+
+  if (!candidates.length) return [];
+  return candidates.reduce((a, b) => (b.length > a.length ? b : a));
+}
+
 function showRouteForAscent(peak, ascent) {
   ensureRouteLayer();
   if (!ascent || !ascent.routeFile) {
@@ -1148,7 +1189,9 @@ function showRouteForAscent(peak, ascent) {
       return res.text();
     })
     .then(text => {
-      const coords = parseKMLToLngLats(text);
+      const coords = ascent.routeFile.toLowerCase().endsWith('.gpx')
+        ? parseGPXToLngLats(text)
+        : parseKMLToLngLats(text);
       if (!coords.length) throw new Error('No coordinates parsed from ' + ascent.routeFile);
       map.getSource(ROUTE_SOURCE_ID).setData({
         type: 'FeatureCollection',
