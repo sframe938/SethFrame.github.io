@@ -678,6 +678,19 @@
     maxBounds: MAX_BOUNDS
   });
   map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+  const geolocateControl = new mapboxgl.GeolocateControl({
+    positionOptions: { enableHighAccuracy: true },
+    trackUserLocation: true,
+    showUserHeading: true
+  });
+  map.addControl(geolocateControl, 'top-right');
+
+  // Cache the user's position whenever the location button succeeds, so
+  // "Surprise me" can use it without asking for permission a second time.
+  let lastKnownPosition = null;
+  geolocateControl.on('geolocate', (pos) => {
+    lastKnownPosition = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+  });
 
   // ── Home control (matches the tour map's HomeControl) ──────────────────
   class HomeControl {
@@ -1003,15 +1016,66 @@
 
   document.getElementById('search-box').addEventListener('input', applyFilters);
 
-  document.getElementById('surprise-btn').addEventListener('click', () => {
-    const withCoords = allRows.filter(r => !isNaN(parseFloat(r['Latitude'])) && !isNaN(parseFloat(r['Longitude'])));
-    if (!withCoords.length) return;
-    const unreviewed = withCoords.filter(r => (parseInt(r['Number of Reviews'], 10) || 0) === 0);
-    const pool = unreviewed.length ? unreviewed : withCoords;
+  // Simple haversine distance in miles — only used for relative sorting
+  // (nearest-first), so the exact unit doesn't matter beyond being consistent.
+  function distanceMiles(lat1, lon1, lat2, lon2) {
+    const R = 3958.8;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  function pickAndFocusSurprise(pool) {
     const pick = pool[Math.floor(Math.random() * pool.length)];
     document.getElementById('search-box').value = '';
     applyFilters();
     focusRestaurant(pick);
+  }
+
+  function runSurprise(position) {
+    const withCoords = allRows.filter(r => !isNaN(parseFloat(r['Latitude'])) && !isNaN(parseFloat(r['Longitude'])));
+    if (!withCoords.length) return;
+    const unreviewed = withCoords.filter(r => (parseInt(r['Number of Reviews'], 10) || 0) === 0);
+    let pool = unreviewed.length ? unreviewed : withCoords;
+
+    if (position) {
+      // Bias toward nearby spots rather than picking the single closest —
+      // sort by distance, then randomize among the nearest handful, so it's
+      // still a "surprise," just a locally relevant one.
+      const withDistance = pool.map(r => ({
+        row: r,
+        dist: distanceMiles(position.lat, position.lon, parseFloat(r['Latitude']), parseFloat(r['Longitude']))
+      })).sort((a, b) => a.dist - b.dist);
+      const nearestN = withDistance.slice(0, Math.min(5, withDistance.length));
+      pool = nearestN.map(x => x.row);
+    }
+
+    pickAndFocusSurprise(pool);
+  }
+
+  document.getElementById('surprise-btn').addEventListener('click', () => {
+    if (lastKnownPosition) {
+      runSurprise(lastKnownPosition);
+      return;
+    }
+    // No cached location yet — try asking once. If it's denied, unavailable,
+    // or times out, fall back to plain random with no error shown; this is
+    // an enhancement, not a requirement.
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          lastKnownPosition = { lat: pos.coords.latitude, lon: pos.coords.longitude };
+          runSurprise(lastKnownPosition);
+        },
+        () => runSurprise(null),
+        { timeout: 4000 }
+      );
+    } else {
+      runSurprise(null);
+    }
   });
 
   function loadData() {
@@ -1119,12 +1183,19 @@
     if (window.google && google.accounts && google.accounts.id) {
       google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
-        callback: handleCredentialResponse
+        callback: handleCredentialResponse,
+        auto_select: true // silently re-authenticate on page load if there's
+                           // still an active Google session, instead of
+                           // requiring the button click every refresh
       });
       google.accounts.id.renderButton(
         document.getElementById('g_id_signin_container'),
         { theme: 'outline', size: 'medium', shape: 'pill' }
       );
+      // Attempt the silent sign-in. If there's no active session, or the
+      // browser blocks it, this just does nothing and the visible button
+      // above is the fallback.
+      google.accounts.id.prompt();
     }
     // Review submit starts disabled until sign-in completes.
     document.getElementById('rv_submit').disabled = true;
