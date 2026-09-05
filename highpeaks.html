@@ -445,7 +445,7 @@
   /* The trip's peak list — same on/off pill language as .season-pill:
      the current page's own peak reads like the "on" state (solid ink),
      the rest read like plain pills you can click to jump over to them. */
-  .journal-trip-peaks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .journal-trip-peaks { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 8px; }
   .trip-peak { font-size: 11px; font-weight: 600; padding: 4px 9px; border-radius: 3px; border: none; }
   .trip-peak-current { background: var(--ink); color: #fff; cursor: default; }
   .trip-peak-link { background: var(--pill-off); color: var(--ink); cursor: pointer; }
@@ -1289,16 +1289,21 @@ function buildTripEntryHTML(currentPeak, ascent, index, tripAscents) {
   const dateLabel = formatDiaryDate(ascent.date);
   const span = formatTripSpan(tripAscents);
 
-  // Every peak this trip touched, in climbed-order (tripAscents is already
-  // sorted oldest-first — see loadAscents), deduped in case a peak somehow
-  // has two rows in the same trip. The current page's own peak is plain
-  // text; the rest jump you over to their own sidebar entry.
+  // Deduped in climbed order first (in case a peak somehow has two rows in
+  // the same trip), then the current page's own peak is pulled to the
+  // front. .journal-trip-peaks wraps on pure text width, so without this
+  // the highlighted "you are here" pill can land anywhere — alone on its
+  // own line, or buried mid-row — depending on how the names measure out;
+  // leading with it always gives it the same spot regardless of where it
+  // fell in the day's climbing order.
   const seenPeaks = new Set();
-  const peakList = tripAscents.map(a => a.peakId).filter(pid => {
+  const climbedOrderIds = tripAscents.map(a => a.peakId).filter(pid => {
     if (seenPeaks.has(pid)) return false;
     seenPeaks.add(pid);
     return true;
-  }).map(pid => {
+  });
+  const peakIdsInDisplayOrder = [currentPeak.id, ...climbedOrderIds.filter(pid => pid !== currentPeak.id)];
+  const peakList = peakIdsInDisplayOrder.map(pid => {
     const p = PEAKS.find(pk => pk.id === pid);
     if (!p) return '';
     return pid === currentPeak.id
