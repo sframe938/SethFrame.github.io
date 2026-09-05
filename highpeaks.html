@@ -428,6 +428,28 @@
   .journal-entry-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
   .journal-date { font-family: 'Spectral', Georgia, 'Times New Roman', serif; font-size: 16px; font-weight: 700; color: var(--ink); }
   .journal-season-tag { font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  /* Marks a combined multi-peak trip entry (see buildTripEntryHTML) — a
+     small badge rather than plain uppercase text like the season tag, so
+     it reads as "this entry spans several peaks" at a glance. */
+  .journal-trip-tag {
+    display: inline-block;
+    margin-top: 5px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--accent);
+    background: var(--accent-lt);
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+  /* The trip's peak list — same on/off pill language as .season-pill:
+     the current page's own peak reads like the "on" state (solid ink),
+     the rest read like plain pills you can click to jump over to them. */
+  .journal-trip-peaks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .trip-peak { font-size: 11px; font-weight: 600; padding: 4px 9px; border-radius: 3px; border: none; }
+  .trip-peak-current { background: var(--ink); color: #fff; cursor: default; }
+  .trip-peak-link { background: var(--pill-off); color: var(--ink); cursor: pointer; }
+  .trip-peak-link:hover { background: var(--accent-lt); }
   .journal-companions { font-size: 12px; color: var(--muted); margin-top: 3px; }
   .journal-notes {
     font-family: 'Spectral', Georgia, 'Times New Roman', serif;
@@ -451,8 +473,12 @@
     border-bottom: 1px solid var(--muted);
     padding: 0;
     cursor: pointer;
+    text-decoration: none; /* this class is also used on the <a> album link below, which defaults to underlined */
   }
   .journal-route-link:hover { border-color: var(--ink); }
+  /* Route link + album link render as siblings with no markup between them
+     when an ascent has both — this just keeps them from touching. */
+  .journal-route-link + .journal-route-link { margin-left: 16px; }
   /* object-fit: contain (not cover) on purpose — nothing tells this app
      whether a given upload is portrait, landscape, or some odd panorama,
      so any fixed-crop approach guesses wrong on some future photo no
@@ -709,6 +735,22 @@ const STYLE_URL = 'mapbox://styles/sframe938/cmt75d6wj00gv01s47s2q8ml4';
 //   Date               — date of the climb (YYYY-MM-DD works best for sorting)
 //   Season             — Summer | Winter | Shoulder
 //   Climbed With       — who you climbed it with
+//   Trip Name          — leave blank for a solo climb. For a multi-peak day
+//                        (a Great Range push, a traverse, a multi-day trip),
+//                        type the SAME text into this column on every row
+//                        for every peak that trip touched (exact match,
+//                        including capitalization) — e.g. "Great Range
+//                        Traverse 2027-06". Rows sharing a Trip Name render
+//                        as one combined journal entry on every peak they
+//                        touched, listing every peak from the trip together.
+//                        You do NOT need to repeat Notes/Route File/Photo/
+//                        Photo Album on every row in the group — fill each
+//                        of those in on whichever single row makes sense
+//                        (or split Notes across a few rows for a per-peak
+//                        line each; every non-blank one gets kept, in the
+//                        order you climbed them) and the group as a whole
+//                        picks them up. Only Trip Name itself has to match
+//                        across rows.
 //   Notes              — trip notes / conditions
 //   Route File         — filename of the AllTrails route export for this
 //                        ascent (.kml or .gpx — showRouteForAscent() below
@@ -721,6 +763,12 @@ const STYLE_URL = 'mapbox://styles/sframe938/cmt75d6wj00gv01s47s2q8ml4';
 //                        (see ELEV_PROFILE_DIR below)
 //   Photo              — filename of a summit photo, in
 //                        assets/highpeaks/photos/ (see PHOTOS_DIR below)
+//   Photo Album        — link to a Google Photos (or similar) shared album
+//                        with more photos from this ascent (optional — the
+//                        one summit photo above still shows inline; this
+//                        just adds a "more photos" link alongside it, so
+//                        there's no per-photo file to add for every extra
+//                        shot from the day)
 //
 // Leave any of the optional columns blank if you don't have that piece
 // for a given ascent yet.
@@ -873,6 +921,7 @@ map.addControl(new HomeControl(), 'top-right');
    STATE
    ===================================================================== */
 let ascentsByPeak = {};   // peak_id -> array of ascent rows, newest first
+let tripsByName = {};     // Trip Name -> array of ascent rows sharing it, across every peak it touched, oldest first
 let activePeakId = null;
 let activeAscentIndex = {}; // peak_id -> index into ascentsByPeak[id] currently shown on map
 
@@ -898,23 +947,42 @@ function loadAscents() {
     .then((rows) => {
       document.getElementById('loading').style.display = 'none';
       ascentsByPeak = {};
+      tripsByName = {};
       rows.forEach(r => {
         const pid = parseInt((r['Peak ID'] || '').toString().trim(), 10);
         if (!pid) return;
-        if (!ascentsByPeak[pid]) ascentsByPeak[pid] = [];
-        ascentsByPeak[pid].push({
+        const ascent = {
+          peakId: pid,
           date: (r['Date'] || '').trim(),
           season: (r['Season'] || '').trim(),
           companions: (r['Climbed With'] || '').trim(),
           notes: (r['Notes'] || '').trim(),
           routeFile: (r['Route File'] || '').trim(),
           elevProfile: (r['Elevation Profile'] || '').trim(),
-          photo: (r['Photo'] || '').trim()
-        });
+          photo: (r['Photo'] || '').trim(),
+          photoAlbum: (r['Photo Album'] || '').trim(),
+          tripName: (r['Trip Name'] || '').trim()
+        };
+        if (!ascentsByPeak[pid]) ascentsByPeak[pid] = [];
+        ascentsByPeak[pid].push(ascent);
+        // Rows sharing the exact same Trip Name text — regardless of which
+        // peak they belong to — get grouped so a multi-peak day can share
+        // one narrative/route/photo instead of repeating them per row (see
+        // mergeTripContent). A blank Trip Name just means "solo climb," the
+        // existing behavior, untouched.
+        if (ascent.tripName) {
+          if (!tripsByName[ascent.tripName]) tripsByName[ascent.tripName] = [];
+          tripsByName[ascent.tripName].push(ascent);
+        }
       });
       // newest ascent first within each peak
       Object.keys(ascentsByPeak).forEach(pid => {
         ascentsByPeak[pid].sort((a, b) => new Date(b.date) - new Date(a.date));
+      });
+      // oldest first within each trip, so a multi-day trip's peak list and
+      // merged notes read in the order you actually climbed them
+      Object.keys(tripsByName).forEach(name => {
+        tripsByName[name].sort((a, b) => new Date(a.date) - new Date(b.date));
       });
       renderSkyline();
       renderMarkers();
@@ -1138,6 +1206,13 @@ function buildJournalEntryHTML(peak, ascent, index) {
   const routeLink = ascent.routeFile
     ? `<button type="button" class="journal-route-link" onclick="showJournalRoute(${peak.id}, ${index})">Show this route on the map</button>`
     : '';
+  // Opens in a new tab since it's leaving the app entirely (an external
+  // Google Photos album, or whatever the sheet's Photo Album column
+  // points to) — rel="noopener" so that tab can't reach back into this
+  // one via window.opener.
+  const albumLink = ascent.photoAlbum
+    ? `<a class="journal-route-link" href="${escapeHTML(ascent.photoAlbum)}" target="_blank" rel="noopener">More photos from this climb ↗</a>`
+    : '';
   const dateLabel = formatDiaryDate(ascent.date);
   return `
     <div class="journal-entry" id="journal-entry-${peak.id}-${index}">
@@ -1149,8 +1224,94 @@ function buildJournalEntryHTML(peak, ascent, index) {
       ${ascent.notes ? `<blockquote class="journal-notes">${escapeHTML(ascent.notes)}</blockquote>` : ''}
       ${ascent.photo ? `<img class="popup-photo journal-photo" src="${PHOTOS_DIR}${encodeURIComponent(ascent.photo)}" alt="${escapeHTML(peak.name)} summit photo, ${escapeHTML(dateLabel)}" onclick="openLightbox(this)">` : ''}
       ${ascent.elevProfile ? `<img class="popup-elev-profile" src="${ELEV_PROFILE_DIR}${encodeURIComponent(ascent.elevProfile)}" alt="Elevation profile" onclick="openLightbox(this)">` : ''}
-      ${routeLink}
+      ${routeLink}${albumLink}
     </div>`;
+}
+
+/* =====================================================================
+   TRIPS — a multi-peak day (or multi-day trip) grouped by Trip Name.
+   Peak-specific facts (date, season, which peak this row is) stay
+   per-row; the narrative/route/photo are shared across the group so
+   you don't have to retype them for every peak that trip touched.
+   ===================================================================== */
+// Pulls the shared content for a trip out of whichever rows in the group
+// actually filled each field in — you don't need every row to repeat the
+// same Route File/Photo, just one of them. Notes are handled separately
+// below since, unlike a route or a photo, more than one non-blank note is
+// meaningful (a line per peak, not just one shared writeup).
+function mergeTripContent(tripAscents) {
+  const pickFirst = (field) => {
+    for (const a of tripAscents) if (a[field]) return a[field];
+    return '';
+  };
+  const seen = new Set();
+  const notes = [];
+  tripAscents.forEach(a => {
+    if (a.notes && !seen.has(a.notes)) { seen.add(a.notes); notes.push(a.notes); }
+  });
+  return {
+    notes,
+    photo: pickFirst('photo'),
+    photoAlbum: pickFirst('photoAlbum'),
+    routeFile: pickFirst('routeFile'),
+    elevProfile: pickFirst('elevProfile')
+  };
+}
+
+// Combined entry for a peak whose ascent shares a Trip Name with at least
+// one other peak's row. currentPeak/ascent/index are this specific peak's
+// own (for the date/season header and the DOM id), tripAscents is the full
+// group across every peak the trip touched.
+function buildTripEntryHTML(currentPeak, ascent, index, tripAscents) {
+  const merged = mergeTripContent(tripAscents);
+  const dateLabel = formatDiaryDate(ascent.date);
+
+  // Every peak this trip touched, in climbed-order (tripAscents is already
+  // sorted oldest-first — see loadAscents), deduped in case a peak somehow
+  // has two rows in the same trip. The current page's own peak is plain
+  // text; the rest jump you over to their own sidebar entry.
+  const seenPeaks = new Set();
+  const peakList = tripAscents.map(a => a.peakId).filter(pid => {
+    if (seenPeaks.has(pid)) return false;
+    seenPeaks.add(pid);
+    return true;
+  }).map(pid => {
+    const p = PEAKS.find(pk => pk.id === pid);
+    if (!p) return '';
+    return pid === currentPeak.id
+      ? `<span class="trip-peak trip-peak-current">${escapeHTML(p.name)}</span>`
+      : `<button type="button" class="trip-peak trip-peak-link" onclick="jumpToTripPeak(${pid})">${escapeHTML(p.name)}</button>`;
+  }).join('');
+
+  const routeLink = merged.routeFile
+    ? `<button type="button" class="journal-route-link" onclick="showTripRoute(${currentPeak.id}, ${index})">Show this route on the map</button>`
+    : '';
+  const albumLink = merged.photoAlbum
+    ? `<a class="journal-route-link" href="${escapeHTML(merged.photoAlbum)}" target="_blank" rel="noopener">More photos from this climb ↗</a>`
+    : '';
+  const notesHTML = merged.notes.map(n => `<blockquote class="journal-notes">${escapeHTML(n)}</blockquote>`).join('');
+
+  return `
+    <div class="journal-entry" id="journal-entry-${currentPeak.id}-${index}">
+      <div class="journal-entry-head">
+        <div class="journal-date">${escapeHTML(dateLabel) || '—'}</div>
+        ${ascent.season ? `<div class="journal-season-tag">${escapeHTML(ascent.season)}</div>` : ''}
+      </div>
+      <div class="journal-trip-tag">${escapeHTML(ascent.tripName)}</div>
+      <div class="journal-trip-peaks">${peakList}</div>
+      ${ascent.companions ? `<div class="journal-companions">With ${escapeHTML(ascent.companions)}</div>` : ''}
+      ${notesHTML}
+      ${merged.photo ? `<img class="popup-photo journal-photo" src="${PHOTOS_DIR}${encodeURIComponent(merged.photo)}" alt="${escapeHTML(ascent.tripName)} photo, ${escapeHTML(dateLabel)}" onclick="openLightbox(this)">` : ''}
+      ${merged.elevProfile ? `<img class="popup-elev-profile" src="${ELEV_PROFILE_DIR}${encodeURIComponent(merged.elevProfile)}" alt="Elevation profile" onclick="openLightbox(this)">` : ''}
+      ${routeLink}${albumLink}
+    </div>`;
+}
+
+// Wired to the "other peaks in this trip" pills — jumps the map/sidebar
+// over to that peak exactly like clicking its own marker or skyline slot.
+function jumpToTripPeak(peakId) {
+  const peak = PEAKS.find(p => p.id === peakId);
+  if (peak) focusPeak(peak);
 }
 
 function buildPopupHTML(peak, ascents) {
@@ -1173,7 +1334,15 @@ function buildPopupHTML(peak, ascents) {
       </div>`;
   }
 
-  const entries = ascents.map((a, i) => buildJournalEntryHTML(peak, a, i)).join('');
+  // A Trip Name shared with at least one other peak's row gets the combined
+  // view; a blank Trip Name, or one nobody else used, renders exactly as
+  // before.
+  const entries = ascents.map((a, i) => {
+    const tripGroup = a.tripName ? tripsByName[a.tripName] : null;
+    return (tripGroup && tripGroup.length > 1)
+      ? buildTripEntryHTML(peak, a, i, tripGroup)
+      : buildJournalEntryHTML(peak, a, i);
+  }).join('');
 
   return `
     <div class="popup-head">
@@ -1216,6 +1385,19 @@ function showJournalRoute(peakId, index) {
   if (!peak || !ascents || !ascents[index]) return;
   activeAscentIndex[peakId] = index;
   showRouteForAscent(peak, ascents[index]);
+}
+
+// Same idea as showJournalRoute, but for a combined trip entry — the route
+// file being shown may actually live on a different peak's row within the
+// same trip group (see mergeTripContent), not necessarily on this peak's
+// own row, so this re-runs the merge rather than assuming it's local.
+function showTripRoute(peakId, index) {
+  const peak = PEAKS.find(p => p.id === peakId);
+  const ascent = ascentsByPeak[peakId] && ascentsByPeak[peakId][index];
+  if (!peak || !ascent || !ascent.tripName) return;
+  const tripGroup = tripsByName[ascent.tripName] || [ascent];
+  activeAscentIndex[peakId] = index;
+  showRouteForAscent(peak, { routeFile: mergeTripContent(tripGroup).routeFile });
 }
 
 // Same content (buildPopupHTML) and season-pill wiring the old Mapbox
