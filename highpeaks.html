@@ -684,7 +684,7 @@
     <h1>Adirondack <span>46</span> High Peaks</h1>
     <div id="stats">
       <span><span class="stat-num" id="stat-summited">0</span> / 46 summited</span>
-      <span><span class="stat-num winter" id="stat-winter">0</span> / 46 in winter</span>
+      <span title="Dec 21 – Mar 20 — the ADK 46ers' official Winter 46 window"><span class="stat-num winter" id="stat-winter">0</span> / 46 in winter</span>
       <span id="stat-feet"></span>
     </div>
     <input id="search-box" type="text" placeholder="Search peaks or ranges…" />
@@ -788,6 +788,17 @@ const MIN_ZOOM = 8.5;
 const MAX_ZOOM = 16;
 
 const SEASONS = ['Summer', 'Winter', 'Shoulder'];
+
+// Same date ranges as the Season question's description on the Google
+// Form — Winter matches the ADK 46ers' official Winter 46 window, and
+// Summer/Shoulder split the rest along the same solstice/equinox logic.
+// Shown as a hover tooltip wherever a season name appears in the app,
+// rather than as a permanent on-page explanation.
+const SEASON_RANGES = {
+  Winter: 'Dec 21 – Mar 20 (the ADK 46ers\' official Winter 46 window)',
+  Shoulder: 'Mar 21 – Jun 20, and Sep 21 – Dec 20',
+  Summer: 'Jun 21 – Sep 20'
+};
 
 /* =====================================================================
    STATIC PEAK DATA — the 46 High Peaks, ranked by official elevation
@@ -1217,7 +1228,7 @@ function buildJournalEntryHTML(peak, ascent, index) {
     <div class="journal-entry" id="journal-entry-${peak.id}-${index}">
       <div class="journal-entry-head">
         <div class="journal-date">${escapeHTML(dateLabel) || '—'}</div>
-        ${ascent.season ? `<div class="journal-season-tag">${escapeHTML(ascent.season)}</div>` : ''}
+        ${ascent.season ? `<div class="journal-season-tag" title="${escapeHTML(SEASON_RANGES[ascent.season] || '')}">${escapeHTML(ascent.season)}</div>` : ''}
       </div>
       ${ascent.companions ? `<div class="journal-companions">With ${escapeHTML(ascent.companions)}</div>` : ''}
       ${ascent.notes ? `<blockquote class="journal-notes">${escapeHTML(ascent.notes)}</blockquote>` : ''}
@@ -1322,7 +1333,7 @@ function buildTripEntryHTML(currentPeak, ascent, index, tripAscents) {
     <div class="journal-entry" id="journal-entry-${currentPeak.id}-${index}">
       <div class="journal-entry-head">
         <div class="journal-date">${escapeHTML(dateLabel) || '—'}</div>
-        ${ascent.season ? `<div class="journal-season-tag">${escapeHTML(ascent.season)}</div>` : ''}
+        ${ascent.season ? `<div class="journal-season-tag" title="${escapeHTML(SEASON_RANGES[ascent.season] || '')}">${escapeHTML(ascent.season)}</div>` : ''}
       </div>
       <div class="journal-trip-tag">${escapeHTML(ascent.tripName)}${span ? ` · ${escapeHTML(span)}` : ''}</div>
       <div class="journal-trip-peaks">${peakList}</div>
@@ -1346,7 +1357,7 @@ function buildPopupHTML(peak, ascents) {
   const seasonsClimbed = new Set((ascents || []).map(a => a.season));
   const pills = SEASONS.map(s => {
     const on = seasonsClimbed.has(s);
-    return `<div class="season-pill ${on ? 'on' : ''}" data-season="${s}">${s}</div>`;
+    return `<div class="season-pill ${on ? 'on' : ''}" data-season="${s}" title="${escapeHTML(SEASON_RANGES[s] || '')}">${s}</div>`;
   }).join('');
 
   if (!ascents || !ascents.length) {
