@@ -1440,6 +1440,7 @@ function openSidebar(peak, keepAscentIndex) {
 function closeSidebar() {
   document.getElementById('peak-sidebar').classList.remove('open');
   setActivePeak(null);
+  clearRoute();
 }
 
 document.getElementById('sidebar-close').addEventListener('click', closeSidebar);
