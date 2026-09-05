@@ -997,6 +997,7 @@ function loadAscents() {
       renderSkyline();
       renderMarkers();
       updateStats();
+      openFromHash();
     })
     .catch((err) => {
       document.getElementById('loading').style.display = 'none';
@@ -1006,6 +1007,7 @@ function loadAscents() {
       renderSkyline();
       renderMarkers();
       updateStats();
+      openFromHash();
     });
 }
 
@@ -1223,6 +1225,7 @@ function buildJournalEntryHTML(peak, ascent, index) {
   const albumLink = ascent.photoAlbum
     ? `<a class="journal-route-link" href="${escapeHTML(ascent.photoAlbum)}" target="_blank" rel="noopener">More photos from this climb ↗</a>`
     : '';
+  const copyLink = `<button type="button" class="journal-route-link" onclick="copyEntryLink(${peak.id}, ${index}, this)">Copy link to this entry</button>`;
   const dateLabel = formatDiaryDate(ascent.date);
   return `
     <div class="journal-entry" id="journal-entry-${peak.id}-${index}">
@@ -1236,6 +1239,7 @@ function buildJournalEntryHTML(peak, ascent, index) {
       ${albumLink}
       ${ascent.elevProfile ? `<img class="popup-elev-profile" src="${ELEV_PROFILE_DIR}${encodeURIComponent(ascent.elevProfile)}" alt="Elevation profile" onclick="openLightbox(this)">` : ''}
       ${routeLink}
+      ${copyLink}
     </div>`;
 }
 
@@ -1327,6 +1331,7 @@ function buildTripEntryHTML(currentPeak, ascent, index, tripAscents) {
   const albumLink = merged.photoAlbum
     ? `<a class="journal-route-link" href="${escapeHTML(merged.photoAlbum)}" target="_blank" rel="noopener">More photos from this climb ↗</a>`
     : '';
+  const copyLink = `<button type="button" class="journal-route-link" onclick="copyEntryLink(${currentPeak.id}, ${index}, this)">Copy link to this entry</button>`;
   const notesHTML = merged.notes.map(n => `<blockquote class="journal-notes">${escapeHTML(n)}</blockquote>`).join('');
 
   return `
@@ -1343,6 +1348,7 @@ function buildTripEntryHTML(currentPeak, ascent, index, tripAscents) {
       ${albumLink}
       ${merged.elevProfile ? `<img class="popup-elev-profile" src="${ELEV_PROFILE_DIR}${encodeURIComponent(merged.elevProfile)}" alt="Elevation profile" onclick="openLightbox(this)">` : ''}
       ${routeLink}
+      ${copyLink}
     </div>`;
 }
 
@@ -1439,6 +1445,91 @@ function showTripRoute(peakId, index) {
   showRouteForAscent(peak, { routeFile: mergeTripContent(tripGroup).routeFile });
 }
 
+/* =====================================================================
+   DEEP LINKING — the URL hash reflects whatever peak (and, optionally,
+   exact ascent) is currently open, so the address bar is always a
+   shareable link to what you're looking at. Reuses the same
+   journal-entry-<peakId>-<index> numbering the DOM ids and the
+   season-pill scroll-to already use (see wirePopupSeasonPills) rather
+   than inventing a second scheme.
+   ===================================================================== */
+// replaceState (not pushState) on purpose — every peak you click while
+// browsing shouldn't pile up its own Back-button stop; the hash just
+// tracks "what's open right now."
+function setShareHash(peakId, entryIndex) {
+  const hash = (entryIndex === undefined || entryIndex === null)
+    ? `peak-${peakId}`
+    : `journal-entry-${peakId}-${entryIndex}`;
+  history.replaceState(null, '', '#' + hash);
+}
+
+function clearShareHash() {
+  history.replaceState(null, '', location.pathname + location.search);
+}
+
+// Run once, after the ascent log has loaded, in case the page was opened
+// with #peak-<id> or #journal-entry-<peakId>-<index> already in the URL.
+// A no-op the vast majority of the time (plain visits carry no hash).
+function openFromHash() {
+  const hash = location.hash.slice(1);
+  if (!hash) return;
+
+  let m = hash.match(/^journal-entry-(\d+)-(\d+)$/);
+  if (m) {
+    const peakId = parseInt(m[1], 10);
+    const entryIndex = parseInt(m[2], 10);
+    const peak = PEAKS.find(p => p.id === peakId);
+    if (!peak) return;
+    focusPeak(peak);
+    // focusPeak's own open animation lands ~950ms after this call (see
+    // its moveend/timeout race) — poll briefly rather than assuming a
+    // fixed delay, since the sidebar's content isn't in the DOM until
+    // openSidebar actually runs.
+    const targetId = `journal-entry-${peakId}-${entryIndex}`;
+    let attempts = 0;
+    const tryFlash = () => {
+      const el = document.getElementById(targetId);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        el.classList.add('journal-entry-flash');
+        setTimeout(() => el.classList.remove('journal-entry-flash'), 900);
+        // openSidebar (run as part of focusPeak, just above) already reset
+        // the hash to the plain peak-<id> form by this point — reassert
+        // the more specific one now that we've actually arrived, so a
+        // refresh or a re-copy of the address bar still points at this
+        // exact entry rather than just the peak in general.
+        setShareHash(peakId, entryIndex);
+      } else if (attempts++ < 20) {
+        setTimeout(tryFlash, 100);
+      }
+    };
+    setTimeout(tryFlash, 950);
+    return;
+  }
+
+  m = hash.match(/^peak-(\d+)$/);
+  if (m) {
+    const peak = PEAKS.find(p => p.id === parseInt(m[1], 10));
+    if (peak) focusPeak(peak);
+  }
+}
+
+// Wired to each entry's "Copy link to this entry" button — points the
+// hash at this exact ascent, then copies the resulting URL. Falls back
+// quietly if the Clipboard API is unavailable (e.g. non-HTTPS) — the
+// address bar has the right link either way, just not on the clipboard.
+function copyEntryLink(peakId, index, btn) {
+  setShareHash(peakId, index);
+  const original = btn.textContent;
+  const flashCopied = () => {
+    btn.textContent = 'Link copied!';
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(location.href).then(flashCopied).catch(() => {});
+  }
+}
+
 // Same content (buildPopupHTML) and season-pill wiring the old Mapbox
 // popup used — only the container changed, from a marker-anchored bubble
 // to this fixed sidebar. `.open` is what actually slides it in (see the
@@ -1451,12 +1542,14 @@ function openSidebar(peak, keepAscentIndex) {
   wirePopupSeasonPills(peak, ascents);
   document.getElementById('peak-sidebar').classList.add('open');
   setActivePeak(peak.id);
+  setShareHash(peak.id);
 }
 
 function closeSidebar() {
   document.getElementById('peak-sidebar').classList.remove('open');
   setActivePeak(null);
   clearRoute();
+  clearShareHash();
 }
 
 document.getElementById('sidebar-close').addEventListener('click', closeSidebar);
