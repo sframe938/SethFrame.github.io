@@ -1258,6 +1258,28 @@ function mergeTripContent(tripAscents) {
   };
 }
 
+// Derived purely from the dates already sitting on the trip's rows — no
+// new column. Returns '' when every peak in the group shares one calendar
+// day, since the per-peak date header already shows that single date;
+// only a genuine multi-day trip gets anything extra here. Compares by
+// calendar day (toDateString), not exact equality, so it doesn't matter
+// whether a date was typed as "6/14/2027" or "2027-06-14".
+function formatTripSpan(tripAscents) {
+  const dates = tripAscents.map(a => new Date(a.date)).filter(d => !isNaN(d));
+  if (dates.length < 2) return '';
+  const distinctDays = new Set(dates.map(d => d.toDateString()));
+  if (distinctDays.size <= 1) return '';
+  const first = dates[0], last = dates[dates.length - 1]; // tripAscents sorted oldest-first
+  const sameYear = first.getFullYear() === last.getFullYear();
+  const sameMonth = sameYear && first.getMonth() === last.getMonth();
+  if (sameMonth) {
+    return `${first.toLocaleDateString('en-US', { month: 'long' })} ${first.getDate()}–${last.getDate()}, ${last.getFullYear()}`;
+  }
+  const startFmt = first.toLocaleDateString('en-US', sameYear ? { month: 'long', day: 'numeric' } : { month: 'long', day: 'numeric', year: 'numeric' });
+  const endFmt = last.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  return `${startFmt} – ${endFmt}`;
+}
+
 // Combined entry for a peak whose ascent shares a Trip Name with at least
 // one other peak's row. currentPeak/ascent/index are this specific peak's
 // own (for the date/season header and the DOM id), tripAscents is the full
@@ -1265,6 +1287,7 @@ function mergeTripContent(tripAscents) {
 function buildTripEntryHTML(currentPeak, ascent, index, tripAscents) {
   const merged = mergeTripContent(tripAscents);
   const dateLabel = formatDiaryDate(ascent.date);
+  const span = formatTripSpan(tripAscents);
 
   // Every peak this trip touched, in climbed-order (tripAscents is already
   // sorted oldest-first — see loadAscents), deduped in case a peak somehow
@@ -1297,7 +1320,7 @@ function buildTripEntryHTML(currentPeak, ascent, index, tripAscents) {
         <div class="journal-date">${escapeHTML(dateLabel) || '—'}</div>
         ${ascent.season ? `<div class="journal-season-tag">${escapeHTML(ascent.season)}</div>` : ''}
       </div>
-      <div class="journal-trip-tag">${escapeHTML(ascent.tripName)}</div>
+      <div class="journal-trip-tag">${escapeHTML(ascent.tripName)}${span ? ` · ${escapeHTML(span)}` : ''}</div>
       <div class="journal-trip-peaks">${peakList}</div>
       ${ascent.companions ? `<div class="journal-companions">With ${escapeHTML(ascent.companions)}</div>` : ''}
       ${notesHTML}
