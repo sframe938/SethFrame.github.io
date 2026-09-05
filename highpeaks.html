@@ -9,15 +9,21 @@
 <script src="https://api.mapbox.com/mapbox-gl-js/v3.25.0/mapbox-gl.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 
+<!-- Public Sans (UI chrome) + Spectral (journal dates/notes) — replaces the
+     Segoe UI/Georgia system-font fallbacks used everywhere below. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800&family=Spectral:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+
 <style>
   :root {
     /* ---- ADK46er palette, pulled from a High Peaks trail photo ----
        source swatches: #3F5620 (dark forest green), #82AB57 (mid green),
        #A0A098 (stone gray), #E1E2E7 (mist), #A5C2EA (light sky),
-       #5385B6 (deep sky blue) — plus #6F1D1B (deep red), added
-       separately for the active/selected color. Everything below is
-       one of those seven, or a tint/shade of one, chosen for contrast
-       at its role. */
+       #5385B6 (deep sky blue). Everything below is one of those six,
+       or a tint/shade of one, chosen for contrast at its role — no
+       color outside the source photo, including the active/selected
+       state for unsummited peaks (see --unsummited-active below). */
     --ink:        #293815;   /* deep pine — darkened forest green */
     --paper:      #ffffff;
     --bg:         #f2f2f4;   /* mist, lightened */
@@ -32,16 +38,16 @@
     --pill-on:    #3f5620;   /* dark forest green */
     --pill-off:   #f1f1f0;   /* stone gray, lightened */
     --pill-off-txt: #686863; /* stone gray, darkened */
-    --danger:     #6f1d1b;   /* deep red — active/selected peak + route line */
+    --unsummited-active: #4b4b47;  /* stone gray, darkened further — active/selected unsummited peak + route line (was a separate red; an unclimbed peak isn't an error, just a target) */
     --declutter-fade: 0.25;  /* opacity of OTHER peaks' badges while one is hovered/active — the one knob to retune if 25% ends up wrong */
     --badge-size:       18px;    /* peak-badge diameter, both at rest and raised */
     --badge-border-c:   var(--muted-lt);  /* peak-badge ring color */
-    --badge-number-c:   #5385b6; /* deep sky blue — peak-badge digit color; the one palette swatch that had gone unused */
+    --badge-number-c:   var(--ink); /* peak-badge digit color — matches body text instead of standing alone as an unrelated accent */
     --badge-rest-gap:   5px;     /* peak-badge's rest-state gap above its own peak's apex — the one knob to retune if 5px ends up wrong */
   }
 
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', Arial, Helvetica, sans-serif; color: var(--ink); background: var(--bg); }
+  html, body { margin: 0; padding: 0; height: 100%; font-family: 'Public Sans', 'Segoe UI', Arial, Helvetica, sans-serif; color: var(--ink); background: var(--bg); }
 
   #app { display: flex; flex-direction: column; height: 100vh; width: 100vw; overflow: hidden; }
 
@@ -223,7 +229,7 @@
   .peak-tri polygon.summited { fill: var(--accent-light); }
   .peak-tri polygon.unsummited { fill: var(--unsummited); }
   .peak-slot.active .peak-tri polygon.summited { fill: var(--accent) !important; }
-  .peak-slot.active .peak-tri polygon.unsummited { fill: var(--danger) !important; }
+  .peak-slot.active .peak-tri polygon.unsummited { fill: var(--unsummited-active) !important; }
   .peak-slot .peak-label-mobile { display: none; }
 
   /* Fixed-size number badge that floats just above each peak's own
@@ -367,7 +373,7 @@
     border-radius: 3px !important;
     border: 2px solid var(--accent);
     overflow: hidden;
-    font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+    font-family: 'Public Sans', 'Segoe UI', Arial, Helvetica, sans-serif;
     max-width: 300px;
   }
   .mapboxgl-popup-close-button { color: #fff; font-size: 18px; right: 4px; top: 2px; }
@@ -420,11 +426,11 @@
   .journal-entry:first-child { border-top: none; padding-top: 2px; }
   .journal-entry-flash { background-color: var(--accent-lt); }
   .journal-entry-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-  .journal-date { font-family: Georgia, 'Times New Roman', serif; font-size: 16px; font-weight: 700; color: var(--ink); }
+  .journal-date { font-family: 'Spectral', Georgia, 'Times New Roman', serif; font-size: 16px; font-weight: 700; color: var(--ink); }
   .journal-season-tag { font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
   .journal-companions { font-size: 12px; color: var(--muted); margin-top: 3px; }
   .journal-notes {
-    font-family: Georgia, 'Times New Roman', serif;
+    font-family: 'Spectral', Georgia, 'Times New Roman', serif;
     font-style: italic;
     font-size: 13.5px;
     line-height: 1.55;
@@ -1294,7 +1300,7 @@ function ensureRouteLayer() {
     type: 'line',
     source: ROUTE_SOURCE_ID,
     layout: { 'line-join': 'round', 'line-cap': 'round' },
-    paint: { 'line-color': '#6f1d1b', 'line-width': 4, 'line-opacity': 0.85 } /* matches --danger, the active/selected color */
+    paint: { 'line-color': '#4b4b47', 'line-width': 4, 'line-opacity': 0.85 } /* matches --unsummited-active, the active/selected color */
   });
 }
 
