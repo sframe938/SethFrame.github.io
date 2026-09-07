@@ -1561,12 +1561,19 @@ function haversineFt(lat1, lon1, lat2, lon2) {
 // averages the elevation within each — averaging over a distance window is
 // what kills GPS elevation jitter (point-to-point noise of a few feet that
 // isn't real terrain) while keeping genuine trail features intact. Each bin
-// also keeps a representative lng/lat (its first point) so hovering the
-// chart can point at a real spot on the map. Returns null if the file
-// doesn't actually carry usable elevation — some KML exports clamp
-// altitude to 0 rather than omitting it, so a near-zero spread across the
-// whole track is treated as "no real data" rather than charted as a flat
-// line.
+// also keeps a representative lng/lat — specifically the raw point whose
+// own cumulative distance is closest to the bin's midpoint (the same
+// distFt value returned below and shown in the hover label), not just
+// whichever point happened to arrive first. Hiking pace isn't constant
+// (slower uphill, faster on descents), so GPS points aren't evenly spaced
+// along the trail — "first point in a ~500ft window" measured ~256ft
+// average error from the window's true midpoint on a real test file
+// (up to 261ft), enough to visibly land the hover marker on the wrong
+// switchback. Nearest-to-midpoint measured ~3ft average, 12ft max on the
+// same file. Returns null if the file doesn't actually carry usable
+// elevation — some KML exports clamp altitude to 0 rather than omitting
+// it, so a near-zero spread across the whole track is treated as "no
+// real data" rather than charted as a flat line.
 function buildElevationProfile(points) {
   const pts = points.filter(p => p[2] !== null && !isNaN(p[2]));
   if (pts.length < 2) return null;
@@ -1581,13 +1588,14 @@ function buildElevationProfile(points) {
   if (!totalFt) return null;
 
   const binSize = totalFt / ELEV_PROFILE_BINS;
-  const bins = Array.from({ length: ELEV_PROFILE_BINS }, () => ({ sum: 0, count: 0, lng: null, lat: null }));
+  const bins = Array.from({ length: ELEV_PROFILE_BINS }, () => ({ sum: 0, count: 0, lng: null, lat: null, bestDelta: Infinity }));
   pts.forEach((p, i) => {
     const idx = Math.min(Math.floor(distFt[i] / binSize), ELEV_PROFILE_BINS - 1);
     const b = bins[idx];
     b.sum += p[2];
     b.count++;
-    if (b.lng === null) { b.lng = p[0]; b.lat = p[1]; } // first point in the bin, used for the hover marker
+    const delta = Math.abs(distFt[i] - (idx + 0.5) * binSize);
+    if (delta < b.bestDelta) { b.bestDelta = delta; b.lng = p[0]; b.lat = p[1]; }
   });
 
   // Fill any empty bin (only happens on a very short/sparse track) from
