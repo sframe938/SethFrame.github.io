@@ -96,7 +96,38 @@
      inside it, so the skyline keeps its full panoramic width regardless
      of whether a peak is selected. */
   #map-row { flex: 1; min-height: 0; display: flex; flex-direction: row; position: relative; }
-  #map { flex: 1; min-height: 0; }
+  /* #map used to be the flex:1 child directly; now #map-wrap holds that
+     role so the elevation panel below has a stable box — matching the
+     map's own current width, not the sidebar's — to anchor to regardless
+     of whether the sidebar is open, closed, or (mobile) covering the
+     whole screen. */
+  #map-wrap { flex: 1; min-height: 0; position: relative; }
+  #map { position: absolute; inset: 0; }
+
+  /* ---------------- elevation profile panel ---------------- */
+  /* Deliberately NOT inside the journal entry/sidebar — see the earlier
+     conversation: on mobile the sidebar becomes a full-screen overlay
+     that hides the map entirely, and the whole point of this panel is
+     mouse-hover-to-map-position, which needs the map visible. Lives at
+     the bottom of the map itself instead, shown/hidden purely by
+     whether a route is currently displayed (see clearElevationProfile,
+     called from clearRoute) — no separate close control of its own.
+     max-height + overflow:hidden animates open/closed the same way
+     #peak-sidebar animates its width. */
+  #elev-profile-panel {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    z-index: 4;
+    max-height: 0;
+    overflow: hidden;
+    background: var(--paper);
+    border-top: 2px solid var(--ink); /* same weight/color as #peak-sidebar's border, so it reads as the same "panel edge" language */
+    transition: max-height 0.25s ease;
+  }
+  #elev-profile-panel.open { max-height: 205px; }
+  .elev-panel-header { padding: 8px 20px 0; font-size: 11px; font-weight: 700; letter-spacing: 0.02em; color: var(--muted); }
+  .elev-panel-header b { color: var(--ink); }
+  .elev-profile-container { padding: 0 20px 10px; }
 
   /* ---------------- peak sidebar ---------------- */
   /* Closed by default (width: 0, clipped) so the map has the full row to
@@ -488,9 +519,28 @@
      background color fills that empty space so it reads as intentional
      letterboxing rather than a layout glitch. */
   .popup-photo { width: 100%; height: 160px; object-fit: contain; border-radius: 2px; margin-top: 8px; display: block; background: var(--bg); cursor: pointer; }
-  .popup-elev-profile { width: 100%; border-radius: 2px; margin-top: 8px; display: block; background: var(--bg); cursor: pointer; }
-  .popup-photo:hover, .popup-elev-profile:hover { opacity: 0.9; }
+  .popup-photo:hover { opacity: 0.9; }
   .popup-unsummited { font-size: 12px; color: var(--muted); padding: 6px 0 2px; }
+
+  /* Elevation profile — generated from the route file itself (see
+     buildElevationProfile()), not a separately-uploaded screenshot. Lives
+     in the #elev-profile-panel at the bottom of the map now, not inside
+     the journal entry — see that panel's own CSS/comment further up for
+     why (mobile's full-screen sidebar would otherwise hide it). */
+  .elev-profile-svg { width: 100%; height: 140px; display: block; cursor: crosshair; }
+  .elev-area { fill: var(--accent-lt); }
+  .elev-line { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+  .elev-axis-label { font-size: 9px; fill: var(--muted); }
+  .elev-hit-rect { fill: transparent; }
+  /* Cursor line/dot + the map's hover marker are all opacity:0 until the
+     mouse is actually over the chart (.elev-hovering, toggled in
+     wireElevationProfileHover) — one class flip rather than juggling
+     inline styles from JS on every mousemove. */
+  .elev-cursor-line { stroke: var(--ink); stroke-width: 1; opacity: 0; pointer-events: none; }
+  .elev-cursor-dot { fill: var(--ink); opacity: 0; pointer-events: none; }
+  .elev-hovering .elev-cursor-line, .elev-hovering .elev-cursor-dot { opacity: 1; }
+  .elev-hover-label { font-size: 10px; color: var(--muted); text-align: right; margin-top: 2px; height: 12px; }
+  .elev-hover-marker { width: 10px; height: 10px; border-radius: 50%; background: var(--ink); border: 2px solid #fff; box-shadow: 0 0 0 1px var(--ink); }
 
   /* ---------------- photo lightbox ---------------- */
   /* Same fixed-overlay-with-circular-close-button language as the mobile
@@ -620,7 +670,22 @@
 
     #main { flex-direction: column; }
     #map-row { flex: 0 0 40vh; }
-    #map { flex: 1; }
+
+    /* The elevation panel is position:absolute inside #map-wrap by
+       default, which works fine on desktop where the sidebar sits beside
+       the map, never over it. On mobile the sidebar becomes a fixed,
+       full-screen overlay (z-index 50, below) that would otherwise sit
+       on top of it — switched to position:fixed + a z-index above the
+       sidebar's so the chart stays visible (and the map-position hover
+       marker stays meaningful) even while the sidebar covers everything
+       else. safe-area-inset-bottom keeps it clear of a phone's home
+       indicator / gesture bar. */
+    #elev-profile-panel {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      z-index: 60;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
 
     /* The side-by-side sidebar doesn't work at phone width — there's no
        room to shrink the map into. Instead, `.open` takes over the whole
@@ -692,7 +757,10 @@
 
   <div id="main">
     <div id="map-row">
-      <div id="map"></div>
+      <div id="map-wrap">
+        <div id="map"></div>
+        <div id="elev-profile-panel"></div>
+      </div>
       <div id="peak-sidebar">
         <button id="sidebar-close" type="button" aria-label="Close">&times;</button>
         <div id="peak-sidebar-content"></div>
@@ -755,11 +823,16 @@ const STYLE_URL = 'mapbox://styles/sframe938/cmt75d6wj00gv01s47s2q8ml4';
 //                        ascent (.kml or .gpx — showRouteForAscent() below
 //                        picks the parser by extension), living in
 //                        assets/highpeaks/routes/ (see ROUTES_DIR
-//                        below) — e.g. "07-gray-peak-2024-09.kml"
-//   Elevation Profile  — filename of the AllTrails elevation-profile
-//                        screenshot for this ascent, in
-//                        assets/highpeaks/elevation-profiles/
-//                        (see ELEV_PROFILE_DIR below)
+//                        below) — e.g. "07-gray-peak-2024-09.kml". The
+//                        elevation profile chart is generated from this
+//                        same file (see buildElevationProfile()) — no
+//                        separate screenshot upload needed. GPX is the
+//                        reliable format for this: its <ele> field is
+//                        genuinely populated by AllTrails. KML elevation
+//                        is a coin flip across export tools (some clamp
+//                        altitude to 0 and rely on the renderer instead),
+//                        so a KML with no real elevation just quietly
+//                        shows no profile rather than a fake flat line.
 //   Photo              — filename of a summit photo, in
 //                        assets/highpeaks/photos/ (see PHOTOS_DIR below)
 //   Photo Album        — link to a Google Photos (or similar) shared album
@@ -774,7 +847,6 @@ const STYLE_URL = 'mapbox://styles/sframe938/cmt75d6wj00gv01s47s2q8ml4';
 const ASCENTS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS5mu0vqoM6dwUyuDUojdkVg_a6VCjtYxtQ70FIo5nai2C6Do5ly-cvKo0E_FVtSMHj8pst-nfp3FCW/pub?gid=208339538&single=true&output=csv';
 
 const ROUTES_DIR = 'assets/highpeaks/routes/';
-const ELEV_PROFILE_DIR = 'assets/highpeaks/elevation-profiles/';
 const PHOTOS_DIR = 'assets/highpeaks/photos/';
 
 // Roughly the High Peaks region — Lake Placid/Keene/Newcomb/Wilmington.
@@ -795,7 +867,7 @@ const SEASONS = ['Summer', 'Winter', 'Shoulder'];
 // Shown as a hover tooltip wherever a season name appears in the app,
 // rather than as a permanent on-page explanation.
 const SEASON_RANGES = {
-  Winter: 'Dec 21 – Mar 20 (the ADK 46ers\' official Winter 46 window)',
+  Winter: 'Dec 21 – Mar 20',
   Shoulder: 'Mar 21 – Jun 20, and Sep 21 – Dec 20',
   Summer: 'Jun 21 – Sep 20'
 };
@@ -968,7 +1040,6 @@ function loadAscents() {
           companions: (r['Climbed With'] || '').trim(),
           notes: (r['Notes'] || '').trim(),
           routeFile: (r['Route File'] || '').trim(),
-          elevProfile: (r['Elevation Profile'] || '').trim(),
           photo: (r['Photo'] || '').trim(),
           photoAlbum: (r['Photo Album'] || '').trim(),
           tripName: (r['Trip Name'] || '').trim()
@@ -1216,7 +1287,7 @@ function formatDiaryDate(dateStr) {
 // full object serialized into the HTML string).
 function buildJournalEntryHTML(peak, ascent, index) {
   const routeLink = ascent.routeFile
-    ? `<button type="button" class="journal-route-link" onclick="showJournalRoute(${peak.id}, ${index})">Show this route on the map</button>`
+    ? `<button type="button" class="journal-route-link" onclick="showJournalRoute(${peak.id}, ${index})">Show route &amp; elevation profile</button>`
     : '';
   // Opens in a new tab since it's leaving the app entirely (an external
   // Google Photos album, or whatever the sheet's Photo Album column
@@ -1237,7 +1308,6 @@ function buildJournalEntryHTML(peak, ascent, index) {
       ${ascent.notes ? `<blockquote class="journal-notes">${escapeHTML(ascent.notes)}</blockquote>` : ''}
       ${ascent.photo ? `<img class="popup-photo journal-photo" src="${PHOTOS_DIR}${encodeURIComponent(ascent.photo)}" alt="${escapeHTML(peak.name)} summit photo, ${escapeHTML(dateLabel)}" onclick="openLightbox(this)">` : ''}
       ${albumLink}
-      ${ascent.elevProfile ? `<img class="popup-elev-profile" src="${ELEV_PROFILE_DIR}${encodeURIComponent(ascent.elevProfile)}" alt="Elevation profile" onclick="openLightbox(this)">` : ''}
       ${routeLink}
       ${copyLink}
     </div>`;
@@ -1268,8 +1338,7 @@ function mergeTripContent(tripAscents) {
     notes,
     photo: pickFirst('photo'),
     photoAlbum: pickFirst('photoAlbum'),
-    routeFile: pickFirst('routeFile'),
-    elevProfile: pickFirst('elevProfile')
+    routeFile: pickFirst('routeFile')
   };
 }
 
@@ -1326,7 +1395,7 @@ function buildTripEntryHTML(currentPeak, ascent, index, tripAscents) {
   }).join('');
 
   const routeLink = merged.routeFile
-    ? `<button type="button" class="journal-route-link" onclick="showTripRoute(${currentPeak.id}, ${index})">Show this route on the map</button>`
+    ? `<button type="button" class="journal-route-link" onclick="showTripRoute(${currentPeak.id}, ${index})">Show route &amp; elevation profile</button>`
     : '';
   const albumLink = merged.photoAlbum
     ? `<a class="journal-route-link" href="${escapeHTML(merged.photoAlbum)}" target="_blank" rel="noopener">More photos from this climb ↗</a>`
@@ -1346,7 +1415,6 @@ function buildTripEntryHTML(currentPeak, ascent, index, tripAscents) {
       ${notesHTML}
       ${merged.photo ? `<img class="popup-photo journal-photo" src="${PHOTOS_DIR}${encodeURIComponent(merged.photo)}" alt="${escapeHTML(ascent.tripName)} photo, ${escapeHTML(dateLabel)}" onclick="openLightbox(this)">` : ''}
       ${albumLink}
-      ${merged.elevProfile ? `<img class="popup-elev-profile" src="${ELEV_PROFILE_DIR}${encodeURIComponent(merged.elevProfile)}" alt="Elevation profile" onclick="openLightbox(this)">` : ''}
       ${routeLink}
       ${copyLink}
     </div>`;
@@ -1429,7 +1497,7 @@ function showJournalRoute(peakId, index) {
   const ascents = ascentsByPeak[peakId];
   if (!peak || !ascents || !ascents[index]) return;
   activeAscentIndex[peakId] = index;
-  showRouteForAscent(peak, ascents[index]);
+  showRouteForAscent(peak, ascents[index], renderElevationProfile);
 }
 
 // Same idea as showJournalRoute, but for a combined trip entry — the route
@@ -1442,7 +1510,203 @@ function showTripRoute(peakId, index) {
   if (!peak || !ascent || !ascent.tripName) return;
   const tripGroup = tripsByName[ascent.tripName] || [ascent];
   activeAscentIndex[peakId] = index;
-  showRouteForAscent(peak, { routeFile: mergeTripContent(tripGroup).routeFile });
+  showRouteForAscent(peak, { routeFile: mergeTripContent(tripGroup).routeFile }, renderElevationProfile);
+}
+
+/* =====================================================================
+   ELEVATION PROFILE — generated from the same route-file points used to
+   draw the map line (see showRouteForAscent's onParsed callback), rather
+   than a separately-uploaded AllTrails screenshot. Only appears once
+   "Show this route on the map" has actually been clicked, same as the
+   map line itself — the route file is fetched lazily, on demand, not
+   eagerly for every ascent shown in a sidebar.
+   ===================================================================== */
+const ELEV_PROFILE_BINS = 60;
+const ELEV_SVG_W = 300, ELEV_SVG_H = 110, ELEV_PAD_TOP = 12, ELEV_PAD_BOTTOM = 16;
+
+function haversineFt(lat1, lon1, lat2, lon2) {
+  const R = 20925721.8; // Earth radius in feet
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+// points: [lng, lat, elevFt] triples from parseGPXToLngLats/parseKMLToLngLats.
+// Bins cumulative distance into ELEV_PROFILE_BINS evenly-spaced buckets and
+// averages the elevation within each — averaging over a distance window is
+// what kills GPS elevation jitter (point-to-point noise of a few feet that
+// isn't real terrain) while keeping genuine trail features intact. Each bin
+// also keeps a representative lng/lat (its first point) so hovering the
+// chart can point at a real spot on the map. Returns null if the file
+// doesn't actually carry usable elevation — some KML exports clamp
+// altitude to 0 rather than omitting it, so a near-zero spread across the
+// whole track is treated as "no real data" rather than charted as a flat
+// line.
+function buildElevationProfile(points) {
+  const pts = points.filter(p => p[2] !== null && !isNaN(p[2]));
+  if (pts.length < 2) return null;
+  const spread = Math.max(...pts.map(p => p[2])) - Math.min(...pts.map(p => p[2]));
+  if (spread < 20) return null;
+
+  const distFt = [0];
+  for (let i = 1; i < pts.length; i++) {
+    distFt.push(distFt[i - 1] + haversineFt(pts[i - 1][1], pts[i - 1][0], pts[i][1], pts[i][0]));
+  }
+  const totalFt = distFt[distFt.length - 1];
+  if (!totalFt) return null;
+
+  const binSize = totalFt / ELEV_PROFILE_BINS;
+  const bins = Array.from({ length: ELEV_PROFILE_BINS }, () => ({ sum: 0, count: 0, lng: null, lat: null }));
+  pts.forEach((p, i) => {
+    const idx = Math.min(Math.floor(distFt[i] / binSize), ELEV_PROFILE_BINS - 1);
+    const b = bins[idx];
+    b.sum += p[2];
+    b.count++;
+    if (b.lng === null) { b.lng = p[0]; b.lat = p[1]; } // first point in the bin, used for the hover marker
+  });
+
+  // Fill any empty bin (only happens on a very short/sparse track) from
+  // its nearest filled neighbor, so the line has no gaps.
+  const elevs = bins.map(b => (b.count ? b.sum / b.count : null));
+  for (let i = 0; i < elevs.length; i++) {
+    if (elevs[i] !== null) continue;
+    let l = i - 1; while (l >= 0 && elevs[l] === null) l--;
+    let r = i + 1; while (r < elevs.length && elevs[r] === null) r++;
+    const src = l >= 0 ? l : r;
+    elevs[i] = elevs[src];
+    bins[i].lng = bins[src].lng;
+    bins[i].lat = bins[src].lat;
+  }
+
+  return bins.map((b, i) => ({ distFt: (i + 0.5) * binSize, elevFt: elevs[i], lng: b.lng, lat: b.lat }));
+}
+
+function elevToSvgY(elevFt, min, max) {
+  const plotH = ELEV_SVG_H - ELEV_PAD_TOP - ELEV_PAD_BOTTOM;
+  if (max === min) return ELEV_PAD_TOP + plotH / 2;
+  return ELEV_PAD_TOP + plotH * (1 - (elevFt - min) / (max - min));
+}
+
+function buildElevationProfileSVG(profile) {
+  const n = profile.length;
+  const elevs = profile.map(p => p.elevFt);
+  const min = Math.min(...elevs), max = Math.max(...elevs);
+  const linePts = profile.map((p, i) => {
+    const x = ((i + 0.5) / n * ELEV_SVG_W).toFixed(1);
+    const y = elevToSvgY(p.elevFt, min, max).toFixed(1);
+    return `${x},${y}`;
+  }).join(' ');
+  const baseY = ELEV_SVG_H - ELEV_PAD_BOTTOM;
+  const areaPts = `0,${baseY} ${linePts} ${ELEV_SVG_W},${baseY}`;
+
+  return `
+    <svg viewBox="0 0 ${ELEV_SVG_W} ${ELEV_SVG_H}" class="elev-profile-svg" preserveAspectRatio="none">
+      <polygon points="${areaPts}" class="elev-area"></polygon>
+      <polyline points="${linePts}" class="elev-line"></polyline>
+      <text x="3" y="${ELEV_PAD_TOP + 7}" class="elev-axis-label">${Math.round(max).toLocaleString()} ft</text>
+      <text x="3" y="${baseY - 3}" class="elev-axis-label">${Math.round(min).toLocaleString()} ft</text>
+      <line class="elev-cursor-line" x1="0" y1="${ELEV_PAD_TOP}" x2="0" y2="${baseY}"></line>
+      <circle class="elev-cursor-dot" r="3"></circle>
+      <rect class="elev-hit-rect" x="0" y="0" width="${ELEV_SVG_W}" height="${ELEV_SVG_H}"></rect>
+    </svg>
+    <div class="elev-hover-label"></div>`;
+}
+
+// Total climbed (not net) elevation gain and total distance, straight
+// from the already-smoothed profile — the same distance-binning that
+// kills GPS jitter for the chart also makes this a much more trustworthy
+// gain figure than summing raw point-to-point deltas would give (see the
+// Big Slide comparison this feature was validated against: raw noise
+// summed to ~3,587 ft, the binned profile to ~2,901 ft, which is what
+// published trail data actually says).
+function computeProfileStats(profile) {
+  let gainFt = 0;
+  for (let i = 1; i < profile.length; i++) {
+    const d = profile[i].elevFt - profile[i - 1].elevFt;
+    if (d > 0) gainFt += d;
+  }
+  return { distMi: profile[profile.length - 1].distFt / 5280, gainFt: Math.round(gainFt) };
+}
+
+// Fills and opens the shared elevation panel at the bottom of the map
+// once a route file has actually been fetched and parsed (called from
+// showJournalRoute/showTripRoute's onParsed callback) — never fetches
+// anything itself, just reuses the points already parsed for the map
+// line. Lives outside the journal entry/sidebar entirely (see the panel's
+// own CSS comment) so it stays visible even when the sidebar covers the
+// whole screen, on mobile.
+function renderElevationProfile(points) {
+  const panel = document.getElementById('elev-profile-panel');
+  if (!panel) return;
+  const profile = points ? buildElevationProfile(points) : null;
+  if (!profile) {
+    clearElevationProfile();
+    return;
+  }
+  const stats = computeProfileStats(profile);
+  panel.innerHTML = `
+    <div class="elev-panel-header">Elevation Profile · <b>${stats.distMi.toFixed(1)} mi</b> · <b>+${stats.gainFt.toLocaleString()} ft</b></div>
+    <div class="elev-profile-container">${buildElevationProfileSVG(profile)}</div>`;
+  panel.classList.add('open');
+  wireElevationProfileHover(panel.querySelector('.elev-profile-container'), profile);
+}
+
+// Counterpart to renderElevationProfile — closes the panel and drops its
+// content. Called both when a route file has no usable elevation (see
+// buildElevationProfile's null cases) and from clearRoute(), so the panel
+// never lingers after the route itself is gone (sidebar closed, Home
+// button, switching to an entry with no route).
+function clearElevationProfile() {
+  const panel = document.getElementById('elev-profile-panel');
+  if (!panel) return;
+  panel.classList.remove('open');
+  panel.innerHTML = '';
+}
+
+// Moving the mouse across the chart moves a matching marker on the map —
+// each bin already kept a representative lng/lat (see buildElevationProfile)
+// specifically so this doesn't need any lookup beyond "which bin is the
+// cursor over." requestAnimationFrame throttling keeps rapid mousemove
+// events from flooding map/DOM updates.
+function wireElevationProfileHover(container, profile) {
+  const svg = container.querySelector('.elev-profile-svg');
+  const cursorLine = container.querySelector('.elev-cursor-line');
+  const cursorDot = container.querySelector('.elev-cursor-dot');
+  const hitRect = container.querySelector('.elev-hit-rect');
+  const label = container.querySelector('.elev-hover-label');
+  if (!svg || !hitRect) return;
+
+  const n = profile.length;
+  const elevs = profile.map(p => p.elevFt);
+  const min = Math.min(...elevs), max = Math.max(...elevs);
+
+  const updateAt = (clientX) => {
+    const rect = svg.getBoundingClientRect();
+    const frac = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    const idx = Math.min(n - 1, Math.floor(frac * n));
+    const pt = profile[idx];
+    const x = (idx + 0.5) / n * ELEV_SVG_W;
+    const y = elevToSvgY(pt.elevFt, min, max);
+    cursorLine.setAttribute('x1', x); cursorLine.setAttribute('x2', x);
+    cursorDot.setAttribute('cx', x); cursorDot.setAttribute('cy', y);
+    container.classList.add('elev-hovering');
+    label.textContent = `${Math.round(pt.elevFt).toLocaleString()} ft · ${(pt.distFt / 5280).toFixed(1)} mi`;
+    setElevHoverMarker(pt.lng, pt.lat);
+  };
+
+  let pendingX = null, rafScheduled = false;
+  svg.addEventListener('mousemove', (e) => {
+    pendingX = e.clientX;
+    if (rafScheduled) return;
+    rafScheduled = true;
+    requestAnimationFrame(() => { updateAt(pendingX); rafScheduled = false; });
+  });
+  svg.addEventListener('mouseleave', () => {
+    container.classList.remove('elev-hovering');
+    label.textContent = '';
+    clearElevHoverMarker();
+  });
 }
 
 /* =====================================================================
@@ -1566,7 +1830,7 @@ document.getElementById('peak-sidebar').addEventListener('transitionend', (e) =>
 });
 
 /* ---------------- photo lightbox ---------------- */
-// Opened from an onclick on the popup-photo/popup-elev-profile <img>
+// Opened from an onclick on the popup-photo <img>
 // themselves (buildPopupHTML injects those via innerHTML, so a wired-up
 // onclick attribute is simpler than re-querying and re-attaching a
 // listener every time the sidebar's content gets replaced). Passing the
@@ -1606,6 +1870,7 @@ document.addEventListener('keydown', (e) => {
    ===================================================================== */
 const ROUTE_SOURCE_ID = 'ascent-route';
 const ROUTE_LAYER_ID = 'ascent-route-line';
+let elevHoverMarker = null; // shared across every elevation-profile chart — only one route is ever on the map at a time, so one marker is enough
 
 function ensureRouteLayer() {
   if (map.getSource(ROUTE_SOURCE_ID)) return;
@@ -1623,6 +1888,22 @@ function clearRoute() {
   if (map.getSource(ROUTE_SOURCE_ID)) {
     map.getSource(ROUTE_SOURCE_ID).setData({ type: 'FeatureCollection', features: [] });
   }
+  clearElevHoverMarker();
+  clearElevationProfile();
+}
+
+function setElevHoverMarker(lng, lat) {
+  if (elevHoverMarker) {
+    elevHoverMarker.setLngLat([lng, lat]);
+  } else {
+    const el = document.createElement('div');
+    el.className = 'elev-hover-marker';
+    elevHoverMarker = new mapboxgl.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
+  }
+}
+
+function clearElevHoverMarker() {
+  if (elevHoverMarker) { elevHoverMarker.remove(); elevHoverMarker = null; }
 }
 
 // Minimal KML parser using the browser's native XML parser — pulls every
@@ -1635,17 +1916,24 @@ function parseKMLToLngLats(kmlText) {
   const xml = new DOMParser().parseFromString(kmlText, 'text/xml');
   const candidates = [];
 
+  // Each point is [lng, lat, elevFt]. KML's third coordinate value is
+  // meters per spec, but not every export actually populates it — some
+  // tools write 0 and rely on altitudeMode="clampToGround" for the
+  // renderer to derive height from terrain instead. elevFt is passed
+  // through as-is (including 0/missing); buildElevationProfile() below
+  // is what decides whether a file's elevation is trustworthy enough to
+  // chart, not this parser.
   Array.from(xml.getElementsByTagName('coordinates')).forEach(node => {
     const pts = node.textContent.trim().split(/\s+/).map(triple => {
-      const [lng, lat] = triple.split(',').map(Number);
-      return [lng, lat];
+      const [lng, lat, alt] = triple.split(',').map(Number);
+      return [lng, lat, isNaN(alt) ? null : alt * 3.28084];
     }).filter(pt => !isNaN(pt[0]) && !isNaN(pt[1]));
     if (pts.length) candidates.push(pts);
   });
 
   const gxCoords = Array.from(xml.getElementsByTagName('gx:coord')).map(node => {
-    const [lng, lat] = node.textContent.trim().split(/\s+/).map(Number);
-    return [lng, lat];
+    const [lng, lat, alt] = node.textContent.trim().split(/\s+/).map(Number);
+    return [lng, lat, isNaN(alt) ? null : alt * 3.28084];
   }).filter(pt => !isNaN(pt[0]) && !isNaN(pt[1]));
   if (gxCoords.length) candidates.push(gxCoords);
 
@@ -1665,10 +1953,16 @@ function parseGPXToLngLats(gpxText) {
   const xml = new DOMParser().parseFromString(gpxText, 'text/xml');
   const candidates = [];
 
+  // Each point is [lng, lat, elevFt] — <ele> is a child element (meters),
+  // not an attribute like lat/lon, and it's genuinely reliable here: GPX
+  // is a real GPS-track format, and AllTrails populates it from actual
+  // recorded elevation on every point, not just some.
   const ptsOf = (parent, tagName) => Array.from(parent.getElementsByTagName(tagName)).map(node => {
     const lat = parseFloat(node.getAttribute('lat'));
     const lng = parseFloat(node.getAttribute('lon'));
-    return [lng, lat];
+    const eleEl = node.getElementsByTagName('ele')[0];
+    const eleFt = eleEl ? parseFloat(eleEl.textContent) * 3.28084 : null;
+    return [lng, lat, isNaN(eleFt) ? null : eleFt];
   }).filter(pt => !isNaN(pt[0]) && !isNaN(pt[1]));
 
   Array.from(xml.getElementsByTagName('trkseg')).forEach(seg => {
@@ -1691,11 +1985,17 @@ function parseGPXToLngLats(gpxText) {
   return candidates.reduce((a, b) => (b.length > a.length ? b : a));
 }
 
-function showRouteForAscent(peak, ascent) {
+// onParsed (optional) receives the full [lng, lat, elevFt] points once
+// the route file is fetched and parsed — added so the elevation-profile
+// chart can reuse the exact same parse instead of fetching the file a
+// second time. Called with null if there's no route file, or if the
+// fetch/parse fails, so callers don't need a separate error path.
+function showRouteForAscent(peak, ascent, onParsed) {
   ensureRouteLayer();
   if (!ascent || !ascent.routeFile) {
     clearRoute();
     map.flyTo({ center: [peak.lng, peak.lat], zoom: 13, speed: 0.9 });
+    if (onParsed) onParsed(null);
     return;
   }
   fetch(ROUTES_DIR + encodeURIComponent(ascent.routeFile))
@@ -1704,10 +2004,13 @@ function showRouteForAscent(peak, ascent) {
       return res.text();
     })
     .then(text => {
-      const coords = ascent.routeFile.toLowerCase().endsWith('.gpx')
+      const points = ascent.routeFile.toLowerCase().endsWith('.gpx')
         ? parseGPXToLngLats(text)
         : parseKMLToLngLats(text);
-      if (!coords.length) throw new Error('No coordinates parsed from ' + ascent.routeFile);
+      if (!points.length) throw new Error('No coordinates parsed from ' + ascent.routeFile);
+      // Mapbox's line layer only wants [lng, lat] — the elevation component
+      // stays in `points` for onParsed below, not in what gets drawn.
+      const coords = points.map(p => [p[0], p[1]]);
       map.getSource(ROUTE_SOURCE_ID).setData({
         type: 'FeatureCollection',
         features: [{ type: 'Feature', geometry: { type: 'LineString', coordinates: coords }, properties: {} }]
@@ -1716,11 +2019,13 @@ function showRouteForAscent(peak, ascent) {
       coords.forEach(c => bounds.extend(c));
       bounds.extend([peak.lng, peak.lat]);
       map.fitBounds(bounds, { padding: 60, duration: 900 });
+      if (onParsed) onParsed(points);
     })
     .catch(err => {
       console.warn(err);
       clearRoute();
       map.flyTo({ center: [peak.lng, peak.lat], zoom: 13, speed: 0.9 });
+      if (onParsed) onParsed(null);
     });
 }
 
@@ -1733,7 +2038,7 @@ function focusPeak(peak) {
   setActivePeak(peak.id);
 
   if (ascents.length) {
-    showRouteForAscent(peak, ascents[0]);
+    showRouteForAscent(peak, ascents[0], renderElevationProfile);
   } else {
     clearRoute();
     map.flyTo({ center: [peak.lng, peak.lat], zoom: 12.5, speed: 0.9 });
