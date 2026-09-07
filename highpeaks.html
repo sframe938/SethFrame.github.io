@@ -96,13 +96,36 @@
      inside it, so the skyline keeps its full panoramic width regardless
      of whether a peak is selected. */
   #map-row { flex: 1; min-height: 0; display: flex; flex-direction: row; position: relative; }
+  /* While the journal is open, the skyline isn't doing much useful work —
+     you're reading about one peak, not browsing all 46 — so it hides
+     entirely and #map-row (already flex:1 in #main) simply grows to fill
+     the space it leaves behind. Everything downstream of that follows
+     for free from the existing flex-column split inside #map-wrap: if a
+     route's elevation profile is showing, it's the one that grows into
+     the reclaimed height (its max-height already governs how much of
+     #map-wrap it claims); if not, #map itself (flex:1 in that same
+     column) is what expands instead. No separate cases to write — both
+     outcomes fall out of #map-wrap's own layout math once #map-row has
+     more total height to give it. :has() over a JS-toggled class since
+     nothing here needs to run at click-time, only at render-time. */
+  #main:has(#peak-sidebar.open) #skyline-wrap { display: none; }
   /* #map used to be the flex:1 child directly; now #map-wrap holds that
      role so the elevation panel below has a stable box — matching the
      map's own current width, not the sidebar's — to anchor to regardless
      of whether the sidebar is open, closed, or (mobile) covering the
      whole screen. */
-  #map-wrap { flex: 1; min-height: 0; position: relative; }
-  #map { position: absolute; inset: 0; }
+  /* #map used to be the flex:1 child directly; now #map-wrap holds that
+     role, as a flex COLUMN of [map, elevation panel] — the panel used to
+     be position:absolute, overlaying the map's bottom edge rather than
+     actually taking space, which let the map's own peak marker/label
+     render on top of it (z-index tug-of-war) instead of being cleanly
+     covered. A real flex child genuinely shrinks the map when the panel
+     opens — nothing left to overlap — the same principle #peak-sidebar's
+     width animation already uses to reflow the map instead of covering
+     it. See the panel's own transitionend listener for the matching
+     map.resize() call this reflow needs. */
+  #map-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; position: relative; }
+  #map { flex: 1; min-height: 0; }
 
   /* ---------------- elevation profile panel ---------------- */
   /* Deliberately NOT inside the journal entry/sidebar — see the earlier
@@ -113,11 +136,11 @@
      whether a route is currently displayed (see clearElevationProfile,
      called from clearRoute) — no separate close control of its own.
      max-height + overflow:hidden animates open/closed the same way
-     #peak-sidebar animates its width. */
+     #peak-sidebar animates its width — flex:0 0 auto keeps it from
+     stretching to fill #map-wrap on its own, leaving #map (flex:1) to
+     take whatever's left, in either direction. */
   #elev-profile-panel {
-    position: absolute;
-    left: 0; right: 0; bottom: 0;
-    z-index: 4;
+    flex: 0 0 auto;
     max-height: 0;
     overflow: hidden;
     background: var(--paper);
@@ -671,14 +694,15 @@
     #main { flex-direction: column; }
     #map-row { flex: 0 0 40vh; }
 
-    /* The elevation panel is position:absolute inside #map-wrap by
-       default, which works fine on desktop where the sidebar sits beside
-       the map, never over it. On mobile the sidebar becomes a fixed,
-       full-screen overlay (z-index 50, below) that would otherwise sit
-       on top of it — switched to position:fixed + a z-index above the
-       sidebar's so the chart stays visible (and the map-position hover
-       marker stays meaningful) even while the sidebar covers everything
-       else. safe-area-inset-bottom keeps it clear of a phone's home
+    /* By default (desktop) the elevation panel is a normal flex child
+       inside #map-wrap's column, sized by its own max-height — that's
+       fine there since the sidebar sits beside the map, never over it.
+       On mobile the sidebar becomes a fixed, full-screen overlay
+       (z-index 50, below) that would otherwise sit on top of it —
+       switched to position:fixed + a z-index above the sidebar's so the
+       chart stays visible (and the map-position hover marker stays
+       meaningful) even while the sidebar covers everything else.
+       safe-area-inset-bottom keeps it clear of a phone's home
        indicator / gesture bar. */
     #elev-profile-panel {
       position: fixed;
@@ -1522,7 +1546,7 @@ function showTripRoute(peakId, index) {
    eagerly for every ascent shown in a sidebar.
    ===================================================================== */
 const ELEV_PROFILE_BINS = 60;
-const ELEV_SVG_W = 300, ELEV_SVG_H = 110, ELEV_PAD_TOP = 12, ELEV_PAD_BOTTOM = 16;
+const ELEV_SVG_H = 140, ELEV_PAD_TOP = 12, ELEV_PAD_BOTTOM = 16;
 
 function haversineFt(lat1, lon1, lat2, lon2) {
   const R = 20925721.8; // Earth radius in feet
@@ -1588,27 +1612,27 @@ function elevToSvgY(elevFt, min, max) {
   return ELEV_PAD_TOP + plotH * (1 - (elevFt - min) / (max - min));
 }
 
-function buildElevationProfileSVG(profile) {
+function buildElevationProfileSVG(profile, svgW) {
   const n = profile.length;
   const elevs = profile.map(p => p.elevFt);
   const min = Math.min(...elevs), max = Math.max(...elevs);
   const linePts = profile.map((p, i) => {
-    const x = ((i + 0.5) / n * ELEV_SVG_W).toFixed(1);
+    const x = ((i + 0.5) / n * svgW).toFixed(1);
     const y = elevToSvgY(p.elevFt, min, max).toFixed(1);
     return `${x},${y}`;
   }).join(' ');
   const baseY = ELEV_SVG_H - ELEV_PAD_BOTTOM;
-  const areaPts = `0,${baseY} ${linePts} ${ELEV_SVG_W},${baseY}`;
+  const areaPts = `0,${baseY} ${linePts} ${svgW},${baseY}`;
 
   return `
-    <svg viewBox="0 0 ${ELEV_SVG_W} ${ELEV_SVG_H}" class="elev-profile-svg" preserveAspectRatio="none">
+    <svg viewBox="0 0 ${svgW} ${ELEV_SVG_H}" class="elev-profile-svg" preserveAspectRatio="none">
       <polygon points="${areaPts}" class="elev-area"></polygon>
       <polyline points="${linePts}" class="elev-line"></polyline>
       <text x="3" y="${ELEV_PAD_TOP + 7}" class="elev-axis-label">${Math.round(max).toLocaleString()} ft</text>
       <text x="3" y="${baseY - 3}" class="elev-axis-label">${Math.round(min).toLocaleString()} ft</text>
       <line class="elev-cursor-line" x1="0" y1="${ELEV_PAD_TOP}" x2="0" y2="${baseY}"></line>
       <circle class="elev-cursor-dot" r="3"></circle>
-      <rect class="elev-hit-rect" x="0" y="0" width="${ELEV_SVG_W}" height="${ELEV_SVG_H}"></rect>
+      <rect class="elev-hit-rect" x="0" y="0" width="${svgW}" height="${ELEV_SVG_H}"></rect>
     </svg>
     <div class="elev-hover-label"></div>`;
 }
@@ -1645,11 +1669,20 @@ function renderElevationProfile(points) {
     return;
   }
   const stats = computeProfileStats(profile);
+  // Measured from the panel's real current width rather than a fixed
+  // constant — this panel can be anywhere from a few hundred px (small
+  // window, sidebar open) to 1500px+ (full map width, sidebar closed),
+  // and stretching a fixed-width viewBox non-uniformly to fit whatever
+  // that turns out to be is exactly what caused the visible
+  // distortion/"stretched" look. -40 accounts for .elev-profile-container's
+  // left+right padding; 200 is just a sane floor so a very narrow window
+  // doesn't produce a degenerate chart.
+  const svgW = Math.max(200, panel.clientWidth - 40);
   panel.innerHTML = `
     <div class="elev-panel-header">Elevation Profile · <b>${stats.distMi.toFixed(1)} mi</b> · <b>+${stats.gainFt.toLocaleString()} ft</b></div>
-    <div class="elev-profile-container">${buildElevationProfileSVG(profile)}</div>`;
+    <div class="elev-profile-container">${buildElevationProfileSVG(profile, svgW)}</div>`;
   panel.classList.add('open');
-  wireElevationProfileHover(panel.querySelector('.elev-profile-container'), profile);
+  wireElevationProfileHover(panel.querySelector('.elev-profile-container'), profile, svgW);
 }
 
 // Counterpart to renderElevationProfile — closes the panel and drops its
@@ -1669,7 +1702,7 @@ function clearElevationProfile() {
 // specifically so this doesn't need any lookup beyond "which bin is the
 // cursor over." requestAnimationFrame throttling keeps rapid mousemove
 // events from flooding map/DOM updates.
-function wireElevationProfileHover(container, profile) {
+function wireElevationProfileHover(container, profile, svgW) {
   const svg = container.querySelector('.elev-profile-svg');
   const cursorLine = container.querySelector('.elev-cursor-line');
   const cursorDot = container.querySelector('.elev-cursor-dot');
@@ -1686,7 +1719,7 @@ function wireElevationProfileHover(container, profile) {
     const frac = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
     const idx = Math.min(n - 1, Math.floor(frac * n));
     const pt = profile[idx];
-    const x = (idx + 0.5) / n * ELEV_SVG_W;
+    const x = (idx + 0.5) / n * svgW;
     const y = elevToSvgY(pt.elevFt, min, max);
     cursorLine.setAttribute('x1', x); cursorLine.setAttribute('x2', x);
     cursorDot.setAttribute('cx', x); cursorDot.setAttribute('cy', y);
@@ -1827,6 +1860,17 @@ document.getElementById('sidebar-close').addEventListener('click', closeSidebar)
 // never fires there.
 document.getElementById('peak-sidebar').addEventListener('transitionend', (e) => {
   if (e.propertyName === 'width') map.resize();
+});
+
+// Same reasoning as the sidebar's listener above, for the same reason:
+// #elev-profile-panel opening/closing now genuinely resizes #map (it's a
+// real flex sibling, not an overlay — see the panel's CSS comment), so
+// the map canvas needs the same nudge once that settles. Mobile's
+// position:fixed override doesn't transition max-height against #map at
+// all (it floats over whatever's underneath instead), so this is a
+// no-op there — nothing to resize.
+document.getElementById('elev-profile-panel').addEventListener('transitionend', (e) => {
+  if (e.propertyName === 'max-height') map.resize();
 });
 
 /* ---------------- photo lightbox ---------------- */
