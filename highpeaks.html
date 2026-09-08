@@ -808,7 +808,10 @@
    ===================================================================== */
 mapboxgl.accessToken = 'pk.eyJ1Ijoic2ZyYW1lOTM4IiwiYSI6ImNqN2RweG9ydjBkenIycWt5Z2c5NWtsajcifQ.bA0BviPhPcygQREBZd0cdQ';
 
-const STYLE_URL = 'mapbox://styles/sframe938/cmt75d6wj00gv01s47s2q8ml4';
+// Self-hosted style (no Mapbox "Standard" 3D basemap import) — same visual
+// look as the Studio-published style, but without the heavy basemap that
+// was causing panning to jank badly. See assets/highpeaks/map-style/style.json.
+const STYLE_URL = 'assets/highpeaks/map-style/style.json';
 
 // ---- Ascent log: Google Sheet published as CSV -------------------------
 // This is the ONLY thing you maintain going forward — one row per climb.
