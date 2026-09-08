@@ -42,7 +42,7 @@
       "type": "fill",
       "source": "composite",
       "source-layer": "landuse",
-      "filter": ["match", ["get", "class"], ["wood", "scrub", "grass", "park", "agriculture", "cemetery"], true, false],
+      "filter": ["match", ["get", "class"], ["park", "agriculture", "cemetery"], true, false],
       "paint": { "fill-color": "#a2ab57", "fill-opacity": 0.6 }
     },
     {
