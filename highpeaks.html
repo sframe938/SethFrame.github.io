@@ -972,17 +972,6 @@ const MAX_ELEV = Math.max(...PEAKS.map(p => p.elevation));
 const map = new mapboxgl.Map({
   container: 'map',
   style: STYLE_URL,
-  // Mapbox GL JS v3+ defaults to the 'globe' projection unless told
-  // otherwise. Globe positions markers via a true spherical-to-screen
-  // projection that depends on the current view (center/bearing), not
-  // just each marker's own lat/lng + zoom the way flat Mercator's simple
-  // affine math does — which is almost certainly why peak markers were
-  // landing in a slightly different spot relative to the hillshade
-  // depending on where the map was centered. This site only ever shows
-  // one small patch of the Adirondacks at zoom 12+, where globe buys
-  // nothing visually, so pin it to mercator explicitly rather than
-  // inheriting whatever the library (or the Studio style) defaults to.
-  projection: 'mercator',
   center: CENTER,
   zoom: ZOOM,
   minZoom: MIN_ZOOM,
