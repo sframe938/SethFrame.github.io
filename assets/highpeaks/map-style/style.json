@@ -3,6 +3,10 @@
   "name": "ADK Peak Map (no Standard)",
   "sprite": "mapbox://sprites/sframe938/cmt75d6wj00gv01s47s2q8ml4/ekhs3dcuv5r9q7oec7g99s8qj",
   "glyphs": "mapbox://fonts/mapbox/{fontstack}/{range}.pbf",
+  "terrain": {
+    "source": "mapbox://mapbox.mapbox-terrain-dem-v1",
+    "exaggeration": 1.5
+  },
   "sources": {
     "mapbox://mapbox.mapbox-terrain-dem-v1": {
       "url": "mapbox://mapbox.mapbox-terrain-dem-v1",
