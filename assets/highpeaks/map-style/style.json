@@ -25,29 +25,6 @@
       "paint": { "background-color": "#e1e2e7" }
     },
     {
-      "id": "landuse-greenspace",
-      "type": "fill",
-      "source": "composite",
-      "source-layer": "landuse",
-      "filter": ["match", ["get", "class"], ["wood", "scrub", "grass", "park", "agriculture", "cemetery"], true, false],
-      "paint": { "fill-color": "#a2ab57", "fill-opacity": 1 }
-    },
-    {
-      "id": "landcover-greenspace",
-      "type": "fill",
-      "source": "composite",
-      "source-layer": "landcover",
-      "filter": ["match", ["get", "class"], ["wood", "scrub", "grass", "crop"], true, false],
-      "paint": { "fill-color": "#a2ab57", "fill-opacity": 1 }
-    },
-    {
-      "id": "water",
-      "type": "fill",
-      "source": "composite",
-      "source-layer": "water",
-      "paint": { "fill-color": "#a5c2ea" }
-    },
-    {
       "id": "mapbox-dem",
       "type": "hillshade",
       "source": "mapbox://mapbox.mapbox-terrain-dem-v1",
@@ -59,6 +36,29 @@
         "hillshade-highlight-color": "#ffffff",
         "hillshade-illumination-direction": 0
       }
+    },
+    {
+      "id": "landuse-greenspace",
+      "type": "fill",
+      "source": "composite",
+      "source-layer": "landuse",
+      "filter": ["match", ["get", "class"], ["wood", "scrub", "grass", "park", "agriculture", "cemetery"], true, false],
+      "paint": { "fill-color": "#a2ab57", "fill-opacity": 0.6 }
+    },
+    {
+      "id": "landcover-greenspace",
+      "type": "fill",
+      "source": "composite",
+      "source-layer": "landcover",
+      "filter": ["match", ["get", "class"], ["wood", "scrub", "grass", "crop"], true, false],
+      "paint": { "fill-color": "#a2ab57", "fill-opacity": 0.6 }
+    },
+    {
+      "id": "water",
+      "type": "fill",
+      "source": "composite",
+      "source-layer": "water",
+      "paint": { "fill-color": "#a5c2ea", "fill-opacity": 1 }
     },
     {
       "id": "contour",
