@@ -1926,7 +1926,14 @@ let elevHoverMarker = null; // shared across every elevation-profile chart — o
 
 function ensureRouteLayer() {
   if (map.getSource(ROUTE_SOURCE_ID)) return;
-  map.addSource(ROUTE_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  // tolerance: 0 disables Mapbox's default Douglas-Peucker line
+  // simplification (0.375 otherwise). Without this the rendered line
+  // cuts corners at tight switchbacks, so the elevation-profile hover
+  // dot — placed at an exact raw route point — can end up visibly off
+  // to the side of the drawn line even though both come from the same
+  // coordinates. Route files are small (one hike's track), so full
+  // precision costs nothing here.
+  map.addSource(ROUTE_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] }, tolerance: 0 });
   map.addLayer({
     id: ROUTE_LAYER_ID,
     type: 'line',
