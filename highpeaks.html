@@ -876,9 +876,22 @@ const PHOTOS_DIR = 'assets/highpeaks/photos/';
 // Roughly the High Peaks region — Lake Placid/Keene/Newcomb/Wilmington.
 const CENTER = [-73.95, 44.13];
 const ZOOM = 10.3;
+// fitToAllPeaks() below runs on every load and needs room to zoom OUT far
+// enough to fit all 46 peaks vertically on a short/wide window — on a
+// tested 1918x633 browser window that meant fitting down to zoom ~9.58,
+// which needs about -74.79 to -73.13 of longitude to fill that width.
+// The previous box (-74.45 to -73.45) was narrower than that, so on wide
+// windows the fit call got clamped back up to a tighter zoom that no
+// longer contained every peak (measured: forced from 9.58 up to ~10.4) —
+// which both cut peaks off at the default view and, since the camera was
+// then sitting right at this constraint's edge, is also the most likely
+// cause of the panning jank (maxBounds re-clamping on every drag frame).
+// This box is deliberately generous — its only job is keeping panning
+// within the general Adirondacks, not framing the shot — so there's
+// plenty of margin for other window shapes too.
 const MAX_BOUNDS = [
-  [-74.45, 43.90], // southwest
-  [-73.45, 44.55]  // northeast
+  [-74.90, 43.75], // southwest
+  [-73.00, 44.70]  // northeast
 ];
 const MIN_ZOOM = 8.5;
 const MAX_ZOOM = 16;
