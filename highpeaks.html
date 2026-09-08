@@ -972,6 +972,17 @@ const MAX_ELEV = Math.max(...PEAKS.map(p => p.elevation));
 const map = new mapboxgl.Map({
   container: 'map',
   style: STYLE_URL,
+  // Mapbox GL JS v3+ defaults to the 'globe' projection unless told
+  // otherwise. Globe positions markers via a true spherical-to-screen
+  // projection that depends on the current view (center/bearing), not
+  // just each marker's own lat/lng + zoom the way flat Mercator's simple
+  // affine math does — which is almost certainly why peak markers were
+  // landing in a slightly different spot relative to the hillshade
+  // depending on where the map was centered. This site only ever shows
+  // one small patch of the Adirondacks at zoom 12+, where globe buys
+  // nothing visually, so pin it to mercator explicitly rather than
+  // inheriting whatever the library (or the Studio style) defaults to.
+  projection: 'mercator',
   center: CENTER,
   zoom: ZOOM,
   minZoom: MIN_ZOOM,
@@ -1588,14 +1599,38 @@ function buildElevationProfile(points) {
   if (!totalFt) return null;
 
   const binSize = totalFt / ELEV_PROFILE_BINS;
-  const bins = Array.from({ length: ELEV_PROFILE_BINS }, () => ({ sum: 0, count: 0, lng: null, lat: null, bestDelta: Infinity }));
+  const bins = Array.from({ length: ELEV_PROFILE_BINS }, () => ({ sum: 0, count: 0, lng: null, lat: null, bestDelta: Infinity, bestIdx: null }));
   pts.forEach((p, i) => {
     const idx = Math.min(Math.floor(distFt[i] / binSize), ELEV_PROFILE_BINS - 1);
     const b = bins[idx];
     b.sum += p[2];
     b.count++;
     const delta = Math.abs(distFt[i] - (idx + 0.5) * binSize);
-    if (delta < b.bestDelta) { b.bestDelta = delta; b.lng = p[0]; b.lat = p[1]; }
+    if (delta < b.bestDelta) { b.bestDelta = delta; b.bestIdx = i; }
+  });
+
+  // Raw GPS points wander a few feet side to side even on a straight, flat
+  // stretch of trail — noise that's invisible once the map line is drawn
+  // (rendered at low zoom, a few feet is sub-pixel) but very visible on a
+  // hover dot that's snapped to one single sample, since the eye compares
+  // it against the *smoothed-looking* line rather than that one jittery
+  // point. So: average every raw point within POS_SMOOTH_RADIUS_FT of the
+  // chosen point's own along-trail distance (both directions) to damp that
+  // jitter out of the marker position, same idea as the elevation average
+  // above but over a much shorter window — short enough that it doesn't
+  // reintroduce the along-trail mislocation picking the nearest point (not
+  // just the first point in the bin) was already meant to avoid.
+  const POS_SMOOTH_RADIUS_FT = 25;
+  bins.forEach(b => {
+    if (b.bestIdx === null) return;
+    const centerDist = distFt[b.bestIdx];
+    let lo = b.bestIdx, hi = b.bestIdx;
+    while (lo > 0 && centerDist - distFt[lo - 1] <= POS_SMOOTH_RADIUS_FT) lo--;
+    while (hi < pts.length - 1 && distFt[hi + 1] - centerDist <= POS_SMOOTH_RADIUS_FT) hi++;
+    let lngSum = 0, latSum = 0, n = 0;
+    for (let i = lo; i <= hi; i++) { lngSum += pts[i][0]; latSum += pts[i][1]; n++; }
+    b.lng = lngSum / n;
+    b.lat = latSum / n;
   });
 
   // Fill any empty bin (only happens on a very short/sparse track) from
