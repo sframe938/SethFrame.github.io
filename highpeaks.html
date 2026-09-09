@@ -537,11 +537,22 @@
     width: fit-content; /* block for its own line, but sized to the text, not the full row */
   }
   .journal-route-link:hover { border-color: var(--ink); }
-  /* .journal-map-link ("Show Map") is mobile-only — on desktop the map
-     and elevation profile already sit visibly beside the journal at all
-     times, so there's nothing for this button to reveal there (see the
-     mobile media query below for where it turns back on). */
+  /* .journal-map-link ("Show Map") is mobile-only by default — on
+     desktop the map and elevation profile already sit visibly beside the
+     journal at all times, so there's nothing for this button to reveal
+     there (see the mobile media query below for where it turns back on
+     for every entry). The one exception is .journal-map-link-multi,
+     below: desktop only ever shows ONE ascent's route at a time (the
+     default, most recent one, or whichever was last clicked), and
+     nothing else lets you switch to a DIFFERENT ascent's route there —
+     so when a peak genuinely has more than one logged ascent, the button
+     stays available on desktop too, on every entry, so you can still
+     pick which one's route the map shows. None of today's peaks have
+     more than one ascent yet, so in practice this stays invisible on
+     desktop until that actually happens — see buildJournalEntryHTML/
+     buildTripEntryHTML for where the class gets added. */
   .journal-map-link { display: none; }
+  .journal-map-link.journal-map-link-multi { display: block; }
   /* object-fit: contain (not cover) on purpose — nothing tells this app
      whether a given upload is portrait, landscape, or some odd panorama,
      so any fixed-crop approach guesses wrong on some future photo no
@@ -1425,7 +1436,11 @@ function buildJournalEntryHTML(peak, ascent, index) {
   // not, so a routeless peak still has a way to peek at the map and see
   // where it actually is. showJournalRouteAndPeek no-ops the route switch
   // when there isn't one to show, same as showRouteForAscent already did.
-  const routeLink = `<button type="button" class="journal-route-link journal-map-link" onclick="showJournalRouteAndPeek(${peak.id}, ${index})">Show Map</button>`;
+  // journal-map-link-multi additionally keeps it visible on desktop when
+  // this peak has more than one logged ascent — see that class's own
+  // comment, on .journal-map-link's CSS, for why.
+  const hasMultipleAscents = (ascentsByPeak[peak.id] || []).length > 1;
+  const routeLink = `<button type="button" class="journal-route-link journal-map-link${hasMultipleAscents ? ' journal-map-link-multi' : ''}" onclick="showJournalRouteAndPeek(${peak.id}, ${index})">Show Map</button>`;
   // Opens in a new tab since it's leaving the app entirely (an external
   // Google Photos album, or whatever the sheet's Photo Album column
   // points to) — rel="noopener" so that tab can't reach back into this
@@ -1531,9 +1546,13 @@ function buildTripEntryHTML(currentPeak, ascent, index, tripAscents) {
       : `<button type="button" class="trip-peak trip-peak-link" onclick="jumpToTripPeak(${pid})">${escapeHTML(p.name)}</button>`;
   }).join('');
 
-  // See buildJournalEntryHTML's identical comment — mobile-only, always
-  // rendered regardless of whether this trip actually has a route file.
-  const routeLink = `<button type="button" class="journal-route-link journal-map-link" onclick="showTripRouteAndPeek(${currentPeak.id}, ${index})">Show Map</button>`;
+  // See buildJournalEntryHTML's identical comments — mobile-only, always
+  // rendered regardless of whether this trip actually has a route file,
+  // and additionally kept visible on desktop when currentPeak itself has
+  // more than one logged ascent (a trip counts as one of that peak's
+  // ascents, same as a plain journal entry does).
+  const hasMultipleAscents = (ascentsByPeak[currentPeak.id] || []).length > 1;
+  const routeLink = `<button type="button" class="journal-route-link journal-map-link${hasMultipleAscents ? ' journal-map-link-multi' : ''}" onclick="showTripRouteAndPeek(${currentPeak.id}, ${index})">Show Map</button>`;
   const albumLink = merged.photoAlbum
     ? `<a class="journal-route-link" href="${escapeHTML(merged.photoAlbum)}" target="_blank" rel="noopener">More photos from this climb ↗</a>`
     : '';
