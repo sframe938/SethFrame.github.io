@@ -1826,10 +1826,10 @@ function openFromHash() {
     const peak = PEAKS.find(p => p.id === peakId);
     if (!peak) return;
     focusPeak(peak);
-    // focusPeak's own open animation lands ~950ms after this call (see
-    // its moveend/timeout race) — poll briefly rather than assuming a
-    // fixed delay, since the sidebar's content isn't in the DOM until
-    // openSidebar actually runs.
+    // focusPeak opens the sidebar synchronously now, so the journal
+    // entries are normally already in the DOM by the next line — this
+    // poll is just a safety net for that assumption, rather than
+    // something we actually expect to iterate.
     const targetId = `journal-entry-${peakId}-${entryIndex}`;
     let attempts = 0;
     const tryFlash = () => {
@@ -1848,7 +1848,7 @@ function openFromHash() {
         setTimeout(tryFlash, 100);
       }
     };
-    setTimeout(tryFlash, 950);
+    tryFlash();
     return;
   }
 
@@ -1920,6 +1920,45 @@ document.getElementById('peak-sidebar').addEventListener('transitionend', (e) =>
 document.getElementById('elev-profile-panel').addEventListener('transitionend', (e) => {
   if (e.propertyName === 'max-height') map.resize();
 });
+
+// Waits for the sidebar and elevation-profile panel to each finish
+// settling at their current open/closed size — either a real
+// transitionend, or (for whichever panel isn't actually changing state
+// this time, or already finished before this function started
+// listening — e.g. the sidebar, opened well before a slow route fetch
+// resolves) this fallback — then resizes the map to match and resolves.
+// showRouteForAscent uses this to hold off on fitBounds() until #map's
+// container has reached its real final size: fitting bounds while the
+// sidebar and/or elevation panel are still mid-transition (or haven't
+// even started yet) computes against stale dimensions, and the two
+// transitionend listeners just above only resize the canvas — they
+// don't redo that bounds math once they fire.
+function panelsSettled() {
+  const sidebar = document.getElementById('peak-sidebar');
+  const profile = document.getElementById('elev-profile-panel');
+  return new Promise(resolve => {
+    let done = false;
+    function finish() {
+      if (done) return;
+      done = true;
+      sidebar.removeEventListener('transitionend', onSidebar);
+      profile.removeEventListener('transitionend', onProfile);
+      map.resize();
+      resolve();
+    }
+    let sidebarDone = false, profileDone = false;
+    function checkBoth() { if (sidebarDone && profileDone) finish(); }
+    function onSidebar(e) { if (e.propertyName === 'width') { sidebarDone = true; checkBoth(); } }
+    function onProfile(e) { if (e.propertyName === 'max-height') { profileDone = true; checkBoth(); } }
+    sidebar.addEventListener('transitionend', onSidebar);
+    profile.addEventListener('transitionend', onProfile);
+    // 400ms comfortably clears both panels' own transition durations
+    // (280ms, 250ms) with slack — covers a panel that isn't transitioning
+    // at all this call, and is the backstop if either listener above is
+    // ever missed for any other reason.
+    setTimeout(finish, 400);
+  });
+}
 
 /* ---------------- photo lightbox ---------------- */
 // Opened from an onclick on the popup-photo <img>
@@ -2117,8 +2156,15 @@ function showRouteForAscent(peak, ascent, onParsed) {
       const bounds = new mapboxgl.LngLatBounds();
       coords.forEach(c => bounds.extend(c));
       bounds.extend([peak.lng, peak.lat]);
-      map.fitBounds(bounds, { padding: 60, duration: 900 });
+      // onParsed (renderElevationProfile) is what opens the elevation
+      // panel, and the sidebar may still be settling too (see focusPeak) —
+      // trigger it first, then wait for both to actually finish resizing
+      // #map before fitting the camera, so this fits against the map's
+      // real final size instead of whatever it measured mid-transition.
       if (onParsed) onParsed(points);
+      panelsSettled().then(() => {
+        map.fitBounds(bounds, { padding: 60, duration: 900 });
+      });
     })
     .catch(err => {
       console.warn(err);
@@ -2136,28 +2182,23 @@ function focusPeak(peak) {
   activeAscentIndex[peak.id] = 0; // most recent ascent by default
   setActivePeak(peak.id);
 
+  // Open the sidebar right away rather than waiting for the map to
+  // finish moving to the peak first. It used to be deferred until
+  // 'moveend' (or a 950ms fallback) specifically so it wouldn't open
+  // until the fly/fit animation was done — but showRouteForAscent's
+  // fitBounds (for ascents with a route) now waits on panelsSettled(),
+  // which needs the sidebar's own resize of #map to actually be
+  // underway (or finished) to resolve promptly. Opening it up front lets
+  // that transition run in parallel with the route fetch instead of
+  // strictly after it.
+  openSidebar(peak, true);
+
   if (ascents.length) {
     showRouteForAscent(peak, ascents[0], renderElevationProfile);
   } else {
     clearRoute();
     map.flyTo({ center: [peak.lng, peak.lat], zoom: 12.5, speed: 0.9 });
   }
-  // Two ways to trigger the open — 'moveend' normally, or this 950ms
-  // fallback in case the map doesn't need to move at all (already
-  // centered there) and 'moveend' never fires. `opened` makes sure
-  // exactly one of them wins per click, whichever fires first — scoped
-  // to this one focusPeak() call via closure, rather than checked against
-  // any shared/global state. That matters specifically because the
-  // fallback timer can still be pending after the user has already
-  // manually closed the sidebar (closeSidebar() runs well under 950ms
-  // after a click); a global check like "is a peak still active" can't
-  // tell "never opened yet" apart from "opened, then the user closed it,"
-  // so it would wrongly let the stale timer reopen something they just
-  // dismissed. A per-call flag can't make that mistake.
-  let opened = false;
-  const openOnce = () => { if (!opened) { opened = true; openSidebar(peak, true); } };
-  map.once('moveend', openOnce);
-  setTimeout(openOnce, 950);
 }
 
 /* =====================================================================
