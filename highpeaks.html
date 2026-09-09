@@ -196,7 +196,7 @@
      when they actually become visible) — hidden unconditionally here so
      they never show up on desktop, where the map is already visible
      beside the sidebar and peeking makes no sense. */
-  #map-peek-toggle, #map-peek-close { display: none; }
+  #map-peek-close { display: none; }
   #peak-sidebar.open #sidebar-close {
     display: block;
     position: absolute;
@@ -537,6 +537,11 @@
     width: fit-content; /* block for its own line, but sized to the text, not the full row */
   }
   .journal-route-link:hover { border-color: var(--ink); }
+  /* .journal-map-link ("Show Map") is mobile-only — on desktop the map
+     and elevation profile already sit visibly beside the journal at all
+     times, so there's nothing for this button to reveal there (see the
+     mobile media query below for where it turns back on). */
+  .journal-map-link { display: none; }
   /* object-fit: contain (not cover) on purpose — nothing tells this app
      whether a given upload is portrait, landscape, or some odd panorama,
      so any fixed-crop approach guesses wrong on some future photo no
@@ -649,6 +654,20 @@
     border-top-color: var(--ink);
   }
   .peak-marker:hover .marker-label { opacity: 1; }
+  /* z-index:10 on .marker-label only wins against its OWN marker's other
+     children (its ::after triangle) — it can't reach across to beat a
+     neighboring peak's marker, because Mapbox positions each
+     .peak-marker via its own inline `transform`, which makes every
+     marker its own separate stacking context. Without this, whichever
+     marker happens to come later in PEAKS (and thus later in the DOM)
+     always paints on top, regardless of which one you're actually
+     hovering — the label can end up tucked behind a nearby marker's
+     icon. Bumping z-index on .peak-marker itself (the element the
+     transform actually lives on) is what makes it win, same mechanism
+     .active-marker already uses below. Set higher than .active-marker's
+     20 so whatever you're pointing at right now always reads on top,
+     even over the persistently-open active label. */
+  .peak-marker:hover { z-index: 25; }
 
   /* Selected peak on desktop: the sidebar has the details, but with markers
      packed close together it's easy to lose track of *which* triangle on
@@ -761,9 +780,12 @@
        open (:has()) — the normal 40vh map strip on the peak-list screen
        (sidebar closed) is completely untouched by any of this. It starts
        translated fully below the viewport the moment the sidebar opens,
-       so opening the sidebar alone reveals nothing; tapping "Show Map"
-       (inside the sidebar) slides it up over the journal, and tapping
-       "Back to Journal" (on the peeked map itself) slides it back down.
+       so opening the sidebar alone reveals nothing; tapping a journal
+       entry's "Show Map" button (.journal-map-link, styled above —
+       switches to that entry's route/profile first, same as it always
+       did, then calls openMapPeek()) slides it up over the journal, and
+       tapping "Back to Journal" (on the peeked map itself) slides it
+       back down.
        z-index sits above the sidebar's 50 so peeking covers the journal,
        but below the elevation panel's own 60 so the profile chart stays
        on top of the peeked map exactly like it already sits on top of
@@ -783,31 +805,9 @@
     }
     #map-wrap.peek-open { transform: translateY(0) !important; }
 
-    #peak-sidebar.open #map-peek-toggle {
-      display: flex;
-      align-items: center;
-      position: fixed;
-      left: 50%;
-      transform: translateX(-50%);
-      /* Cleared above the elevation panel's own max-height plus its
-         safe-area padding, whether or not the panel actually happens to
-         be open right now — simpler, and always correct, than tracking
-         the panel's live state just to reposition this one button. */
-      bottom: calc(205px + 16px + env(safe-area-inset-bottom));
-      z-index: 56;
-      padding: 10px 20px;
-      border-radius: 20px;
-      border: none;
-      background: var(--ink);
-      color: #fff;
-      font-size: 13px;
-      font-weight: 700;
-      cursor: pointer;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
-    }
-    /* Hidden once actually peeking — the close button below takes over
-       as the way back to the journal. */
-    #map-row:has(#map-wrap.peek-open) #map-peek-toggle { display: none; }
+    /* Re-enable the per-entry "Show Map" button here — hidden by default
+       (desktop) up in its own rule above. */
+    .journal-map-link { display: block; }
 
     #map-wrap.peek-open #map-peek-close {
       display: flex;
@@ -882,7 +882,6 @@
       </div>
       <div id="peak-sidebar">
         <button id="sidebar-close" type="button" aria-label="Close">&times;</button>
-        <button id="map-peek-toggle" type="button" aria-label="Show map" onclick="openMapPeek()">Show Map</button>
         <div id="peak-sidebar-content"></div>
       </div>
     </div>
@@ -1422,9 +1421,11 @@ function formatDiaryDate(dateStr) {
 // showJournalRoute can look the exact ascent back up without needing the
 // full object serialized into the HTML string).
 function buildJournalEntryHTML(peak, ascent, index) {
-  const routeLink = ascent.routeFile
-    ? `<button type="button" class="journal-route-link" onclick="showJournalRoute(${peak.id}, ${index})">Show route &amp; elevation profile</button>`
-    : '';
+  // Mobile-only (see .journal-map-link's CSS) — always rendered, route or
+  // not, so a routeless peak still has a way to peek at the map and see
+  // where it actually is. showJournalRouteAndPeek no-ops the route switch
+  // when there isn't one to show, same as showRouteForAscent already did.
+  const routeLink = `<button type="button" class="journal-route-link journal-map-link" onclick="showJournalRouteAndPeek(${peak.id}, ${index})">Show Map</button>`;
   // Opens in a new tab since it's leaving the app entirely (an external
   // Google Photos album, or whatever the sheet's Photo Album column
   // points to) — rel="noopener" so that tab can't reach back into this
@@ -1530,9 +1531,9 @@ function buildTripEntryHTML(currentPeak, ascent, index, tripAscents) {
       : `<button type="button" class="trip-peak trip-peak-link" onclick="jumpToTripPeak(${pid})">${escapeHTML(p.name)}</button>`;
   }).join('');
 
-  const routeLink = merged.routeFile
-    ? `<button type="button" class="journal-route-link" onclick="showTripRoute(${currentPeak.id}, ${index})">Show route &amp; elevation profile</button>`
-    : '';
+  // See buildJournalEntryHTML's identical comment — mobile-only, always
+  // rendered regardless of whether this trip actually has a route file.
+  const routeLink = `<button type="button" class="journal-route-link journal-map-link" onclick="showTripRouteAndPeek(${currentPeak.id}, ${index})">Show Map</button>`;
   const albumLink = merged.photoAlbum
     ? `<a class="journal-route-link" href="${escapeHTML(merged.photoAlbum)}" target="_blank" rel="noopener">More photos from this climb ↗</a>`
     : '';
@@ -1647,6 +1648,25 @@ function showTripRoute(peakId, index) {
   const tripGroup = tripsByName[ascent.tripName] || [ascent];
   activeAscentIndex[peakId] = index;
   showRouteForAscent(peak, { routeFile: mergeTripContent(tripGroup).routeFile }, renderElevationProfile);
+}
+
+// Wired to each journal entry's "Show Map" button (.journal-map-link —
+// mobile-only, see its CSS) in place of the old separate desktop "Show
+// route & elevation profile" button + floating mobile "Show Map" toggle.
+// On desktop the map/profile are already visible beside the journal at
+// all times, so that button never did anything a mobile user couldn't
+// already see — these wrappers exist purely for mobile, where the map is
+// hidden behind the full-screen journal overlay and needs the peek to
+// actually be seen. Skips re-switching the route when this entry is
+// already the one showing (e.g. the default, most-recent ascent — no
+// need to re-fetch/re-render the same route just to peek at it again).
+function showJournalRouteAndPeek(peakId, index) {
+  if (activeAscentIndex[peakId] !== index) showJournalRoute(peakId, index);
+  openMapPeek();
+}
+function showTripRouteAndPeek(peakId, index) {
+  if (activeAscentIndex[peakId] !== index) showTripRoute(peakId, index);
+  openMapPeek();
 }
 
 /* =====================================================================
@@ -1972,12 +1992,14 @@ function copyEntryLink(peakId, index, btn) {
 }
 
 // Mobile-only "map peek" (see #map-wrap.peek-open in the mobile media
-// query, and the #map-peek-toggle/#map-peek-close buttons in the HTML) —
-// slides the map up over the full-screen journal overlay so a route can
-// be glanced at without leaving the peak, then slides back down. Both are
-// harmless no-ops on desktop: the classList toggle itself is fine either
-// way, but the CSS that gives it any visible effect only exists inside
-// the mobile media query, so callers never need their own mobile check.
+// query, triggered by each journal entry's "Show Map" button —
+// showJournalRouteAndPeek/showTripRouteAndPeek below — and dismissed by
+// #map-peek-close in the HTML) — slides the map up over the full-screen
+// journal overlay so a route can be glanced at without leaving the peak,
+// then slides back down. Both are harmless no-ops on desktop: the
+// classList toggle itself is fine either way, but the CSS that gives it
+// any visible effect only exists inside the mobile media query, so
+// callers never need their own mobile check.
 function openMapPeek() {
   document.getElementById('map-wrap').classList.add('peek-open');
   // #map-wrap only just became a full-screen element for the first time
