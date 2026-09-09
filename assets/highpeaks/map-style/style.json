@@ -3,16 +3,7 @@
   "name": "ADK Peak Map (no Standard)",
   "sprite": "mapbox://sprites/sframe938/cmt75d6wj00gv01s47s2q8ml4/ekhs3dcuv5r9q7oec7g99s8qj",
   "glyphs": "mapbox://fonts/mapbox/{fontstack}/{range}.pbf",
-  "terrain": {
-    "source": "mapbox://mapbox.mapbox-terrain-dem-v1",
-    "exaggeration": 1.5
-  },
   "sources": {
-    "mapbox://mapbox.mapbox-terrain-dem-v1": {
-      "url": "mapbox://mapbox.mapbox-terrain-dem-v1",
-      "type": "raster-dem",
-      "tileSize": 256
-    },
     "composite": {
       "url": "mapbox://mapbox.mapbox-streets-v8,mapbox.mapbox-terrain-v2,mapbox.mapbox-bathymetry-v2",
       "type": "vector"
@@ -27,19 +18,6 @@
       "id": "land",
       "type": "background",
       "paint": { "background-color": "#e1e2e7" }
-    },
-    {
-      "id": "mapbox-dem",
-      "type": "hillshade",
-      "source": "mapbox://mapbox.mapbox-terrain-dem-v1",
-      "layout": { "visibility": "visible" },
-      "paint": {
-        "hillshade-exaggeration": ["interpolate", ["exponential", 1.99], ["zoom"], 0, 0.3, 10, 0.8],
-        "hillshade-shadow-color": "#414922",
-        "hillshade-accent-color": "hsl(50, 69%, 51%)",
-        "hillshade-highlight-color": "#ffffff",
-        "hillshade-illumination-direction": 0
-      }
     },
     {
       "id": "landuse-greenspace",
@@ -63,6 +41,23 @@
       "source": "composite",
       "source-layer": "water",
       "paint": { "fill-color": "#a5c2ea", "fill-opacity": 1 }
+    },
+    {
+      "id": "hillshade-vector",
+      "type": "fill",
+      "source": "composite",
+      "source-layer": "hillshade",
+      "minzoom": 0,
+      "maxzoom": 16,
+      "filter": ["all", ["step", ["zoom"], ["==", ["get", "class"], "shadow"], 11, true], ["match", ["get", "level"], 89, true, 78, ["step", ["zoom"], false, 5, true], 67, ["step", ["zoom"], false, 9, true], 56, ["step", ["zoom"], false, 6, true], 94, ["step", ["zoom"], false, 11, true], 90, ["step", ["zoom"], false, 12, true], false]],
+      "layout": {},
+      "paint": {
+        "fill-color": ["interpolate", ["linear"], ["zoom"],
+          8, ["match", ["get", "class"], "shadow", "hsla(66, 38%, 17%, 0.35)", "hsla(50, 69%, 51%, 0.22)"],
+          16, ["match", ["get", "class"], "shadow", "hsla(66, 38%, 17%, 0)", "hsla(50, 69%, 51%, 0)"]
+        ],
+        "fill-antialias": false
+      }
     },
     {
       "id": "contour",
