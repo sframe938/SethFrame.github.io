@@ -192,6 +192,11 @@
      floating × this was. Gating on .open directly fixes it regardless of
      which positioning context happens to apply. */
   #sidebar-close { display: none; }
+  /* Mobile-only "map peek" controls (see the mobile media query below for
+     when they actually become visible) — hidden unconditionally here so
+     they never show up on desktop, where the map is already visible
+     beside the sidebar and peeking makes no sense. */
+  #map-peek-toggle, #map-peek-close { display: none; }
   #peak-sidebar.open #sidebar-close {
     display: block;
     position: absolute;
@@ -718,7 +723,8 @@
        to sit clear of the phone's status bar/notch. Width is no longer
        what's animating here, so the desktop transitionend->map.resize()
        listener won't fire on mobile — harmless, since the map's own size
-       never actually changes underneath a full-screen overlay. */
+       never actually changes underneath a full-screen overlay (the map
+       peek feature just below is the one exception — see its comment). */
     #peak-sidebar { position: static; width: 0; height: 0; border-right: none; transition: none; order: 0; }
     #peak-sidebar.open {
       position: fixed;
@@ -727,11 +733,99 @@
       height: 100%;
       z-index: 50;
     }
+    /* #peak-sidebar-content itself doesn't scroll past the fixed elevation
+       panel on its own — that panel is position:fixed (see above), so it's
+       removed from the document flow entirely and the content underneath
+       has no natural reason to leave room for it. This reserves that room
+       explicitly whenever the panel is open, so the last bit of a journal
+       entry can always be scrolled into view instead of ending up
+       permanently hidden underneath the chart. 205px matches the panel's
+       own max-height; the extra 16px is breathing room above it. */
     #peak-sidebar-content { width: 100%; }
+    /* #elev-profile-panel and #peak-sidebar-content aren't siblings
+       (they're in different branches under #map-row — #elev-profile-panel
+       lives inside #map-wrap), so this has to key off their shared
+       ancestor rather than a direct sibling combinator. */
+    #map-row:has(#elev-profile-panel.open) #peak-sidebar-content {
+      padding-bottom: calc(205px + 16px + env(safe-area-inset-bottom));
+    }
     /* Matches (and must at least match the specificity of) the
        #peak-sidebar.open #sidebar-close rule above, or these mobile
        overrides get silently outranked by it and never apply. */
     #peak-sidebar.open #sidebar-close { top: max(10px, env(safe-area-inset-top)); right: 14px; width: 34px; height: 34px; font-size: 20px; }
+
+    /* ---------------- mobile: map peek ----------------
+       Lets you glance at the map/route without leaving the journal
+       overlay. #map-wrap (map + elevation panel together) only becomes a
+       fixed, full-screen element while the journal sidebar is actually
+       open (:has()) — the normal 40vh map strip on the peak-list screen
+       (sidebar closed) is completely untouched by any of this. It starts
+       translated fully below the viewport the moment the sidebar opens,
+       so opening the sidebar alone reveals nothing; tapping "Show Map"
+       (inside the sidebar) slides it up over the journal, and tapping
+       "Back to Journal" (on the peeked map itself) slides it back down.
+       z-index sits above the sidebar's 50 so peeking covers the journal,
+       but below the elevation panel's own 60 so the profile chart stays
+       on top of the peeked map exactly like it already sits on top of
+       the journal — no extra rule needed for that, it falls out of the
+       existing z-index the panel already had.
+       Because the map's actual container size now genuinely changes
+       between the 40vh strip and full-screen (unlike the plain overlay
+       above, which never touched #map-wrap at all), openSidebar/
+       closeSidebar/openMapPeek all call map.resize() on mobile — see the
+       JS. */
+    #map-row:has(#peak-sidebar.open) #map-wrap {
+      position: fixed;
+      inset: 0;
+      z-index: 55;
+      transform: translateY(100%);
+      transition: transform 0.3s ease;
+    }
+    #map-wrap.peek-open { transform: translateY(0) !important; }
+
+    #peak-sidebar.open #map-peek-toggle {
+      display: flex;
+      align-items: center;
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      /* Cleared above the elevation panel's own max-height plus its
+         safe-area padding, whether or not the panel actually happens to
+         be open right now — simpler, and always correct, than tracking
+         the panel's live state just to reposition this one button. */
+      bottom: calc(205px + 16px + env(safe-area-inset-bottom));
+      z-index: 56;
+      padding: 10px 20px;
+      border-radius: 20px;
+      border: none;
+      background: var(--ink);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    }
+    /* Hidden once actually peeking — the close button below takes over
+       as the way back to the journal. */
+    #map-row:has(#map-wrap.peek-open) #map-peek-toggle { display: none; }
+
+    #map-wrap.peek-open #map-peek-close {
+      display: flex;
+      align-items: center;
+      position: fixed;
+      top: max(10px, env(safe-area-inset-top));
+      left: 14px;
+      z-index: 61; /* above the elevation panel's 60, so it's reachable even while the panel is open */
+      padding: 8px 16px;
+      border-radius: 20px;
+      border: none;
+      background: var(--ink);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    }
 
     #skyline-wrap { flex: 1; min-height: 0; overflow-y: auto; border-top: 1px solid var(--border); background: var(--paper); }
     #skyline { display: flex; flex-direction: column; align-items: stretch; height: auto; position: static; }
@@ -784,9 +878,11 @@
       <div id="map-wrap">
         <div id="map"></div>
         <div id="elev-profile-panel"></div>
+        <button id="map-peek-close" type="button" aria-label="Back to journal" onclick="closeMapPeek()">&darr; Back to Journal</button>
       </div>
       <div id="peak-sidebar">
         <button id="sidebar-close" type="button" aria-label="Close">&times;</button>
+        <button id="map-peek-toggle" type="button" aria-label="Show map" onclick="openMapPeek()">Show Map</button>
         <div id="peak-sidebar-content"></div>
       </div>
     </div>
@@ -1875,6 +1971,26 @@ function copyEntryLink(peakId, index, btn) {
   }
 }
 
+// Mobile-only "map peek" (see #map-wrap.peek-open in the mobile media
+// query, and the #map-peek-toggle/#map-peek-close buttons in the HTML) —
+// slides the map up over the full-screen journal overlay so a route can
+// be glanced at without leaving the peak, then slides back down. Both are
+// harmless no-ops on desktop: the classList toggle itself is fine either
+// way, but the CSS that gives it any visible effect only exists inside
+// the mobile media query, so callers never need their own mobile check.
+function openMapPeek() {
+  document.getElementById('map-wrap').classList.add('peek-open');
+  // #map-wrap only just became a full-screen element for the first time
+  // (or is being re-shown after having been resized away, e.g. by an
+  // orientation change while it was hidden) — make sure the canvas
+  // actually matches before it's visible, same reasoning as
+  // closeSidebar()'s call below.
+  map.resize();
+}
+function closeMapPeek() {
+  document.getElementById('map-wrap').classList.remove('peek-open');
+}
+
 // Same content (buildPopupHTML) and season-pill wiring the old Mapbox
 // popup used — only the container changed, from a marker-anchored bubble
 // to this fixed sidebar. `.open` is what actually slides it in (see the
@@ -1886,12 +2002,24 @@ function openSidebar(peak, keepAscentIndex) {
   document.getElementById('peak-sidebar-content').innerHTML = buildPopupHTML(peak, ascents);
   wirePopupSeasonPills(peak, ascents);
   document.getElementById('peak-sidebar').classList.add('open');
+  // Always start a (re)opened sidebar in journal view, not mid-peek from
+  // whatever peak was open before — see closeMapPeek()/openMapPeek() and
+  // the #map-wrap.peek-open mobile CSS.
+  closeMapPeek();
   setActivePeak(peak.id);
   setShareHash(peak.id);
 }
 
 function closeSidebar() {
   document.getElementById('peak-sidebar').classList.remove('open');
+  // On mobile, closing the journal overlay also releases #map-wrap back
+  // from its fixed/full-screen peek state to its normal 40vh-strip flex
+  // sizing (see the #map-row:has(#peak-sidebar.open) rule) — the map's
+  // real container size changes at that instant, same as opening the
+  // peek does, so it needs the same map.resize() nudge. Harmless no-op
+  // on desktop, where #map-wrap's size never depends on the sidebar.
+  closeMapPeek();
+  map.resize();
   setActivePeak(null);
   clearRoute();
   clearShareHash();
