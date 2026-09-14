@@ -940,11 +940,36 @@
         const filling = avg('Filling');
         const size = avg('Size');
         const price = avg('Price ($)');
+
+        // Overall Score weighting by dining type: crispiness is expected to
+        // degrade with transport/reheating (not the restaurant's fault), so
+        // its weight shrinks for Carry-out/Leftover while Flavor and Filling
+        // pick up the difference. Size stays flat at 25% regardless — portion
+        // size doesn't change based on how the food was eaten.
+        const WEIGHTS = {
+          'Carry-out': { crisp: 0.15, flavor: 0.30, filling: 0.30, size: 0.25 },
+          'Leftover':  { crisp: 0.05, flavor: 0.35, filling: 0.35, size: 0.25 },
+          'Eat-In':    { crisp: 0.25, flavor: 0.25, filling: 0.25, size: 0.25 }
+        };
+        const DEFAULT_WEIGHTS = WEIGHTS['Eat-In'];
+
         const overallVals = forThis
           .map(r => {
-            const c = parseFloat(r['Crispiness']), fl = parseFloat(r['Flavor']), f = parseFloat(r['Filling']), s = parseFloat(r['Size']);
-            const vals = [c, fl, f, s].filter(n => !isNaN(n));
-            return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : NaN;
+            const w = WEIGHTS[(r['Dining'] || '').trim()] || DEFAULT_WEIGHTS;
+            const vals = {
+              crisp: parseFloat(r['Crispiness']),
+              flavor: parseFloat(r['Flavor']),
+              filling: parseFloat(r['Filling']),
+              size: parseFloat(r['Size'])
+            };
+            let weightedSum = 0, totalWeight = 0;
+            for (const key in vals) {
+              if (!isNaN(vals[key])) {
+                weightedSum += vals[key] * w[key];
+                totalWeight += w[key];
+              }
+            }
+            return totalWeight > 0 ? weightedSum / totalWeight : NaN;
           })
           .filter(n => !isNaN(n));
         const overall = overallVals.length ? overallVals.reduce((a, b) => a + b, 0) / overallVals.length : NaN;
