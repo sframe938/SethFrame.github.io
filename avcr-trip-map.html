@@ -139,7 +139,8 @@
     box-shadow: 0 1px 4px rgba(0,0,0,.12);
   }
   .chip .dot { width: 9px; height: 9px; border-radius: 50%; }
-  .chip.on { border-color: var(--ink); background: var(--ink); color: #fff; }
+  .chip:hover { border-color: var(--brand); }
+  .chip.on { border-color: var(--brand-dk); background: var(--brand-dk); color: #fff; }
   .chip.clear { color: var(--muted); }
   .chip.river-toggle .dot { background: var(--river); }
 
@@ -230,8 +231,32 @@
   .save-btn.saved { background: var(--route); color: #fff; }
   .river-pp .pp-head { background: var(--river); }
 
-  .mapboxgl-ctrl-home { display: flex; align-items: center; justify-content: center; width: 29px; height: 29px; background: #fff; border: none; cursor: pointer; color: var(--ink); padding: 0; }
-  .mapboxgl-ctrl-home:hover { background: var(--bg); }
+  .mapboxgl-ctrl-home { display: flex; align-items: center; justify-content: center; width: 29px; height: 29px; background: #fff; border: none; cursor: pointer; color: var(--brand); padding: 0; }
+
+  /* Map control groups in the brand palette: soft green outline, green
+     icons, light-green hover, green dividers between stacked buttons. */
+  .mapboxgl-ctrl-group {
+    border-radius: 8px;
+    box-shadow: 0 0 0 1.5px rgba(0,160,76,.45), 0 2px 6px rgba(0,0,0,.12) !important;
+  }
+  .mapboxgl-ctrl-group button + button { border-top: 1px solid var(--brand-lt) !important; }
+  .mapboxgl-ctrl-group button:not(:disabled):hover,
+  .mapboxgl-ctrl-home:hover { background-color: var(--brand-lt) !important; }
+  .mapboxgl-ctrl button.mapboxgl-ctrl-zoom-in .mapboxgl-ctrl-icon {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 29 29'%3E%3Cpath d='M14.5 8.5v12M8.5 14.5h12' stroke='%2300a04c' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+  }
+  .mapboxgl-ctrl button.mapboxgl-ctrl-zoom-out .mapboxgl-ctrl-icon {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 29 29'%3E%3Cpath d='M8.5 14.5h12' stroke='%2300a04c' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E") !important;
+  }
+
+  /* Compass drawn as the frog's eye from the logo: white disc, green ring,
+     and the leaf-shaped pupil standing upright as the needle (north half in
+     the main green, south half in the light green). Mapbox still rotates
+     this icon with the map bearing, so it works exactly like the stock one. */
+  .mapboxgl-ctrl button.mapboxgl-ctrl-compass .mapboxgl-ctrl-icon {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 29 29'%3E%3Ccircle cx='14.5' cy='14.5' r='10' fill='%23fff' stroke='%2300a04c' stroke-width='1.8'/%3E%3Cpath d='M14.5 6.2C17.4 9.4 18 12 18 14.5H11C11 12 11.6 9.4 14.5 6.2Z' fill='%2300a04c'/%3E%3Cpath d='M11 14.5H18C18 17 17.4 19.6 14.5 22.8C11.6 19.6 11 17 11 14.5Z' fill='%236cbc44'/%3E%3C/svg%3E") !important;
+    background-size: 100% 100%;
+  }
 
   #toast {
     position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%); z-index: 5;
@@ -254,7 +279,8 @@
       padding: 8px 13px; border-radius: 999px; border: 1.5px solid var(--border);
       background: rgba(255,255,255,.97); box-shadow: 0 1px 5px rgba(0,0,0,.15); cursor: pointer;
     }
-    #filter-btn.has-filters { background: var(--ink); color: #fff; border-color: var(--ink); }
+    #filter-btn { color: var(--brand-dk); border-color: rgba(0,160,76,.45); }
+    #filter-btn.has-filters { background: var(--brand-dk); color: #fff; border-color: var(--brand-dk); }
     #chips {
       display: none; top: 52px; left: 10px; right: 10px; flex-wrap: wrap; gap: 6px;
       padding: 10px; border-radius: 12px; background: rgba(255,255,255,.98);
