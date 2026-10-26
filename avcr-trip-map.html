@@ -513,7 +513,16 @@ class HomeControl {
     this._c.innerHTML = `<button class="mapboxgl-ctrl-home" title="Trip overview" aria-label="Trip overview">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/><polyline points="9 21 9 13 15 13 15 21"/></svg></button>`;
-    this._c.querySelector('button').addEventListener('click', () => selectDay(-1));
+    this._c.querySelector('button').addEventListener('click', () => {
+      if (currentTrip === 'all') {
+        activePlace = null;
+        popup.remove();
+        refreshMarkerClasses();
+        fitCostaRica();
+      } else {
+        selectDay(-1);
+      }
+    });
     return this._c;
   }
   onRemove() { this._c.remove(); }
@@ -691,6 +700,24 @@ map.on('style.load', () => {
     layout: { 'line-join': 'round', 'line-cap': 'round' },
     paint: { 'line-color': '#f26b3a', 'line-width': 4 }
   }, beforeLabels);
+
+  // Costa Rica highlight — Mapbox's free Country Boundaries tileset.
+  // Neighbors (and their labels) get a soft wash; Costa Rica gets a crisp
+  // outline. Added last so the wash sits over the whole basemap; markers
+  // are DOM elements and stay on top regardless.
+  map.addSource('countries', { type: 'vector', url: 'mapbox://mapbox.country-boundaries-v1' });
+  const worldview = ['any', ['==', ['get', 'worldview'], 'all'], ['in', 'US', ['get', 'worldview']]];
+  map.addLayer({
+    id: 'outside-cr', type: 'fill', source: 'countries', 'source-layer': 'country_boundaries',
+    filter: ['all', worldview, ['!=', ['get', 'iso_3166_1'], 'CR']],
+    paint: { 'fill-color': '#f4f7f3', 'fill-opacity': 0.7 }
+  });
+  map.addLayer({
+    id: 'cr-outline', type: 'line', source: 'countries', 'source-layer': 'country_boundaries',
+    filter: ['all', worldview, ['==', ['get', 'iso_3166_1'], 'CR']],
+    layout: { 'line-join': 'round' },
+    paint: { 'line-color': '#0e6b30', 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 1.5, 10, 2.5], 'line-opacity': 0.75 }
+  });
 
   applyRiverVisibility();
   readHash();
@@ -1090,8 +1117,20 @@ function fitTo(pids, { pitch = 0, maxZoom = 11.5 } = {}) {
   });
 }
 
+// Mainland Costa Rica (Cocos Island left out on purpose).
+const COSTA_RICA_BOUNDS = [[-85.95, 8.03], [-82.55, 11.22]];
+function fitCostaRica() {
+  const mobile = window.innerWidth <= 760;
+  map.fitBounds(COSTA_RICA_BOUNDS, {
+    padding: mobile ? { top: 50, bottom: 30, left: 20, right: 20 } : { top: 60, bottom: 40, left: 40, right: 60 },
+    pitch: 0, bearing: 0, duration: 1400
+  });
+}
+
 function frameCurrent() {
-  if (currentTrip === 'all' || currentDayIdx < 0) {
+  if (currentTrip === 'all') {
+    fitCostaRica();
+  } else if (currentDayIdx < 0) {
     fitTo(visiblePlaceIds(), { pitch: 20, maxZoom: 9 });
   } else {
     const ids = [...currentDayPlaceIds()];
