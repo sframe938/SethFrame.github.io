@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Trip Map – Amazing Vacations Costa Rica</title>
+
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.18.1/mapbox-gl.css" rel="stylesheet" />
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.18.1/mapbox-gl.js"></script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  /* ---- Palette: greens approximated from the AVCR frog logo (verify exact
+     hex values against their site CSS / logo file), plus a warm coral for
+     routes so they don't disappear into a green basemap, and water blue
+     reserved for the river layer. ---- */
+  :root {
+    --brand:     #1a9b3c;
+    --brand-dk:  #0e6b30;
+    --lime:      #8cc63f;
+    --brand-lt:  #e6f4e9;
+    --ink:       #22302a;
+    --muted:     #65736b;
+    --paper:     #ffffff;
+    --bg:        #f4f7f3;
+    --border:    #e1e8e2;
+    --route:     #f26b3a;
+    --river:     #1f8fd6;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: 'Inter', Arial, sans-serif; color: var(--ink); background: var(--bg); }
+
+  #app { display: grid; grid-template-columns: 370px 1fr; height: 100vh; }
+
+  /* ---------------- sidebar ---------------- */
+  #sidebar { display: flex; flex-direction: column; background: var(--paper); border-right: 1px solid var(--border); min-height: 0; }
+
+  .brand { padding: 16px 20px 12px; border-bottom: 3px solid var(--brand); }
+  .brand a { text-decoration: none; display: inline-block; }
+  .brand .wm-top { font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 20px; line-height: 1; color: var(--brand); letter-spacing: .01em; }
+  .brand .wm-sub { font-family: 'Poppins', sans-serif; font-weight: 600; font-size: 11px; letter-spacing: .32em; color: var(--brand-dk); margin-top: 3px; }
+  .brand .kicker { font-size: 11px; color: var(--muted); margin-top: 8px; }
+
+  .trip-picker { display: flex; gap: 8px; padding: 12px 20px; border-bottom: 1px solid var(--border); }
+  .trip-select {
+    flex: 1; min-width: 0; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--ink);
+    padding: 8px 32px 8px 10px; border-radius: 6px; border: 1.5px solid var(--border); background-color: var(--paper);
+    cursor: pointer; appearance: none; -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='16' height='16' fill='none' stroke='%2365736b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 10px center;
+  }
+  .trip-select:hover, .trip-select:focus { border-color: var(--brand); outline: none; }
+  .trip-select.muted { color: var(--muted); font-weight: 500; }
+  .explore-btn {
+    flex-shrink: 0; font-family: inherit; font-size: 12px; font-weight: 600; white-space: nowrap;
+    padding: 8px 12px; border-radius: 6px; cursor: pointer;
+    border: 1.5px solid var(--border); background: var(--paper); color: var(--ink);
+    transition: background .15s, border-color .15s, color .15s;
+  }
+  .explore-btn:hover { border-color: var(--brand); }
+  .explore-btn.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+
+  #trip-summary { padding: 14px 20px; border-bottom: 1px solid var(--border); }
+  #trip-summary h2 { font-family: 'Poppins', sans-serif; font-size: 19px; font-weight: 700; color: var(--brand-dk); }
+  #trip-summary .meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  #trip-summary .tagline { font-size: 13px; line-height: 1.5; margin-top: 8px; }
+  .cta-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; font-family: inherit;
+    font-size: 12px; font-weight: 600; padding: 7px 12px; border-radius: 6px;
+    text-decoration: none; cursor: pointer; border: 1.5px solid var(--brand);
+  }
+  .btn-solid { background: var(--brand); color: #fff; }
+  .btn-solid:hover { background: var(--brand-dk); border-color: var(--brand-dk); }
+  .btn-ghost { background: var(--paper); color: var(--brand-dk); }
+  .btn-ghost:hover { background: var(--brand-lt); }
+
+  #day-nav { display: flex; align-items: center; gap: 8px; padding: 10px 20px; background: var(--bg); border-bottom: 1px solid var(--border); }
+  #day-nav button {
+    font-family: inherit; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+    padding: 6px 10px; border-radius: 5px; border: 1px solid var(--border); background: var(--paper); color: var(--ink); cursor: pointer;
+  }
+  #day-nav button:hover:not(:disabled) { background: var(--brand); color: #fff; border-color: var(--brand); }
+  #day-nav button:disabled { opacity: .35; cursor: default; }
+  #day-indicator { flex: 1; text-align: center; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+
+  #day-list { flex: 1; overflow-y: auto; min-height: 0; }
+  .day { border-bottom: 1px solid var(--border); }
+  .day-head {
+    display: flex; align-items: baseline; gap: 8px; padding: 11px 20px 6px; cursor: pointer;
+  }
+  .day-head .dnum { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 13px; color: var(--brand-dk); white-space: nowrap; }
+  .day-head .dtitle { font-size: 12px; color: var(--muted); }
+  .day.active { background: var(--brand-lt); box-shadow: inset 4px 0 0 var(--brand); }
+  .day-items { padding: 0 20px 10px; }
+
+  .item { display: flex; align-items: center; gap: 10px; padding: 6px 8px; margin: 0 -8px; border-radius: 6px; cursor: pointer; }
+  .item:hover { background: rgba(26,155,60,.08); }
+  .item .ico { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .item .ico svg { width: 13px; height: 13px; }
+  .item .txt { min-width: 0; flex: 1; }
+  .item .nm { font-size: 13px; font-weight: 600; line-height: 1.3; }
+  .item .sub { font-size: 11px; color: var(--muted); }
+  .item.dimmed { opacity: .35; pointer-events: none; }
+
+  .choose { border: 1px dashed #b9d8c1; border-radius: 8px; padding: 4px 10px 6px; margin: 4px 0 6px; }
+  .choose-label { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--brand); padding: 4px 0 2px; }
+  .or { font-size: 10px; color: var(--muted); text-align: center; letter-spacing: .1em; text-transform: uppercase; }
+
+  .region-head { padding: 14px 20px 4px; font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 13px; color: var(--brand-dk); }
+
+  .side-foot { padding: 10px 20px; font-size: 10.5px; color: var(--muted); border-top: 1px solid var(--border); }
+
+  /* ---------------- map + overlays ---------------- */
+  #map-wrap { position: relative; min-height: 0; }
+  #map { position: absolute; inset: 0; }
+
+  #chips {
+    position: absolute; top: 12px; left: 12px; right: 60px; z-index: 3;
+    display: flex; gap: 6px; flex-wrap: wrap; pointer-events: none;
+  }
+  .chip {
+    pointer-events: auto; display: inline-flex; align-items: center; gap: 6px;
+    font-family: inherit; font-size: 12px; font-weight: 600; padding: 6px 11px; border-radius: 999px;
+    background: rgba(255,255,255,.95); border: 1.5px solid var(--border); color: var(--ink); cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,.12);
+  }
+  .chip .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .chip.on { border-color: var(--ink); background: var(--ink); color: #fff; }
+  .chip.clear { color: var(--muted); }
+  .chip.river-toggle .dot { background: var(--river); }
+
+  #picks-btn {
+    position: absolute; bottom: 30px; right: 12px; z-index: 3;
+    font-family: inherit; font-size: 13px; font-weight: 700; padding: 10px 16px; border-radius: 999px;
+    border: none; background: var(--route); color: #fff; cursor: pointer; box-shadow: 0 3px 12px rgba(0,0,0,.25);
+  }
+  #picks-btn .count { display: inline-block; min-width: 20px; padding: 1px 6px; margin-left: 6px; border-radius: 999px; background: #fff; color: var(--route); font-size: 11px; }
+
+  #picks-panel {
+    position: absolute; bottom: 80px; right: 12px; z-index: 4; width: 300px; max-height: 60%;
+    display: none; flex-direction: column; background: var(--paper); border-radius: 10px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.25); overflow: hidden;
+  }
+  #picks-panel.open { display: flex; }
+  #picks-panel h3 { font-family: 'Poppins', sans-serif; font-size: 15px; padding: 14px 16px 4px; color: var(--brand-dk); }
+  #picks-panel .hint { font-size: 12px; color: var(--muted); padding: 0 16px 8px; }
+  #picks-list { list-style: none; overflow-y: auto; padding: 0 16px; }
+  #picks-list li { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  #picks-list li span { flex: 1; }
+  #picks-list li button { border: none; background: none; color: var(--muted); font-size: 16px; cursor: pointer; }
+  #picks-panel .actions { padding: 12px 16px 14px; display: flex; flex-direction: column; gap: 8px; }
+  #picks-panel .actions .btn { justify-content: center; }
+
+  /* ---------------- markers ---------------- */
+  .mk { width: 30px; height: 30px; cursor: pointer; }
+  .mk-inner {
+    position: relative; width: 100%; height: 100%; border-radius: 50%;
+    border: 2.5px solid #fff; box-shadow: 0 2px 7px rgba(0,0,0,.35);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .18s ease, opacity .18s ease;
+  }
+  .mk-inner svg { width: 15px; height: 15px; }
+  .mk-badge {
+    position: absolute; top: -7px; right: -9px; min-width: 18px; height: 18px; padding: 0 4px;
+    border-radius: 9px; background: var(--brand-dk); color: #fff; border: 1.5px solid #fff;
+    font-size: 9.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; white-space: nowrap;
+  }
+  .mk.out-day .mk-inner { opacity: .45; transform: scale(.82); }
+  /* Filtered-out markers are visual context only: no clicks, no hover
+     tooltip, and drawn beneath active markers so a bunched-up cluster
+     never puts a faded marker on top of a live one. */
+  .mk.filtered { pointer-events: none; z-index: 0 !important; }
+  .mk.filtered .mk-inner { opacity: .18; transform: scale(.75); }
+  .mk:not(.filtered) { z-index: 2; }
+  .mk.active:not(.filtered) { z-index: 5; }
+  .mk.active .mk-inner { transform: scale(1.3); box-shadow: 0 0 0 4px rgba(242,107,58,.45), 0 2px 8px rgba(0,0,0,.4); opacity: 1; }
+
+  /* ---------------- popup ---------------- */
+  .mapboxgl-popup-content { padding: 0; border-radius: 10px; overflow: hidden; font-family: 'Inter', sans-serif; box-shadow: 0 6px 22px rgba(0,0,0,.22); }
+  .mapboxgl-popup-close-button { font-size: 18px; color: #fff; right: 4px; top: 2px; }
+  .pp-head { padding: 10px 30px 10px 14px; color: #fff; }
+  .pp-tag { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; opacity: .9; }
+  .pp-name { font-family: 'Poppins', sans-serif; font-weight: 700; font-size: 15px; line-height: 1.25; margin-top: 2px; }
+  .pp-body { padding: 10px 14px 12px; }
+  .pp-meta { font-size: 11.5px; color: var(--muted); }
+  .pp-blurb { font-size: 13px; line-height: 1.5; margin-top: 6px; }
+  .pp-also { font-size: 11.5px; margin-top: 8px; padding: 6px 8px; border-radius: 6px; background: var(--brand-lt); color: var(--brand-dk); }
+  .pp-also a { color: var(--brand-dk); font-weight: 700; cursor: pointer; text-decoration: underline; }
+  .pp-actions { margin-top: 10px; display: flex; gap: 8px; }
+  .save-btn { font-family: inherit; font-size: 12px; font-weight: 700; padding: 6px 12px; border-radius: 999px; cursor: pointer; border: 1.5px solid var(--route); background: #fff; color: var(--route); }
+  .save-btn.saved { background: var(--route); color: #fff; }
+  .river-pp .pp-head { background: var(--river); }
+
+  .mapboxgl-ctrl-home { display: flex; align-items: center; justify-content: center; width: 29px; height: 29px; background: #fff; border: none; cursor: pointer; color: var(--ink); padding: 0; }
+  .mapboxgl-ctrl-home:hover { background: var(--bg); }
+
+  #toast {
+    position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%); z-index: 5;
+    background: var(--ink); color: #fff; font-size: 13px; font-weight: 600; padding: 9px 16px; border-radius: 999px;
+    opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  #toast.show { opacity: 1; }
+
+  /* ---------------- mobile ---------------- */
+  @media (max-width: 760px) {
+    #app { grid-template-columns: 1fr; grid-template-rows: 52vh 1fr; height: 100vh; }
+    #map-wrap { order: 1; }
+    #sidebar { order: 2; border-right: none; border-top: 3px solid var(--brand); }
+    .brand { display: none; }
+    #chips { flex-wrap: nowrap; overflow-x: auto; right: 12px; padding-bottom: 4px; }
+    .chip { flex-shrink: 0; }
+    #picks-panel { left: 12px; right: 12px; width: auto; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <aside id="sidebar">
+    <div class="brand">
+      <!-- Placeholder wordmark — swap in their logo file (SVG/PNG) once received. -->
+      <a href="https://amazingvacationscostarica.com/" target="_blank" rel="noopener">
+        <div class="wm-top">AMAZING VACATIONS</div>
+        <div class="wm-sub">COSTA RICA</div>
+      </a>
+      <div class="kicker">Explore our trips on the map</div>
+    </div>
+
+    <div class="trip-picker">
+      <select class="trip-select" id="trip-select" aria-label="Choose a trip"></select>
+      <button type="button" class="explore-btn" id="explore-btn">Explore all</button>
+    </div>
+    <div id="trip-summary"></div>
+
+    <div id="day-nav">
+      <button id="back-btn" type="button">&larr; Back</button>
+      <div id="day-indicator">Overview</div>
+      <button id="next-btn" type="button">Next &rarr;</button>
+    </div>
+
+    <div id="day-list"></div>
+
+    <div class="side-foot">Prototype · locations approximate · photos coming</div>
+  </aside>
+
+  <div id="map-wrap">
+    <div id="map"></div>
+    <div id="chips"></div>
+    <button id="picks-btn" type="button">My picks<span class="count" id="picks-count">0</span></button>
+    <div id="picks-panel">
+      <h3>My picks</h3>
+      <div class="hint" id="picks-hint">Save activities from the map, then send them to our team to start planning.</div>
+      <ul id="picks-list"></ul>
+      <div class="actions">
+        <a class="btn btn-solid" id="send-picks" href="#">Email my picks to Amazing Vacations</a>
+        <a class="btn btn-ghost" href="https://amazingvacationscostarica.com/CustomTripPlanStep1/" target="_blank" rel="noopener">Start planning online</a>
+      </div>
+    </div>
+    <div id="toast"></div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   CONFIG
+   Token/style: currently Seth's account + a stock Mapbox style for the
+   demo. For the handoff, swap both for AVCR's own account (same pattern
+   as the Great Lakes Review map).
+   ===================================================================== */
+const MAPBOX_TOKEN = 'pk.eyJ1Ijoic2ZyYW1lOTM4IiwiYSI6ImNqN2RweG9ydjBkenIycWt5Z2c5NWtsajcifQ.bA0BviPhPcygQREBZd0cdQ';
+const MAPBOX_STYLE = 'mapbox://styles/mapbox/outdoors-v12';
+
+const PICKS_EMAIL = 'trips@amazingvacationscostarica.com';
+const PLANNING_URL = 'https://amazingvacationscostarica.com/CustomTripPlanStep1/';
+
+const HOME_CENTER = [-84.55, 10.15];
+const HOME_ZOOM = 7.4;
+
+/* =====================================================================
+   CATEGORIES — drive marker color/icon and the filter chips.
+   ===================================================================== */
+const ICONS = {
+  whitewater: '<path d="M2 10c2.5-3 4.5-3 7 0s4.5 3 7 0 4-3 6 0"/><path d="M2 17c2.5-3 4.5-3 7 0s4.5 3 7 0 4-3 6 0"/>',
+  zipline:    '<path d="M2 4l20 6"/><path d="M12 7v5"/><circle cx="12" cy="15.5" r="3"/>',
+  canyoning:  '<path d="M5 3h14"/><path d="M12 3v12"/><path d="M8 19l4-4 4 4"/><path d="M12 15v6"/>',
+  hiking:     '<path d="M3 20l6-11 4 7 3-4 5 8z"/>',
+  wildlife:   '<path d="M5 19c0-8 6-14 14-14 0 8-6 14-14 14z"/><path d="M5 19l8-8"/>',
+  culture:    '<path d="M4 8h13v5a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6z"/><path d="M17 10h2a2 2 0 0 1 0 4h-2"/><path d="M8 2v3M12 2v3"/>',
+  beach:      '<circle cx="12" cy="10" r="4"/><path d="M3 20h18"/><path d="M12 2v2M4.9 4.9l1.4 1.4M19.1 4.9l-1.4 1.4M2 10h2M20 10h2"/>',
+  horseback:  '<path d="M7 20V11a5 5 0 0 1 10 0v9"/><path d="M4 20h5M15 20h5"/>',
+  lodging:    '<path d="M3 19V7"/><path d="M3 15h18v4"/><path d="M21 15v-2a3 3 0 0 0-3-3h-7v5"/><circle cx="7" cy="12" r="1.6"/>',
+  airport:    '<path d="M2 13l20-6-5 13-4-5-4 3v-5z"/><path d="M13 15l9-8"/>'
+};
+
+const CATS = {
+  whitewater: { label: 'Whitewater',          color: '#1f8fd6', filter: true },
+  zipline:    { label: 'Ziplines',            color: '#e39a12', filter: true },
+  canyoning:  { label: 'Canyoning',           color: '#7a4fd6', filter: true },
+  hiking:     { label: 'Hikes & waterfalls',  color: '#2e8b57', filter: true },
+  wildlife:   { label: 'Wildlife',            color: '#5d8f22', filter: true },
+  culture:    { label: 'Culture & food',      color: '#c2563a', filter: true },
+  beach:      { label: 'Beach & sea',         color: '#12a1a1', filter: true },
+  horseback:  { label: 'Horseback',           color: '#9a6b3f', filter: true },
+  lodging:    { label: 'Lodging',             color: '#22302a', filter: false },
+  airport:    { label: 'Airport',             color: '#5f6b66', filter: false }
+};
+
+function iconSVG(cat) {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">${ICONS[cat] || ''}</svg>`;
+}
+
+/* =====================================================================
+   PLACES — one row per real place, reused across trips.
+   ALL COORDINATES ARE APPROXIMATE (placed from general knowledge for the
+   demo). Verify every one before handoff.
+   ===================================================================== */
+const PLACES = {
+  // ---- Famous Costa Rica ----
+  'lir':            { name: 'Liberia International Airport', cat: 'airport', region: 'Guanacaste', lat: 10.5933, lng: -85.5444,
+                      blurb: 'Northern gateway airport. Your driver meets you right outside arrivals.' },
+  'arenal-paraiso': { name: 'Arenal Paraiso Resort & Spa', cat: 'lodging', region: 'Arenal', lat: 10.4835, lng: -84.7180,
+                      blurb: 'Volcano-view cabins with free hot spring pools, a few minutes outside La Fortuna.' },
+  'ecoglide':       { name: 'Ecoglide Zipline & Tarzan Swing', cat: 'zipline', region: 'Arenal', lat: 10.4725, lng: -84.6740, duration: '3 hours',
+                      blurb: '13 cables and 15 platforms through the rainforest canopy, plus a Tarzan swing from a 38 m platform.' },
+  'sarapiqui-raft': { name: 'Sarapiquí River Rafting', cat: 'whitewater', region: 'Sarapiquí', lat: 10.3990, lng: -84.1210, duration: '7 hours',
+                      blurb: 'Class II–III rafting with 20+ rapids over about 5 miles of rainforest river. Lunch included.' },
+  'arenal-hike':    { name: 'Arenal Volcano Guided Hike', cat: 'hiking', region: 'Arenal', lat: 10.4620, lng: -84.7360, duration: '3 hours',
+                      blurb: 'Easy trails across the 1968 and 1992 lava flows, with views of the volcano, Lake Arenal and Cerro Chato.' },
+  'cooking':        { name: 'Cooking Class & Salsa Dancing', cat: 'culture', region: 'Arenal', lat: 10.4690, lng: -84.6430, duration: '5 hours',
+                      blurb: 'Cook a Costa Rican dinner with a local chef, sit down to eat it, then learn salsa, merengue and bachata.' },
+  'fortuna-falls':  { name: 'La Fortuna Waterfall Hike', cat: 'hiking', region: 'Arenal', lat: 10.4416, lng: -84.6781, duration: '4 hours',
+                      blurb: 'Hike down to the 150-ft La Fortuna Waterfall and swim in the clear pools at its base.' },
+  'lost-canyon':    { name: 'Lost Canyon Canyoning', cat: 'canyoning', region: 'Arenal', lat: 10.4050, lng: -84.6000, duration: '4 hours',
+                      blurb: 'Rappel a chain of waterfalls up to 200 ft, with a guided free fall along the way. Lunch included.' },
+  'diria':          { name: 'Tamarindo Diria Beach Resort', cat: 'lodging', region: 'Guanacaste', lat: 10.2995, lng: -85.8418,
+                      blurb: 'Beachfront resort on Playa Tamarindo with two pools and dining under a giant matapalo tree.' },
+  'catalina':       { name: 'Snorkel at Islas Catalinas', cat: 'beach', region: 'Guanacaste', lat: 10.4850, lng: -85.8750, duration: '2 hours',
+                      blurb: 'Boat out to volcanic rock islands rich with rays, reef fish and turtles.' },
+  'surf':           { name: 'Surf Lessons', cat: 'beach', region: 'Guanacaste', lat: 10.2960, lng: -85.8405, duration: '2 hours',
+                      blurb: 'Beginner-friendly lessons paced to your group, often right off the hotel beach.' },
+  'tamarindo':      { name: 'Tamarindo Free Day', cat: 'beach', region: 'Guanacaste', lat: 10.3015, lng: -85.8385, duration: 'All day',
+                      blurb: 'A day to enjoy the surf town: long beach, sunsets and some of the country\'s best restaurants.' },
+
+  // ---- Adventures Abounds ----
+  'sjo':            { name: 'Juan Santamaría International Airport', cat: 'airport', region: 'Central Valley', lat: 9.9939, lng: -84.2088,
+                      blurb: 'San José\'s main airport. Your driver meets you right outside arrivals.' },
+  'turrialba-bb':   { name: 'Turrialba Bed & Breakfast', cat: 'lodging', region: 'Turrialba', lat: 9.9045, lng: -83.6835,
+                      blurb: 'Downtown B&B in Turrialba, the company\'s home base. You\'ll likely meet part of the team here.' },
+  'guayabo':        { name: 'Guayabo Archaeological Site', cat: 'culture', region: 'Turrialba', lat: 9.9725, lng: -83.6905, duration: '2 hours',
+                      blurb: 'Guided jungle walk to Costa Rica\'s largest pre-Columbian ruins, on the slopes of Turrialba Volcano.' },
+  'horseback':      { name: 'Horseback Riding, Hacienda Monte Claro', cat: 'horseback', region: 'Turrialba', lat: 9.8720, lng: -83.6480, duration: '2 hours',
+                      blurb: 'Ride through coffee and sugar cane country with views over the Reventazón basin and Turrialba Volcano.' },
+  'la-marta':       { name: 'La Marta Wildlife Refuge Hike', cat: 'wildlife', region: 'Turrialba', lat: 9.7880, lng: -83.7010, duration: '2 hours',
+                      blurb: 'Costa Rica\'s first private wildlife refuge: primary forest, old gold-mine ruins and river pools.' },
+  'sitio-mata':     { name: 'Canyoning Sitio Mata', cat: 'canyoning', region: 'Turrialba', lat: 9.8580, lng: -83.6060, duration: '5 hours',
+                      blurb: 'Rappel five waterfalls into a rainforest canyon, then hike out to a Costa Rican lunch.' },
+  'pejibaye':       { name: 'Pejibaye Park and Play', cat: 'whitewater', region: 'Turrialba', lat: 9.8130, lng: -83.7060, duration: '5 hours',
+                      blurb: 'Kayak, SUP or duckie on a section of the Pejibaye used for international slalom racing. A guide favorite.' },
+  'pacayitas':      { name: 'Pacayitas Cultural Day', cat: 'culture', region: 'Turrialba', lat: 9.8400, lng: -83.6150, duration: '4 hours',
+                      blurb: 'Sugar cane milling, coffee production and a blue morpho butterfly garden in a small mountain town.' },
+  'pacuare':        { name: 'Pacuare River Rafting', cat: 'whitewater', region: 'Turrialba', lat: 9.9480, lng: -83.5660, duration: '4 hours',
+                      blurb: 'About 8 miles of continuous Class III whitewater through remote jungle on one of the world\'s top rafting rivers.' },
+  'ara-ambigua':    { name: 'Hotel Ara Ambigua', cat: 'lodging', region: 'Sarapiquí', lat: 10.4520, lng: -84.0300,
+                      blurb: 'Family-run eco-lodge set in seven acres of rainforest with lagoons, trails and two pools.' },
+  'tirimbina':      { name: 'Chocolate Tour at Tirimbina', cat: 'culture', region: 'Sarapiquí', lat: 10.4155, lng: -84.1205, duration: '2 hours',
+                      blurb: 'Cross a long hanging bridge to a cacao plantation and taste chocolate at every stage, bean to bar.' },
+  'zip-sarapiqui':  { name: 'Zipline Sarapiquí', cat: 'zipline', region: 'Sarapiquí', lat: 10.4380, lng: -84.0780, duration: '2 hours',
+                      blurb: '14 lines through 114 hectares of forest, crossing the Sarapiquí River twice.' },
+  'night-hike':     { name: 'Night Hike at Ara Ambigua', cat: 'wildlife', region: 'Sarapiquí', lat: 10.4535, lng: -84.0280, duration: '1 hour',
+                      blurb: 'A flashlight walk around the lodge looking for red-eyed tree frogs, poison dart frogs and more.' },
+  'la-paz':         { name: 'La Paz Waterfall Gardens', cat: 'hiking', region: 'Central Valley', lat: 10.2030, lng: -84.1600, duration: '2 hours',
+                      blurb: 'Five waterfalls and an animal sanctuary on the way back to San José. Lunch included.' },
+  'holiday-inn':    { name: 'Holiday Inn Express San José Airport', cat: 'lodging', region: 'Central Valley', lat: 9.9965, lng: -84.1900,
+                      blurb: 'Airport hotel with a 24/7 shuttle for an easy last night.' }
+};
+
+/* =====================================================================
+   TRIPS — days reference PLACES by id. `choice: true` items on the same
+   day render as a "Choose one" group. `legs` are the transfers between
+   overnight bases, routed by road via the Directions API.
+   ===================================================================== */
+const TRIPS = [
+  {
+    id: 'famous-cr',
+    name: 'Famous Costa Rica',
+    meta: '8 days · Arenal & Guanacaste · Fly into Liberia',
+    tagline: 'Four nights at the foot of Arenal Volcano for ziplines, rafting, hikes and hot springs, then three nights on the beach in Tamarindo.',
+    url: 'https://amazingvacations.tripcreator.io/itinerary/?planId=cf3e20c6-7627-47ba-8e0a-0d919c79296f',
+    days: [
+      { day: 1, title: 'Arrival', items: [ { p: 'lir', kind: 'arrive' }, { p: 'arenal-paraiso', kind: 'stay', nights: 4 } ] },
+      { day: 2, title: 'Choose Your Adventure', items: [ { p: 'ecoglide', choice: true }, { p: 'sarapiqui-raft', choice: true } ] },
+      { day: 3, title: 'Volcano & culture', items: [ { p: 'arenal-hike' }, { p: 'cooking' } ] },
+      { day: 4, title: 'Choose Your Adventure', items: [ { p: 'fortuna-falls', choice: true }, { p: 'lost-canyon', choice: true } ] },
+      { day: 5, title: 'To the coast', items: [ { p: 'diria', kind: 'stay', nights: 3 } ] },
+      { day: 6, title: 'Choose Your Adventure', items: [ { p: 'catalina', choice: true }, { p: 'surf', choice: true } ] },
+      { day: 7, title: 'Free day', items: [ { p: 'tamarindo' } ] },
+      { day: 8, title: 'Departure', items: [ { p: 'lir', kind: 'depart' } ] }
+    ],
+    legs: [
+      { day: 1, from: 'lir', to: 'arenal-paraiso' },
+      { day: 5, from: 'arenal-paraiso', to: 'diria' },
+      { day: 8, from: 'diria', to: 'lir' }
+    ]
+  },
+  {
+    id: 'adventures-abounds',
+    name: 'Adventures Abounds',
+    meta: '8 days · Turrialba & Sarapiquí · Fly into San José',
+    tagline: 'Three nights in Turrialba, our home base, for rivers, canyons and ruins, then three nights in the Sarapiquí rainforest.',
+    url: 'https://amazingvacations.tripcreator.io/itinerary/?planId=b1eb8fb2-5e2e-43d0-b6ec-fb4693be19ff',
+    days: [
+      { day: 1, title: 'Arrival', items: [ { p: 'sjo', kind: 'arrive' }, { p: 'turrialba-bb', kind: 'stay', nights: 3 } ] },
+      { day: 2, title: 'Choose Your Adventure', items: [ { p: 'guayabo', choice: true }, { p: 'horseback', choice: true }, { p: 'la-marta', choice: true } ] },
+      { day: 3, title: 'Choose Your Adventure', items: [ { p: 'sitio-mata', choice: true }, { p: 'pejibaye', choice: true } ] },
+      { day: 4, title: 'Choose Your Adventure', items: [ { p: 'pacayitas', choice: true }, { p: 'pacuare', choice: true }, { p: 'ara-ambigua', kind: 'stay', nights: 3 } ] },
+      { day: 5, title: 'Rainforest & chocolate', items: [ { p: 'tirimbina' } ] },
+      { day: 6, title: 'Canopy & night walk', items: [ { p: 'zip-sarapiqui' }, { p: 'night-hike' } ] },
+      { day: 7, title: 'Waterfalls & San José', items: [ { p: 'la-paz' }, { p: 'holiday-inn', kind: 'stay', nights: 1 } ] },
+      { day: 8, title: 'Departure', items: [ { p: 'sjo', kind: 'depart' } ] }
+    ],
+    legs: [
+      { day: 1, from: 'sjo', to: 'turrialba-bb' },
+      { day: 4, from: 'turrialba-bb', to: 'ara-ambigua' },
+      { day: 7, from: 'ara-ambigua', to: 'la-paz' },
+      { day: 7, from: 'la-paz', to: 'holiday-inn' },
+      { day: 8, from: 'holiday-inn', to: 'sjo' }
+    ]
+  }
+];
+
+/* =====================================================================
+   RIVERS — info per river; geometry comes from data/rivers.geojson or,
+   failing that, live from OpenStreetMap (see loadRivers). `match` is a
+   case-insensitive name fragment used to find each river in OSM.
+   Whole-river lines for now; run sections come later.
+   ===================================================================== */
+const RIVERS = {
+  pacuare:   { label: 'Pacuare River',   match: ['pacuare'],
+               info: 'Class III–IV. One of the world\'s classic rafting rivers, through remote jungle canyon. Trips run the upper section.',
+               trips: ['adventures-abounds'] },
+  pejibaye:  { label: 'Pejibaye River',  match: ['pejibaye', 'pejivalle'], // OSM/Mapbox name it "Pejivalle"
+               info: 'A "park and play" section near Turrialba used for international slalom racing — kayak, SUP and duckie.',
+               trips: ['adventures-abounds'] },
+  sarapiqui: { label: 'Sarapiquí River', match: ['sarapiqu'],
+               info: 'Class I–IV, flowing north from Poás Volcano. Rafting, SUP and kayaking in the northern lowlands.',
+               trips: ['famous-cr', 'adventures-abounds'] }
+};
+
+/* =====================================================================
+   DERIVED LOOKUPS
+   ===================================================================== */
+const TRIP_BY_ID = Object.fromEntries(TRIPS.map(t => [t.id, t]));
+const REGION_TRIPS = {};   // region -> Set(tripId)
+TRIPS.forEach(t => t.days.forEach(d => d.items.forEach(it => {
+  const r = PLACES[it.p].region;
+  (REGION_TRIPS[r] = REGION_TRIPS[r] || new Set()).add(t.id);
+})));
+const REGION_ORDER = ['Guanacaste', 'Arenal', 'Sarapiquí', 'Central Valley', 'Turrialba'];
+
+function placeDaysInTrip(trip, pid) {
+  return [...new Set(trip.days.filter(d => d.items.some(it => it.p === pid)).map(d => d.day))];
+}
+function tripsForPlace(pid) {
+  return TRIPS.filter(t => t.days.some(d => d.items.some(it => it.p === pid)));
+}
+function escapeHTML(s) {
+  return String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+}
+const isActivity = pid => CATS[PLACES[pid].cat].filter;
+
+/* =====================================================================
+   STATE
+   ===================================================================== */
+let currentTrip = TRIPS[0].id;   // trip id, or 'all'
+let currentDayIdx = -1;          // -1 = overview
+let activePlace = null;
+const activeFilters = new Set();
+let riversOn = true;
+const picks = new Set(loadPicks());
+
+function loadPicks() {
+  try { return JSON.parse(localStorage.getItem('avcr-picks') || '[]').filter(p => PLACES[p]); } catch (e) { return []; }
+}
+function savePicks() {
+  try { localStorage.setItem('avcr-picks', JSON.stringify([...picks])); } catch (e) { /* storage unavailable — picks just won't persist */ }
+}
+
+/* =====================================================================
+   MAP
+   ===================================================================== */
+mapboxgl.accessToken = MAPBOX_TOKEN;
+const map = new mapboxgl.Map({
+  container: 'map',
+  style: MAPBOX_STYLE,
+  center: HOME_CENTER,
+  zoom: HOME_ZOOM,
+  minZoom: 6.5,
+  maxZoom: 16,
+  maxBounds: [[-87.2, 7.6], [-81.8, 11.8]]
+});
+map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), 'top-right');
+
+class HomeControl {
+  onAdd() {
+    this._c = document.createElement('div');
+    this._c.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
+    this._c.innerHTML = `<button class="mapboxgl-ctrl-home" title="Trip overview" aria-label="Trip overview">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5z"/><polyline points="9 21 9 13 15 13 15 21"/></svg></button>`;
+    this._c.querySelector('button').addEventListener('click', () => selectDay(-1));
+    return this._c;
+  }
+  onRemove() { this._c.remove(); }
+}
+map.addControl(new HomeControl(), 'top-right');
+
+const popup = new mapboxgl.Popup({ offset: 20, maxWidth: '300px', closeOnClick: false });
+popup.on('close', () => { if (activePlace) { activePlace = null; refreshMarkerClasses(); } });
+
+// Insert our layers ABOVE every fill/line in the basemap but below its
+// labels: find the last non-symbol layer, then the first symbol layer after
+// it. (The plain "first symbol layer" can sit low in the stack — e.g. a
+// contour label — which would bury our lines under landcover, water and
+// roads drawn later.) Falls back to the very top if there's no such label.
+function labelInsertPoint() {
+  const layers = map.getStyle().layers || [];
+  let lastNonSymbol = -1;
+  layers.forEach((l, i) => { if (l.type !== 'symbol') lastNonSymbol = i; });
+  const l = layers.slice(lastNonSymbol + 1).find(x => x.type === 'symbol');
+  return l ? l.id : undefined;
+}
+
+// Which RIVERS key a waterway name belongs to (substring match, so
+// "Río Pacuare", "Rio Pacuare" and "Pacuare" all count).
+function riverKeyForName(name) {
+  const n = String(name || '').toLowerCase();
+  return Object.keys(RIVERS).find(k => RIVERS[k].match.some(m => n.includes(m.toLowerCase())));
+}
+
+map.on('error', (e) => console.warn('Map error:', e && e.error ? e.error.message : e));
+
+/* ---------------------------------------------------------------------
+   River geometry. Order of preference:
+   1. RIVERS_FILE (data/rivers.geojson next to this page) — the version to
+      ship. Each feature needs a `river` property matching a RIVERS key.
+   2. Live from OpenStreetMap via the Overpass API (no key needed) — fine
+      for the demo. Run exportRivers() in the browser console to download
+      what it fetched as rivers.geojson, then drop it in data/ so the
+      handoff copy never depends on Overpass.
+   --------------------------------------------------------------------- */
+const RIVERS_FILE = 'data/rivers.geojson';
+const RIVERS_BBOX = [9.60, -84.45, 10.85, -83.30]; // S, W, N, E — keeps out the unrelated southern Río Pejibaye
+let riversGeoJSON = null;
+
+async function loadRivers() {
+  // 1. bundled file (skipped when the page is opened straight from disk —
+  //    browsers block file:// fetches, so it would only log an error)
+  if (location.protocol !== 'file:') {
+    try {
+      const res = await fetch(RIVERS_FILE);
+      if (res.ok) {
+        riversGeoJSON = await res.json();
+        map.getSource('rivers').setData(riversGeoJSON);
+        return;
+      }
+    } catch (e) { /* not there — fall through */ }
+  }
+
+  // 2. Overpass
+  // Rivers in OSM come in several shapes: a named way tagged river, a way
+  // tagged stream (smaller rivers often are), or a waterway relation whose
+  // member ways carry no name of their own. Ask for all three.
+  const pattern = Object.values(RIVERS).flatMap(r => r.match).join('|');
+  const bbox = RIVERS_BBOX.join(',');
+  const query = `[out:json][timeout:25];(way["waterway"~"^(river|stream)$"]["name"~"${pattern}",i](${bbox});rel["type"="waterway"]["name"~"${pattern}",i](${bbox}););out geom;`;
+  try {
+    const data = await overpassFetch(query);
+    const seen = new Set();
+    const features = [];
+    const addLine = (wayId, geom, name) => {
+      const river = riverKeyForName(name);
+      if (!river || !geom || geom.length < 2 || seen.has(wayId)) return;
+      seen.add(wayId);
+      features.push({
+        type: 'Feature',
+        properties: { river, name: name || '' },
+        geometry: { type: 'LineString', coordinates: geom.map(g => [g.lon, g.lat]) }
+      });
+    };
+    (data.elements || []).forEach(el => {
+      const name = el.tags && el.tags.name;
+      if (el.type === 'way') addLine(el.id, el.geometry, name);
+      if (el.type === 'relation') {
+        (el.members || []).forEach(m => {
+          if (m.type === 'way' && (!m.role || m.role === 'main_stream' || m.role === 'side_stream')) addLine(m.ref, m.geometry, name);
+        });
+      }
+    });
+    riversGeoJSON = { type: 'FeatureCollection', features };
+    map.getSource('rivers').setData(riversGeoJSON);
+    const counts = Object.keys(RIVERS).map(k => `${k}: ${features.filter(f => f.properties.river === k).length}`).join(', ');
+    console.info(`Rivers loaded live from OSM (${counts}). Run exportRivers() to save them as rivers.geojson.`);
+    Object.keys(RIVERS).forEach(k => {
+      if (!features.some(f => f.properties.river === k)) console.warn(`No OSM geometry found for "${RIVERS[k].label}" in the search area.`);
+    });
+  } catch (e) {
+    console.warn('River data could not be loaded from Overpass:', e);
+  }
+}
+
+// Public Overpass servers are often busy (502/504). Try each in turn and
+// only accept a real JSON response.
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter'
+];
+async function overpassFetch(query) {
+  let lastErr = null;
+  for (const url of OVERPASS_ENDPOINTS) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'data=' + encodeURIComponent(query)
+      });
+      if (!res.ok) throw new Error(`${url} → HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      console.warn('Overpass attempt failed:', e.message || e);
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error('All Overpass servers failed');
+}
+
+// Console helper: download the river lines currently on the map.
+window.exportRivers = function () {
+  if (!riversGeoJSON) { console.warn('No river data loaded yet.'); return; }
+  const blob = new Blob([JSON.stringify(riversGeoJSON)], { type: 'application/geo+json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'rivers.geojson';
+  a.click();
+};
+
+map.on('style.load', () => {
+  // 3D terrain
+  if (!map.getSource('mapbox-dem')) {
+    map.addSource('mapbox-dem', { type: 'raster-dem', url: 'mapbox://mapbox.mapbox-terrain-dem-v1', tileSize: 512, maxzoom: 14 });
+  }
+  map.setTerrain({ source: 'mapbox-dem', exaggeration: 1.4 });
+
+  const beforeLabels = labelInsertPoint();
+
+  // Rivers — our own GeoJSON source (see loadRivers below)
+  map.addSource('rivers', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({
+    id: 'rivers-glow', type: 'line', source: 'rivers',
+    layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: { 'line-color': '#7fc4ff', 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 5, 12, 16], 'line-opacity': 0.5, 'line-blur': 3 }
+  }, beforeLabels);
+  map.addLayer({
+    id: 'rivers-line', type: 'line', source: 'rivers',
+    layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: { 'line-color': '#1f8fd6', 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 2, 12, 5] }
+  }, beforeLabels);
+  map.on('click', 'rivers-line', (e) => {
+    const f = e.features && e.features[0];
+    if (f && RIVERS[f.properties.river]) openRiverPopup(f.properties.river, e.lngLat);
+  });
+  map.on('mouseenter', 'rivers-line', () => { map.getCanvas().style.cursor = 'pointer'; });
+  map.on('mouseleave', 'rivers-line', () => { map.getCanvas().style.cursor = ''; });
+  loadRivers();
+
+  // Transfer legs
+  map.addSource('legs', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({
+    id: 'legs-casing', type: 'line', source: 'legs',
+    layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: { 'line-color': '#ffffff', 'line-width': 7, 'line-opacity': 0.9 }
+  }, beforeLabels);
+  map.addLayer({
+    id: 'legs-line', type: 'line', source: 'legs',
+    layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: { 'line-color': '#f26b3a', 'line-width': 4 }
+  }, beforeLabels);
+
+  applyRiverVisibility();
+  readHash();
+  render();
+});
+
+/* =====================================================================
+   TRANSFER ROUTES — Directions API, cached per leg. Falls back to a
+   straight line if a request fails. For the handoff these should be
+   precomputed and baked in so the page makes no routing calls.
+   ===================================================================== */
+const routeCache = new Map();
+async function legGeometry(fromId, toId) {
+  const key = fromId + '>' + toId;
+  if (routeCache.has(key)) return routeCache.get(key);
+  const a = PLACES[fromId], b = PLACES[toId];
+  const straight = { type: 'LineString', coordinates: [[a.lng, a.lat], [b.lng, b.lat]] };
+  try {
+    const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${a.lng},${a.lat};${b.lng},${b.lat}?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (!res.ok || !data.routes || !data.routes.length) console.warn('Directions returned no route for', key, data.message || res.status);
+    const geom = (data.routes && data.routes[0] && data.routes[0].geometry) || straight;
+    routeCache.set(key, geom);
+    return geom;
+  } catch (e) {
+    console.warn('Directions failed for', key, e);
+    return straight;
+  }
+}
+
+let legsRequestId = 0;
+async function drawLegs() {
+  const src = map.getSource('legs');
+  if (!src) return;
+  const reqId = ++legsRequestId;
+  if (currentTrip === 'all') { src.setData({ type: 'FeatureCollection', features: [] }); return; }
+  const trip = TRIP_BY_ID[currentTrip];
+  // Draw straight lines immediately so the trip's shape shows even if the
+  // routing request is slow or blocked, then swap in road geometry.
+  src.setData({ type: 'FeatureCollection', features: trip.legs.map(leg => ({
+    type: 'Feature', properties: { day: leg.day },
+    geometry: { type: 'LineString', coordinates: [[PLACES[leg.from].lng, PLACES[leg.from].lat], [PLACES[leg.to].lng, PLACES[leg.to].lat]] }
+  })) });
+  styleLegsForDay();
+  const features = await Promise.all(trip.legs.map(async leg => ({
+    type: 'Feature', properties: { day: leg.day }, geometry: await legGeometry(leg.from, leg.to)
+  })));
+  if (reqId !== legsRequestId) return; // a newer trip was selected meanwhile
+  src.setData({ type: 'FeatureCollection', features });
+  styleLegsForDay();
+}
+
+function styleLegsForDay() {
+  if (!map.getLayer('legs-line')) return;
+  const day = currentTrip !== 'all' && currentDayIdx >= 0 ? TRIP_BY_ID[currentTrip].days[currentDayIdx].day : null;
+  const op = day === null ? 0.9 : ['case', ['==', ['get', 'day'], day], 1, 0.22];
+  map.setPaintProperty('legs-line', 'line-opacity', op);
+  map.setPaintProperty('legs-casing', 'line-opacity', day === null ? 0.9 : ['case', ['==', ['get', 'day'], day], 0.95, 0.15]);
+}
+
+/* =====================================================================
+   MARKERS
+   ===================================================================== */
+let markers = {}; // pid -> { marker, el }
+
+function visiblePlaceIds() {
+  if (currentTrip === 'all') return Object.keys(PLACES);
+  const trip = TRIP_BY_ID[currentTrip];
+  return [...new Set(trip.days.flatMap(d => d.items.map(it => it.p)))];
+}
+
+function renderMarkers() {
+  Object.values(markers).forEach(m => m.marker.remove());
+  markers = {};
+  const trip = currentTrip === 'all' ? null : TRIP_BY_ID[currentTrip];
+  visiblePlaceIds().forEach(pid => {
+    const p = PLACES[pid];
+    const el = document.createElement('div');
+    el.className = 'mk';
+    let badge = '';
+    if (trip) {
+      const days = placeDaysInTrip(trip, pid);
+      badge = `<div class="mk-badge">${days.length > 2 ? 'D' + days[0] + '+' : days.map(d => 'D' + d).join('·')}</div>`;
+    }
+    el.innerHTML = `<div class="mk-inner" style="background:${CATS[p.cat].color}">${iconSVG(p.cat)}${badge}</div>`;
+    el.title = p.name;
+    el.addEventListener('click', (e) => { e.stopPropagation(); focusPlace(pid, { fly: false }); });
+    const marker = new mapboxgl.Marker({ element: el, anchor: 'center' }).setLngLat([p.lng, p.lat]).addTo(map);
+    markers[pid] = { marker, el };
+  });
+  refreshMarkerClasses();
+}
+
+function currentDayPlaceIds() {
+  if (currentTrip === 'all' || currentDayIdx < 0) return null;
+  const trip = TRIP_BY_ID[currentTrip];
+  const d = trip.days[currentDayIdx];
+  const ids = new Set(d.items.map(it => it.p));
+  trip.legs.filter(l => l.day === d.day).forEach(l => { ids.add(l.from); ids.add(l.to); });
+  return ids;
+}
+
+function passesFilter(pid) {
+  if (!activeFilters.size) return true;
+  const cat = PLACES[pid].cat;
+  if (!CATS[cat].filter) return true; // lodging/airports always shown
+  return activeFilters.has(cat);
+}
+
+function refreshMarkerClasses() {
+  // A stop that just got filtered out shouldn't keep its popup open.
+  if (activePlace && !passesFilter(activePlace)) {
+    activePlace = null;
+    popup.remove();
+  }
+  const dayIds = currentDayPlaceIds();
+  Object.entries(markers).forEach(([pid, { el }]) => {
+    const hidden = !passesFilter(pid);
+    el.classList.toggle('filtered', hidden);
+    // The native title tooltip is the hover popup — drop it while filtered.
+    el.title = hidden ? '' : PLACES[pid].name;
+    el.classList.toggle('out-day', !!dayIds && !dayIds.has(pid));
+    el.classList.toggle('active', pid === activePlace);
+  });
+  document.querySelectorAll('.item[data-pid]').forEach(el => {
+    el.classList.toggle('dimmed', !passesFilter(el.dataset.pid));
+  });
+}
+
+/* =====================================================================
+   POPUPS
+   ===================================================================== */
+function placePopupHTML(pid) {
+  const p = PLACES[pid];
+  const cat = CATS[p.cat];
+  const metaBits = [p.region];
+  if (p.duration) metaBits.push(p.duration);
+
+  let also = '';
+  if (currentTrip === 'all') {
+    const ts = tripsForPlace(pid);
+    if (ts.length) also = `<div class="pp-also">Part of: ${ts.map(t => `<a data-trip="${t.id}">${escapeHTML(t.name)}</a>`).join(', ')}</div>`;
+  } else {
+    const others = [...(REGION_TRIPS[p.region] || [])].filter(id => id !== currentTrip);
+    if (others.length) {
+      also = `<div class="pp-also">The ${escapeHTML(p.region)} area is also on: ${others.map(id => `<a data-trip="${id}">${escapeHTML(TRIP_BY_ID[id].name)}</a>`).join(', ')}</div>`;
+    }
+  }
+
+  const saveBtn = isActivity(pid)
+    ? `<div class="pp-actions"><button type="button" class="save-btn ${picks.has(pid) ? 'saved' : ''}" data-save="${pid}">${picks.has(pid) ? '♥ In my picks' : '♡ Add to my picks'}</button></div>`
+    : '';
+
+  return `
+    <div class="pp-head" style="background:${cat.color}">
+      <div class="pp-tag">${escapeHTML(cat.label)}</div>
+      <div class="pp-name">${escapeHTML(p.name)}</div>
+    </div>
+    <div class="pp-body">
+      <div class="pp-meta">${metaBits.map(escapeHTML).join(' · ')}</div>
+      <div class="pp-blurb">${escapeHTML(p.blurb)}</div>
+      ${also}
+      ${saveBtn}
+    </div>`;
+}
+
+function wirePopup() {
+  const root = popup.getElement();
+  if (!root) return;
+  root.querySelectorAll('[data-save]').forEach(btn => btn.addEventListener('click', () => {
+    togglePick(btn.dataset.save);
+    const on = picks.has(btn.dataset.save);
+    btn.classList.toggle('saved', on);
+    btn.textContent = on ? '♥ In my picks' : '♡ Add to my picks';
+  }));
+  root.querySelectorAll('[data-trip]').forEach(a => a.addEventListener('click', () => selectTrip(a.dataset.trip)));
+}
+
+function openPlacePopup(pid) {
+  const p = PLACES[pid];
+  popup.setLngLat([p.lng, p.lat]).setHTML(placePopupHTML(pid)).addTo(map);
+  wirePopup();
+}
+
+function openRiverPopup(key, lngLat) {
+  const r = RIVERS[key];
+  activePlace = null; refreshMarkerClasses();
+  popup.setLngLat(lngLat).setHTML(`
+    <div class="river-pp">
+      <div class="pp-head"><div class="pp-tag">Rivers we run</div><div class="pp-name">${escapeHTML(r.label)}</div></div>
+      <div class="pp-body">
+        <div class="pp-blurb">${escapeHTML(r.info)}</div>
+        <div class="pp-also">On: ${r.trips.map(id => `<a data-trip="${id}">${escapeHTML(TRIP_BY_ID[id].name)}</a>`).join(', ')}</div>
+      </div>
+    </div>`).addTo(map);
+  wirePopup();
+}
+
+function focusPlace(pid, { fly = true } = {}) {
+  activePlace = pid;
+  refreshMarkerClasses();
+  const p = PLACES[pid];
+  if (fly) {
+    map.flyTo({ center: [p.lng, p.lat], zoom: 12.5, pitch: 50, speed: 1.1 });
+    map.once('moveend', () => { if (activePlace === pid) openPlacePopup(pid); });
+  } else {
+    openPlacePopup(pid);
+  }
+}
+
+/* =====================================================================
+   PICKS
+   ===================================================================== */
+function togglePick(pid) {
+  if (picks.has(pid)) picks.delete(pid); else { picks.add(pid); toast('Added to your picks'); }
+  savePicks();
+  renderPicks();
+}
+
+function renderPicks() {
+  document.getElementById('picks-count').textContent = picks.size;
+  const list = document.getElementById('picks-list');
+  list.innerHTML = [...picks].map(pid => `
+    <li><span>${escapeHTML(PLACES[pid].name)}</span><button type="button" data-remove="${pid}" aria-label="Remove">&times;</button></li>`).join('');
+  list.querySelectorAll('[data-remove]').forEach(b => b.addEventListener('click', () => {
+    picks.delete(b.dataset.remove); savePicks(); renderPicks();
+  }));
+  document.getElementById('picks-hint').textContent = picks.size
+    ? 'Send these to our team and we\'ll build your trip around them.'
+    : 'Save activities from the map with ♡, then send them to our team to start planning.';
+
+  const lines = [...picks].map(pid => {
+    const p = PLACES[pid];
+    const ts = tripsForPlace(pid).map(t => t.name).join(', ');
+    return `- ${p.name} (${p.region}${ts ? '; ' + ts : ''})`;
+  });
+  const body = `Hi Amazing Vacations,\n\nI found these on your trip map and would love to include them:\n\n${lines.join('\n')}\n\nName:\nTravel dates:\nNumber of travelers:\n\nThanks!`;
+  const send = document.getElementById('send-picks');
+  send.href = `mailto:${PICKS_EMAIL}?subject=${encodeURIComponent('My Costa Rica trip picks')}&body=${encodeURIComponent(body)}`;
+  send.style.opacity = picks.size ? '1' : '.5';
+  send.style.pointerEvents = picks.size ? 'auto' : 'none';
+}
+
+document.getElementById('picks-btn').addEventListener('click', () => {
+  document.getElementById('picks-panel').classList.toggle('open');
+});
+
+let toastTimer = null;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+/* =====================================================================
+   SIDEBAR
+   ===================================================================== */
+// Trip picker: a dropdown scales to however many trips they add, with
+// "Explore all" kept as its own button beside it.
+function renderTabs() {
+  const sel = document.getElementById('trip-select');
+  const isAll = currentTrip === 'all';
+  sel.innerHTML =
+    `<option value="" disabled ${isAll ? 'selected' : ''}>Choose a trip…</option>` +
+    TRIPS.map(t => `<option value="${t.id}" ${t.id === currentTrip ? 'selected' : ''}>${escapeHTML(t.name)}</option>`).join('');
+  sel.classList.toggle('muted', isAll);
+  document.getElementById('explore-btn').classList.toggle('active', isAll);
+}
+document.getElementById('trip-select').addEventListener('change', (e) => selectTrip(e.target.value));
+document.getElementById('explore-btn').addEventListener('click', () => selectTrip('all'));
+
+function renderSummary() {
+  const el = document.getElementById('trip-summary');
+  if (currentTrip === 'all') {
+    el.innerHTML = `
+      <h2>Explore all</h2>
+      <div class="meta">Every stop from our featured trips</div>
+      <div class="tagline">Browse by region, save what catches your eye, and we'll build a custom trip around it.</div>
+      <div class="cta-row"><a class="btn btn-solid" href="${PLANNING_URL}" target="_blank" rel="noopener">Start planning</a></div>`;
+    return;
+  }
+  const t = TRIP_BY_ID[currentTrip];
+  el.innerHTML = `
+    <h2>${escapeHTML(t.name)}</h2>
+    <div class="meta">${escapeHTML(t.meta)}</div>
+    <div class="tagline">${escapeHTML(t.tagline)}</div>
+    <div class="cta-row">
+      <a class="btn btn-solid" href="${t.url}" target="_blank" rel="noopener">Full itinerary &amp; pricing</a>
+      <a class="btn btn-ghost" href="${PLANNING_URL}" target="_blank" rel="noopener">Start planning</a>
+    </div>`;
+}
+
+function itemHTML(it) {
+  const p = PLACES[it.p];
+  let sub = p.duration || '';
+  if (it.kind === 'arrive') sub = 'Arrive · driver meets you';
+  if (it.kind === 'depart') sub = 'Transfer & fly home';
+  if (it.kind === 'stay') sub = `Stay · ${it.nights} night${it.nights === 1 ? '' : 's'}`;
+  return `
+    <div class="item" data-pid="${it.p}">
+      <div class="ico" style="background:${CATS[p.cat].color}">${iconSVG(p.cat)}</div>
+      <div class="txt"><div class="nm">${escapeHTML(p.name)}</div>${sub ? `<div class="sub">${escapeHTML(sub)}</div>` : ''}</div>
+    </div>`;
+}
+
+function renderDayList() {
+  const el = document.getElementById('day-list');
+  if (currentTrip === 'all') {
+    const byRegion = {};
+    Object.entries(PLACES).forEach(([pid, p]) => { (byRegion[p.region] = byRegion[p.region] || []).push(pid); });
+    el.innerHTML = REGION_ORDER.filter(r => byRegion[r]).map(r => `
+      <div class="region-head">${escapeHTML(r)}</div>
+      <div class="day-items">${byRegion[r].map(pid => itemHTML({ p: pid })).join('')}</div>`).join('');
+  } else {
+    const trip = TRIP_BY_ID[currentTrip];
+    el.innerHTML = trip.days.map((d, i) => {
+      let html = '';
+      let k = 0;
+      while (k < d.items.length) {
+        if (d.items[k].choice) {
+          const group = [];
+          while (k < d.items.length && d.items[k].choice) group.push(d.items[k++]);
+          html += `<div class="choose"><div class="choose-label">Choose one</div>${group.map(itemHTML).join('<div class="or">or</div>')}</div>`;
+        } else {
+          html += itemHTML(d.items[k++]);
+        }
+      }
+      return `
+        <div class="day ${i === currentDayIdx ? 'active' : ''}" data-idx="${i}">
+          <div class="day-head"><span class="dnum">Day ${d.day}</span><span class="dtitle">${escapeHTML(d.title)}</span></div>
+          <div class="day-items">${html}</div>
+        </div>`;
+    }).join('');
+    el.querySelectorAll('.day-head').forEach(h => h.addEventListener('click', () => selectDay(parseInt(h.parentElement.dataset.idx, 10))));
+  }
+  el.querySelectorAll('.item[data-pid]').forEach(it => it.addEventListener('click', (e) => {
+    e.stopPropagation();
+    focusPlace(it.dataset.pid);
+  }));
+}
+
+function renderDayNav() {
+  const nav = document.getElementById('day-nav');
+  if (currentTrip === 'all') { nav.style.display = 'none'; return; }
+  nav.style.display = '';
+  const trip = TRIP_BY_ID[currentTrip];
+  const ind = document.getElementById('day-indicator');
+  if (currentDayIdx < 0) ind.textContent = 'Trip overview';
+  else ind.textContent = `Day ${trip.days[currentDayIdx].day} of ${trip.days.length}`;
+  document.getElementById('back-btn').disabled = currentDayIdx < 0;
+  document.getElementById('next-btn').disabled = currentDayIdx >= trip.days.length - 1;
+}
+
+document.getElementById('back-btn').addEventListener('click', () => selectDay(currentDayIdx - 1));
+document.getElementById('next-btn').addEventListener('click', () => selectDay(currentDayIdx + 1));
+
+/* =====================================================================
+   FILTER CHIPS
+   ===================================================================== */
+function renderChips() {
+  const present = new Set(visiblePlaceIds().map(pid => PLACES[pid].cat));
+  const cats = Object.keys(CATS).filter(c => CATS[c].filter && present.has(c));
+  [...activeFilters].forEach(c => { if (!present.has(c)) activeFilters.delete(c); });
+  const el = document.getElementById('chips');
+  el.innerHTML =
+    cats.map(c => `<button type="button" class="chip ${activeFilters.has(c) ? 'on' : ''}" data-cat="${c}"><span class="dot" style="background:${CATS[c].color}"></span>${escapeHTML(CATS[c].label)}</button>`).join('') +
+    (activeFilters.size ? `<button type="button" class="chip clear" data-clear="1">Clear</button>` : '') +
+    `<button type="button" class="chip river-toggle ${riversOn ? 'on' : ''}" data-rivers="1"><span class="dot"></span>Rivers we run</button>`;
+  el.querySelectorAll('[data-cat]').forEach(b => b.addEventListener('click', () => {
+    const c = b.dataset.cat;
+    if (activeFilters.has(c)) activeFilters.delete(c); else activeFilters.add(c);
+    renderChips(); refreshMarkerClasses();
+  }));
+  const clear = el.querySelector('[data-clear]');
+  if (clear) clear.addEventListener('click', () => { activeFilters.clear(); renderChips(); refreshMarkerClasses(); });
+  el.querySelector('[data-rivers]').addEventListener('click', () => { riversOn = !riversOn; applyRiverVisibility(); renderChips(); });
+}
+
+function applyRiverVisibility() {
+  ['rivers-glow', 'rivers-line'].forEach(id => {
+    if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', riversOn ? 'visible' : 'none');
+  });
+}
+
+/* =====================================================================
+   CAMERA
+   ===================================================================== */
+function fitTo(pids, { pitch = 0, maxZoom = 11.5 } = {}) {
+  const bounds = new mapboxgl.LngLatBounds();
+  pids.forEach(pid => bounds.extend([PLACES[pid].lng, PLACES[pid].lat]));
+  if (bounds.isEmpty()) return;
+  const mobile = window.innerWidth <= 760;
+  map.fitBounds(bounds, {
+    padding: mobile ? { top: 60, bottom: 40, left: 30, right: 30 } : { top: 80, bottom: 80, left: 70, right: 90 },
+    maxZoom, pitch, bearing: 0, duration: 1400
+  });
+}
+
+function frameCurrent() {
+  if (currentTrip === 'all' || currentDayIdx < 0) {
+    fitTo(visiblePlaceIds(), { pitch: 20, maxZoom: 9 });
+  } else {
+    const ids = [...currentDayPlaceIds()];
+    fitTo(ids, { pitch: 45, maxZoom: 11.5 });
+  }
+}
+
+/* =====================================================================
+   SELECTION + URL HASH (shareable links: #trip=famous-cr&day=2)
+   ===================================================================== */
+function selectTrip(id) {
+  if (!(id === 'all' || TRIP_BY_ID[id])) return;
+  currentTrip = id;
+  currentDayIdx = -1;
+  activePlace = null;
+  popup.remove();
+  render();
+}
+
+function selectDay(idx) {
+  if (currentTrip === 'all') return;
+  const n = TRIP_BY_ID[currentTrip].days.length;
+  currentDayIdx = Math.max(-1, Math.min(n - 1, idx));
+  activePlace = null;
+  popup.remove();
+  document.querySelectorAll('.day').forEach(d => d.classList.toggle('active', parseInt(d.dataset.idx, 10) === currentDayIdx));
+  const activeEl = document.querySelector('.day.active');
+  if (activeEl) activeEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  renderDayNav();
+  refreshMarkerClasses();
+  styleLegsForDay();
+  frameCurrent();
+  writeHash();
+}
+
+function render() {
+  renderTabs();
+  renderSummary();
+  renderDayNav();
+  renderDayList();
+  renderMarkers();
+  renderChips();
+  renderPicks();
+  drawLegs();
+  frameCurrent();
+  writeHash();
+}
+
+function writeHash() {
+  const parts = [`trip=${currentTrip}`];
+  if (currentDayIdx >= 0) parts.push(`day=${TRIP_BY_ID[currentTrip].days[currentDayIdx].day}`);
+  history.replaceState(null, '', '#' + parts.join('&'));
+}
+
+function readHash() {
+  const params = new URLSearchParams(location.hash.slice(1));
+  const t = params.get('trip');
+  if (t && (t === 'all' || TRIP_BY_ID[t])) currentTrip = t;
+  const d = parseInt(params.get('day'), 10);
+  if (currentTrip !== 'all' && d) {
+    const idx = TRIP_BY_ID[currentTrip].days.findIndex(x => x.day === d);
+    if (idx >= 0) currentDayIdx = idx;
+  }
+}
+</script>
+</body>
+</html>
