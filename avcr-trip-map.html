@@ -69,6 +69,15 @@
   #trip-summary h2 { font-family: 'Poppins', sans-serif; font-size: 19px; font-weight: 700; color: var(--brand-dk); }
   #trip-summary .meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
   #trip-summary .tagline { font-size: 13px; line-height: 1.5; margin-top: 8px; }
+
+  /* Collapsible title row — a plain heading on desktop, a toggle on mobile */
+  .summary-toggle {
+    display: flex; align-items: center; gap: 8px; width: 100%;
+    background: none; border: none; padding: 0; margin: 0; text-align: left;
+    font: inherit; color: inherit; cursor: default; pointer-events: none;
+  }
+  .summary-toggle h2 { flex: 1; min-width: 0; }
+  .summary-hint, .summary-toggle .chev { display: none; }
   .cta-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
   .btn {
     display: inline-flex; align-items: center; gap: 6px; font-family: inherit;
@@ -140,6 +149,8 @@
     font-family: inherit; font-size: 13px; font-weight: 700; padding: 10px 16px; border-radius: 999px;
     border: none; background: var(--route); color: #fff; cursor: pointer; box-shadow: 0 3px 12px rgba(0,0,0,.25);
   }
+  #picks-btn { display: inline-flex; align-items: center; gap: 6px; }
+  #filter-btn { display: none; }
   #picks-btn .count { display: inline-block; min-width: 20px; padding: 1px 6px; margin-left: 6px; border-radius: 999px; background: #fff; color: var(--route); font-size: 11px; }
 
   #picks-panel {
@@ -178,6 +189,29 @@
   .mk.filtered { pointer-events: none; z-index: 0 !important; }
   .mk.filtered .mk-inner { opacity: .18; transform: scale(.75); }
   .mk:not(.filtered) { z-index: 2; }
+  .mk.clustered { visibility: hidden; pointer-events: none; }
+
+  .cluster { width: 38px; height: 38px; cursor: pointer; z-index: 3; }
+  .cluster-inner {
+    width: 100%; height: 100%; border-radius: 50%; background: var(--brand-dk); color: #fff;
+    border: 2.5px solid #fff; box-shadow: 0 0 0 4px rgba(14,107,48,.25), 0 2px 8px rgba(0,0,0,.35);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+    transition: transform .15s ease;
+  }
+  .cluster:hover .cluster-inner { transform: scale(1.1); }
+  .cluster.faded .cluster-inner { opacity: .5; transform: scale(.85); }
+  .cluster-n { font-size: 13px; font-weight: 800; line-height: 1; }
+  .cluster-dots { display: flex; gap: 2px; }
+  .cluster-dots i { width: 5px; height: 5px; border-radius: 50%; display: block; border: .5px solid rgba(255,255,255,.7); }
+  .cluster-list { padding: 6px 8px 8px; }
+  .cluster-item {
+    display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; font: inherit;
+    font-size: 13px; font-weight: 600; color: var(--ink); background: none; border: none;
+    padding: 7px 6px; border-radius: 6px; cursor: pointer;
+  }
+  .cluster-item:hover { background: var(--brand-lt); }
+  .cluster-item .ico { width: 24px; height: 24px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+  .cluster-item .ico svg { width: 13px; height: 13px; }
   .mk.active:not(.filtered) { z-index: 5; }
   .mk.active .mk-inner { transform: scale(1.3); box-shadow: 0 0 0 4px rgba(242,107,58,.45), 0 2px 8px rgba(0,0,0,.4); opacity: 1; }
 
@@ -213,9 +247,40 @@
     #map-wrap { order: 1; }
     #sidebar { order: 2; border-right: none; border-top: 3px solid var(--brand); }
     .brand { display: none; }
-    #chips { flex-wrap: nowrap; overflow-x: auto; right: 12px; padding-bottom: 4px; }
-    .chip { flex-shrink: 0; }
-    #picks-panel { left: 12px; right: 12px; width: auto; }
+    /* Filters: one button; chips open as a wrapped panel beneath it */
+    #filter-btn {
+      position: absolute; top: 10px; left: 10px; z-index: 4;
+      display: inline-flex; align-items: center; gap: 6px;
+      font-family: inherit; font-size: 13px; font-weight: 700; color: var(--ink);
+      padding: 8px 13px; border-radius: 999px; border: 1.5px solid var(--border);
+      background: rgba(255,255,255,.97); box-shadow: 0 1px 5px rgba(0,0,0,.15); cursor: pointer;
+    }
+    #filter-btn.has-filters { background: var(--ink); color: #fff; border-color: var(--ink); }
+    #chips {
+      display: none; top: 52px; left: 10px; right: 10px; flex-wrap: wrap; gap: 6px;
+      padding: 10px; border-radius: 12px; background: rgba(255,255,255,.98);
+      box-shadow: 0 6px 20px rgba(0,0,0,.2); pointer-events: auto; z-index: 4;
+    }
+    #chips.open { display: flex; }
+    .chip { box-shadow: none; }
+
+    /* Controls: pinch replaces the zoom buttons; keep compass + Home */
+    .mapboxgl-ctrl-zoom-in, .mapboxgl-ctrl-zoom-out { display: none !important; }
+
+    /* Picks: heart + count only */
+    #picks-btn { bottom: 24px; right: 10px; padding: 9px 12px; }
+    #picks-btn .picks-label { display: none; }
+    #picks-btn .count { margin-left: 0; }
+    #picks-panel { left: 10px; right: 10px; width: auto; bottom: 72px; }
+
+    #trip-summary { padding: 10px 20px; }
+    #trip-summary h2 { font-size: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .summary-toggle { cursor: pointer; pointer-events: auto; min-height: 32px; }
+    .summary-hint { display: inline; font-size: 12px; font-weight: 600; color: var(--muted); }
+    .summary-toggle .chev { display: block; flex-shrink: 0; color: var(--muted); transition: transform .2s ease; }
+    #trip-summary:not(.collapsed) .chev { transform: rotate(180deg); }
+    #trip-summary.collapsed .summary-body { display: none; }
+    .summary-body { padding-bottom: 2px; }
   }
 </style>
 </head>
@@ -251,8 +316,16 @@
 
   <div id="map-wrap">
     <div id="map"></div>
+    <!-- Phones: one Filter button that opens the chip panel. Desktop: the chips show as a row and this stays hidden. -->
+    <button id="filter-btn" type="button" aria-expanded="false" aria-controls="chips">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18M6 12h12M10 19h4"/></svg>
+      <span id="filter-label">Filter</span>
+    </button>
     <div id="chips"></div>
-    <button id="picks-btn" type="button">My picks<span class="count" id="picks-count">0</span></button>
+    <button id="picks-btn" type="button" aria-label="My picks">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.3 3.1 4.5 6.9 4.5c2.1 0 3.6 1.1 4.6 2.6 1-1.5 2.5-2.6 4.6-2.6 3.8 0 6 3.8 4.5 7.3C19.5 16.4 12 21 12 21z"/></svg>
+      <span class="picks-label">My picks</span><span class="count" id="picks-count">0</span>
+    </button>
     <div id="picks-panel">
       <h3>My picks</h3>
       <div class="hint" id="picks-hint">Save activities from the map, then send them to our team to start planning.</div>
@@ -500,9 +573,12 @@ const map = new mapboxgl.Map({
   style: MAPBOX_STYLE,
   center: HOME_CENTER,
   zoom: HOME_ZOOM,
-  minZoom: 6.5,
+  // Generous limits: a tight maxBounds forces the zoom up on narrow phone
+  // screens (the visible area can't extend past it), which was cropping
+  // the country instead of fitting it.
+  minZoom: 5.5,
   maxZoom: 16,
-  maxBounds: [[-87.2, 7.6], [-81.8, 11.8]]
+  maxBounds: [[-88.5, 6.0], [-80.5, 13.3]]
 });
 map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), 'top-right');
 
@@ -553,6 +629,7 @@ function riverKeyForName(name) {
 }
 
 map.on('error', (e) => console.warn('Map error:', e && e.error ? e.error.message : e));
+map.on('moveend', () => updateClusters());
 
 /* ---------------------------------------------------------------------
    River geometry. Order of preference:
@@ -846,6 +923,83 @@ function refreshMarkerClasses() {
   document.querySelectorAll('.item[data-pid]').forEach(el => {
     el.classList.toggle('dimmed', !passesFilter(el.dataset.pid));
   });
+  updateClusters();
+}
+
+/* =====================================================================
+   CLUSTERING — markers are DOM elements, so this groups them in screen
+   space: any live markers within CLUSTER_PX of each other collapse into
+   one numbered bubble, recomputed after every pan/zoom. Filtered-out
+   markers never cluster (they're inert context), the active stop is
+   always shown on its own, and in a day view the day's stops and the
+   faded stops from other days cluster separately.
+   ===================================================================== */
+const CLUSTER_PX = 34;
+const SEPARATE_ZOOM = 13; // past this, a tight group is listed instead of zoomed
+let clusterMarkers = [];
+
+function updateClusters() {
+  clusterMarkers.forEach(m => m.remove());
+  clusterMarkers = [];
+  if (!map || !Object.keys(markers).length) return;
+
+  const dayIds = currentDayPlaceIds();
+  const candidates = Object.keys(markers).filter(pid => passesFilter(pid) && pid !== activePlace);
+  Object.values(markers).forEach(({ el }) => el.classList.remove('clustered'));
+
+  const groupsByLayer = { day: [], other: [] };
+  candidates.forEach(pid => groupsByLayer[dayIds && !dayIds.has(pid) ? 'other' : 'day'].push(pid));
+
+  Object.entries(groupsByLayer).forEach(([layer, pids]) => {
+    const pts = pids.map(pid => ({ pid, xy: map.project([PLACES[pid].lng, PLACES[pid].lat]) }));
+    const used = new Set();
+    pts.forEach(a => {
+      if (used.has(a.pid)) return;
+      const group = pts.filter(b => !used.has(b.pid) &&
+        Math.hypot(a.xy.x - b.xy.x, a.xy.y - b.xy.y) <= CLUSTER_PX);
+      if (group.length < 2) return;
+      group.forEach(g => { used.add(g.pid); markers[g.pid].el.classList.add('clustered'); });
+      addClusterMarker(group.map(g => g.pid), layer === 'other');
+    });
+  });
+}
+
+function addClusterMarker(pids, faded) {
+  const lng = pids.reduce((s, pid) => s + PLACES[pid].lng, 0) / pids.length;
+  const lat = pids.reduce((s, pid) => s + PLACES[pid].lat, 0) / pids.length;
+  const cats = [...new Set(pids.map(pid => PLACES[pid].cat))].slice(0, 4);
+  const el = document.createElement('div');
+  el.className = 'cluster' + (faded ? ' faded' : '');
+  el.title = pids.map(pid => PLACES[pid].name).join('\n');
+  el.innerHTML = `<div class="cluster-inner"><span class="cluster-n">${pids.length}</span>
+    <span class="cluster-dots">${cats.map(c => `<i style="background:${CATS[c].color}"></i>`).join('')}</span></div>`;
+  el.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const bounds = new mapboxgl.LngLatBounds();
+    pids.forEach(pid => bounds.extend([PLACES[pid].lng, PLACES[pid].lat]));
+    const cam = map.cameraForBounds(bounds, { padding: 70 });
+    if (map.getZoom() >= SEPARATE_ZOOM - 0.5 || !cam || cam.zoom >= SEPARATE_ZOOM) {
+      openClusterList(pids, [lng, lat]); // too close to separate by zooming — let them pick
+    } else {
+      map.fitBounds(bounds, { padding: 70, maxZoom: SEPARATE_ZOOM, duration: 900 });
+    }
+  });
+  clusterMarkers.push(new mapboxgl.Marker({ element: el, anchor: 'center' }).setLngLat([lng, lat]).addTo(map));
+}
+
+function openClusterList(pids, lngLat) {
+  popup.setLngLat(lngLat).setHTML(`
+    <div class="pp-head" style="background:var(--brand-dk)">
+      <div class="pp-tag">${pids.length} stops here</div>
+      <div class="pp-name">Pick one</div>
+    </div>
+    <div class="pp-body cluster-list">
+      ${pids.map(pid => `<button type="button" class="cluster-item" data-pid="${pid}">
+        <span class="ico" style="background:${CATS[PLACES[pid].cat].color}">${iconSVG(PLACES[pid].cat)}</span>
+        <span>${escapeHTML(PLACES[pid].name)}</span></button>`).join('')}
+    </div>`).addTo(map);
+  popup.getElement().querySelectorAll('.cluster-item').forEach(b =>
+    b.addEventListener('click', () => focusPlace(b.dataset.pid, { fly: false })));
 }
 
 /* =====================================================================
@@ -990,25 +1144,44 @@ function renderTabs() {
 document.getElementById('trip-select').addEventListener('change', (e) => selectTrip(e.target.value));
 document.getElementById('explore-btn').addEventListener('click', () => selectTrip('all'));
 
+// The summary is a title row plus a body. On phones the body collapses
+// (collapsed on load, see summaryCollapsed); on desktop the toggle is
+// hidden and the body always shows. The open/closed choice persists as
+// visitors switch trips, since only the content is re-rendered.
+let summaryCollapsed = true;
+
 function renderSummary() {
   const el = document.getElementById('trip-summary');
+  let title, body;
   if (currentTrip === 'all') {
-    el.innerHTML = `
-      <h2>Explore all</h2>
+    title = 'Explore all';
+    body = `
       <div class="meta">Every stop from our featured trips</div>
       <div class="tagline">Browse by region, save what catches your eye, and we'll build a custom trip around it.</div>
       <div class="cta-row"><a class="btn btn-solid" href="${PLANNING_URL}" target="_blank" rel="noopener">Start planning</a></div>`;
-    return;
+  } else {
+    const t = TRIP_BY_ID[currentTrip];
+    title = t.name;
+    body = `
+      <div class="meta">${escapeHTML(t.meta)}</div>
+      <div class="tagline">${escapeHTML(t.tagline)}</div>
+      <div class="cta-row">
+        <a class="btn btn-solid" href="${t.url}" target="_blank" rel="noopener">Full itinerary &amp; pricing</a>
+        <a class="btn btn-ghost" href="${PLANNING_URL}" target="_blank" rel="noopener">Start planning</a>
+      </div>`;
   }
-  const t = TRIP_BY_ID[currentTrip];
   el.innerHTML = `
-    <h2>${escapeHTML(t.name)}</h2>
-    <div class="meta">${escapeHTML(t.meta)}</div>
-    <div class="tagline">${escapeHTML(t.tagline)}</div>
-    <div class="cta-row">
-      <a class="btn btn-solid" href="${t.url}" target="_blank" rel="noopener">Full itinerary &amp; pricing</a>
-      <a class="btn btn-ghost" href="${PLANNING_URL}" target="_blank" rel="noopener">Start planning</a>
-    </div>`;
+    <button type="button" class="summary-toggle" aria-expanded="${!summaryCollapsed}" aria-controls="summary-body">
+      <h2>${escapeHTML(title)}</h2>
+      <span class="summary-hint">${summaryCollapsed ? 'Details' : 'Hide'}</span>
+      <svg class="chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div class="summary-body" id="summary-body">${body}</div>`;
+  el.classList.toggle('collapsed', summaryCollapsed);
+  el.querySelector('.summary-toggle').addEventListener('click', () => {
+    summaryCollapsed = !summaryCollapsed;
+    renderSummary();
+  });
 }
 
 function itemHTML(it) {
@@ -1095,7 +1268,24 @@ function renderChips() {
   const clear = el.querySelector('[data-clear]');
   if (clear) clear.addEventListener('click', () => { activeFilters.clear(); renderChips(); refreshMarkerClasses(); });
   el.querySelector('[data-rivers]').addEventListener('click', () => { riversOn = !riversOn; applyRiverVisibility(); renderChips(); });
+  updateFilterButton();
 }
+
+// Phone filter button: shows how many filters are on, and toggles the
+// chip panel open/closed. Tapping the map closes the panel.
+function updateFilterButton() {
+  const n = activeFilters.size;
+  document.getElementById('filter-label').textContent = n ? `Filter · ${n}` : 'Filter';
+  document.getElementById('filter-btn').classList.toggle('has-filters', n > 0);
+}
+function setFilterPanel(open) {
+  document.getElementById('chips').classList.toggle('open', open);
+  document.getElementById('filter-btn').setAttribute('aria-expanded', String(open));
+}
+document.getElementById('filter-btn').addEventListener('click', () => {
+  setFilterPanel(!document.getElementById('chips').classList.contains('open'));
+});
+map.on('click', () => setFilterPanel(false));
 
 function applyRiverVisibility() {
   ['rivers-glow', 'rivers-line'].forEach(id => {
@@ -1122,7 +1312,7 @@ const COSTA_RICA_BOUNDS = [[-85.95, 8.03], [-82.55, 11.22]];
 function fitCostaRica() {
   const mobile = window.innerWidth <= 760;
   map.fitBounds(COSTA_RICA_BOUNDS, {
-    padding: mobile ? { top: 50, bottom: 30, left: 20, right: 20 } : { top: 60, bottom: 40, left: 40, right: 60 },
+    padding: mobile ? { top: 56, bottom: 16, left: 12, right: 48 } : { top: 60, bottom: 40, left: 40, right: 60 },
     pitch: 0, bearing: 0, duration: 1400
   });
 }
