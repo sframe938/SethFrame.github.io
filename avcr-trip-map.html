@@ -367,6 +367,8 @@ const ICONS = {
   culture:    '<path d="M4 8h13v5a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6z"/><path d="M17 10h2a2 2 0 0 1 0 4h-2"/><path d="M8 2v3M12 2v3"/>',
   beach:      '<circle cx="12" cy="10" r="4"/><path d="M3 20h18"/><path d="M12 2v2M4.9 4.9l1.4 1.4M19.1 4.9l-1.4 1.4M2 10h2M20 10h2"/>',
   horseback:  '<path d="M7 20V11a5 5 0 0 1 10 0v9"/><path d="M4 20h5M15 20h5"/>',
+  hotsprings: '<path d="M3 18c2 2 4 2 6 0s4-2 6 0 4 2 6 0"/><path d="M8 14c-1.2-1.5 1.2-3 0-4.5S8 6 8 6"/><path d="M12 14c-1.2-1.5 1.2-3 0-4.5S12 6 12 6"/><path d="M16 14c-1.2-1.5 1.2-3 0-4.5S16 6 16 6"/>',
+  atv:        '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/><path d="M12 4v5.5M12 14.5V20M4 12h5.5M14.5 12H20"/>',
   lodging:    '<path d="M3 19V7"/><path d="M3 15h18v4"/><path d="M21 15v-2a3 3 0 0 0-3-3h-7v5"/><circle cx="7" cy="12" r="1.6"/>',
   airport:    '<path d="M2 13l20-6-5 13-4-5-4 3v-5z"/><path d="M13 15l9-8"/>'
 };
@@ -380,6 +382,8 @@ const CATS = {
   culture:    { label: 'Culture & food',      color: '#c2563a', filter: true },
   beach:      { label: 'Beach & sea',         color: '#12a1a1', filter: true },
   horseback:  { label: 'Horseback',           color: '#9a6b3f', filter: true },
+  hotsprings: { label: 'Hot springs',         color: '#b0417a', filter: true },
+  atv:        { label: 'ATV',                 color: '#4b5d8a', filter: true },
   lodging:    { label: 'Lodging',             color: '#22302a', filter: false },
   airport:    { label: 'Airport',             color: '#5f6b66', filter: false }
 };
@@ -450,7 +454,53 @@ const PLACES = {
   'la-paz':         { name: 'La Paz Waterfall Gardens', cat: 'hiking', region: 'Central Valley', lat: 10.2030, lng: -84.1600, duration: '2 hours',
                       blurb: 'Five waterfalls and an animal sanctuary on the way back to San José. Lunch included.' },
   'holiday-inn':    { name: 'Holiday Inn Express San José Airport', cat: 'lodging', region: 'Central Valley', lat: 9.9965, lng: -84.1900,
-                      blurb: 'Airport hotel with a 24/7 shuttle for an easy last night.' }
+                      blurb: 'Airport hotel with a 24/7 shuttle for an easy last night.' },
+  'barcelo':        { name: 'Barceló San José', cat: 'lodging', region: 'Central Valley', lat: 9.9560, lng: -84.1050,
+                      blurb: 'Modern hotel in a quiet part of San José with a pool, three restaurants and an airport shuttle.' },
+
+  // ---- Volcano & Beach ----
+  'sky-adventures': { name: 'Sky Adventures: Tram, Zipline & Bridges', cat: 'zipline', region: 'Arenal', lat: 10.4555, lng: -84.7745, duration: 'Half day',
+                      blurb: 'Ride the Sky Tram up the mountain, zip back down on the Sky Trek, then walk the Sky Walk\'s hanging bridges with a naturalist.' },
+  'coffee-choc':    { name: 'Coffee & Chocolate Tour (Don Juan)', cat: 'culture', region: 'Arenal', lat: 10.4705, lng: -84.6280, duration: '2–3 hours',
+                      blurb: 'Plant your own coffee bean on a working plantation, then follow cacao from pod to chocolate.' },
+  'espadilla':      { name: 'Hotel Playa Espadilla', cat: 'lodging', region: 'Manuel Antonio', lat: 9.3905, lng: -84.1440,
+                      blurb: 'Rainforest hotel steps from the beach and a two-minute walk from the national park entrance.' },
+  'ma-park':        { name: 'Manuel Antonio National Park', cat: 'wildlife', region: 'Manuel Antonio', lat: 9.3830, lng: -84.1420, duration: 'Half day',
+                      blurb: 'Private guided hike with a spotting scope to find sloths, monkeys and birds, plus three of the country\'s best beaches.' },
+  'ma-snorkel':     { name: 'Snorkel Manuel Antonio', cat: 'beach', region: 'Manuel Antonio', lat: 9.3790, lng: -84.1490, duration: '2 hours',
+                      blurb: 'Easy snorkeling over the reefs and volcanic rock formations in Manuel Antonio\'s calm waters.' },
+  'ma-cooking':     { name: 'Cooking Class on the Naranjo River', cat: 'culture', region: 'Manuel Antonio', lat: 9.4500, lng: -84.0800, duration: 'Half day',
+                      blurb: 'Shop the local market with your guide, then cook a multi-course meal from an organic farm by the Naranjo River.' },
+  'ma-free':        { name: 'Free Day in Manuel Antonio', cat: 'beach', region: 'Manuel Antonio', lat: 9.3990, lng: -84.1500, duration: 'All day',
+                      blurb: 'Beach time or an extra activity — the team will help you plan it.' },
+
+  // ---- Best of La Fortuna ----
+  'hanging-bridges':{ name: 'Mistico Arenal Hanging Bridges', cat: 'hiking', region: 'Arenal', lat: 10.5030, lng: -84.7280, duration: 'Half day',
+                      blurb: 'About 2 miles of trails and suspension bridges through primary rainforest canopy, easy for all levels.' },
+  'atv':            { name: 'ATV Discovery Adventure', cat: 'atv', region: 'Arenal', lat: 10.4900, lng: -84.6550, duration: '3 hours',
+                      blurb: 'Four-wheel through forest and farmland below Arenal Volcano, with a stop to swim in the Arenal River.' },
+  'boat-safari':    { name: 'Wildlife Safari by Boat', cat: 'wildlife', region: 'Arenal', lat: 10.4350, lng: -84.5600, duration: 'Half day',
+                      blurb: 'Drift the Peñas Blancas River with naturalist guides spotting sloths, monkeys and birds, then visit a local family home.' },
+  'baldi':          { name: 'Baldi Hot Springs', cat: 'hotsprings', region: 'Arenal', lat: 10.4735, lng: -84.6655, duration: 'Afternoon',
+                      blurb: 'One of the world\'s largest hot springs resorts: 25 thermal pools at the foot of Arenal, plus warm-water slides.' },
+  'sloth':          { name: 'Sloth Watching Tour', cat: 'wildlife', region: 'Arenal', lat: 10.4800, lng: -84.6360, duration: '1.5 hours',
+                      blurb: 'Gentle guided walk on flat, shaded trails — most groups spot four to six sloths, plus frogs and birds.' },
+
+  // ---- Best of the Caribbean ----
+  'villa-florencia':{ name: 'Hotel Villa Florencia', cat: 'lodging', region: 'Turrialba', lat: 9.9030, lng: -83.6520,
+                      blurb: 'Comfortable Turrialba hotel with a pool and spa tub, a short drive from the rivers.' },
+  'jungle-camp':    { name: 'Pacuare Jungle Camp', cat: 'lodging', region: 'Turrialba', lat: 9.9950, lng: -83.5500,
+                      blurb: 'Screened cabins deep in the Pacuare canyon, reached by raft — no electricity, all jungle.' },
+  'pacuare-lower':  { name: 'Pacuare River Rafting: The Gorge', cat: 'whitewater', region: 'Turrialba', lat: 10.0350, lng: -83.5250, duration: 'Full day',
+                      blurb: 'About 14 miles and 30 rapids, including the Class III–IV Pacuare Gorge and the 150-ft Huacas waterfall.' },
+  'cariblue':       { name: 'Cariblue Beach & Jungle Resort', cat: 'lodging', region: 'Caribbean', lat: 9.6450, lng: -82.7360,
+                      blurb: 'Eco-resort on the white sand of Playa Cocles, a minute\'s walk to the beach.' },
+  'jaguar-rescue':  { name: 'Jaguar Rescue Center', cat: 'wildlife', region: 'Caribbean', lat: 9.6420, lng: -82.7290, duration: '2 hours',
+                      blurb: 'Guided tour of a wildlife rescue center — monkeys, wild cats, sloths, anteaters and more up close.' },
+  'surf-caribbean': { name: 'Semi-Private Surf Lessons', cat: 'beach', region: 'Caribbean', lat: 9.6475, lng: -82.7410, duration: '2 hours',
+                      blurb: 'Beginner lessons paced to your group on the Caribbean beach breaks near Puerto Viejo.' },
+  'puerto-viejo':   { name: 'Day Off in Puerto Viejo', cat: 'beach', region: 'Caribbean', lat: 9.6560, lng: -82.7540, duration: 'All day',
+                      blurb: 'Beaches, Caribbean culture, or an extra tour — Cahuita National Park is a team favorite.' }
 };
 
 /* =====================================================================
@@ -504,8 +554,84 @@ const TRIPS = [
       { day: 7, from: 'la-paz', to: 'holiday-inn' },
       { day: 8, from: 'holiday-inn', to: 'sjo' }
     ]
+  },
+  {
+    id: 'volcano-beach',
+    name: 'Volcano & Beach',
+    meta: '8 days · Arenal & Manuel Antonio · Fly into San José',
+    tagline: 'Three nights at Arenal Volcano for the Sky Adventures park, waterfalls and coffee, then three nights on the Pacific at Manuel Antonio.',
+    url: 'https://amazingvacations.tripcreator.io/itinerary/?planId=65d3427c-c9e6-4cb5-9866-00f351c26311',
+    days: [
+      { day: 1, title: 'Arrival', items: [ { p: 'sjo', kind: 'arrive' }, { p: 'arenal-paraiso', kind: 'stay', nights: 3 } ] },
+      { day: 2, title: 'Sky Adventures', items: [ { p: 'sky-adventures' } ] },
+      { day: 3, title: 'Waterfall & coffee', items: [ { p: 'fortuna-falls' }, { p: 'coffee-choc' } ] },
+      { day: 4, title: 'To the Pacific', items: [ { p: 'espadilla', kind: 'stay', nights: 3 } ] },
+      { day: 5, title: 'Manuel Antonio', items: [ { p: 'ma-park' } ] },
+      { day: 6, title: 'Reef & kitchen', items: [ { p: 'ma-snorkel' }, { p: 'ma-cooking' } ] },
+      { day: 7, title: 'Free day & San José', items: [ { p: 'ma-free' }, { p: 'barcelo', kind: 'stay', nights: 1 } ] },
+      { day: 8, title: 'Departure', items: [ { p: 'sjo', kind: 'depart' } ] }
+    ],
+    legs: [
+      { day: 1, from: 'sjo', to: 'arenal-paraiso' },
+      { day: 4, from: 'arenal-paraiso', to: 'espadilla' },
+      { day: 7, from: 'espadilla', to: 'barcelo' },
+      { day: 8, from: 'barcelo', to: 'sjo' }
+    ]
+  },
+  {
+    id: 'best-of-la-fortuna',
+    name: 'Best of La Fortuna',
+    meta: '8 days · Arenal · Fly into San José',
+    tagline: 'Six nights based at Arenal Volcano for hanging bridges, ATVs, sloths, hot springs and a choice of adventures, then a last night in San José.',
+    url: 'https://amazingvacations.tripcreator.io/itinerary/?planId=9e4b16f6-f427-4e82-a918-b3882ca55c64',
+    days: [
+      { day: 1, title: 'Arrival', items: [ { p: 'sjo', kind: 'arrive' }, { p: 'arenal-paraiso', kind: 'stay', nights: 6 } ] },
+      { day: 2, title: 'Hanging bridges', items: [ { p: 'hanging-bridges' } ] },
+      { day: 3, title: 'ATV adventure', items: [ { p: 'atv' } ] },
+      { day: 4, title: 'Choose Your Adventure', items: [ { p: 'cooking', choice: true }, { p: 'boat-safari', choice: true } ] },
+      { day: 5, title: 'Choose Your Adventure', items: [ { p: 'baldi', choice: true }, { p: 'sarapiqui-raft', choice: true } ] },
+      { day: 6, title: 'Sloths', items: [ { p: 'sloth' } ] },
+      { day: 7, title: 'Coffee & San José', items: [ { p: 'coffee-choc' }, { p: 'barcelo', kind: 'stay', nights: 1 } ] },
+      { day: 8, title: 'Departure', items: [ { p: 'sjo', kind: 'depart' } ] }
+    ],
+    legs: [
+      { day: 1, from: 'sjo', to: 'arenal-paraiso' },
+      { day: 7, from: 'arenal-paraiso', to: 'barcelo' },
+      { day: 8, from: 'barcelo', to: 'sjo' }
+    ]
+  },
+  {
+    id: 'best-of-caribbean',
+    name: 'Best of the Caribbean',
+    meta: '8 days · Turrialba, Pacuare & Caribbean coast · Fly into San José',
+    tagline: 'Canyoning in Turrialba, two days rafting the Pacuare with a night at a jungle camp, then three nights on the Caribbean coast at Puerto Viejo.',
+    url: 'https://amazingvacations.tripcreator.io/itinerary/?planId=6ba7c6dd-20b8-4ea6-895e-f9e6e77e2056',
+    days: [
+      { day: 1, title: 'Arrival', items: [ { p: 'sjo', kind: 'arrive' }, { p: 'villa-florencia', kind: 'stay', nights: 2 } ] },
+      { day: 2, title: 'Canyoning', items: [ { p: 'sitio-mata' } ] },
+      { day: 3, title: 'Pacuare, day one', items: [ { p: 'pacuare' }, { p: 'jungle-camp', kind: 'stay', nights: 1 } ] },
+      { day: 4, title: 'Pacuare, day two', items: [ { p: 'pacuare-lower' }, { p: 'cariblue', kind: 'stay', nights: 3 } ] },
+      { day: 5, title: 'Wildlife rescue', items: [ { p: 'jaguar-rescue' } ] },
+      { day: 6, title: 'Surf', items: [ { p: 'surf-caribbean' } ] },
+      { day: 7, title: 'Puerto Viejo & San José', items: [ { p: 'puerto-viejo' }, { p: 'barcelo', kind: 'stay', nights: 1 } ] },
+      { day: 8, title: 'Departure', items: [ { p: 'sjo', kind: 'depart' } ] }
+    ],
+    // The river days themselves travel by raft (shown by the Pacuare on
+    // the river layer), so only the road transfers are legs here.
+    legs: [
+      { day: 1, from: 'sjo', to: 'villa-florencia' },
+      { day: 3, from: 'villa-florencia', to: 'pacuare' },
+      { day: 4, from: 'pacuare-lower', to: 'cariblue' },
+      { day: 7, from: 'cariblue', to: 'barcelo' },
+      { day: 8, from: 'barcelo', to: 'sjo' }
+    ]
   }
 ];
+
+// Dropdown order — matches the "Best of Costa Rica" page on their site.
+// The first trip here is the one shown on load.
+const TRIP_ORDER = ['best-of-la-fortuna', 'famous-cr', 'best-of-caribbean', 'volcano-beach', 'adventures-abounds'];
+TRIPS.sort((a, b) => TRIP_ORDER.indexOf(a.id) - TRIP_ORDER.indexOf(b.id));
 
 /* =====================================================================
    RIVERS — info per river; geometry comes from data/rivers.geojson or,
@@ -515,14 +641,14 @@ const TRIPS = [
    ===================================================================== */
 const RIVERS = {
   pacuare:   { label: 'Pacuare River',   match: ['pacuare'],
-               info: 'Class III–IV. One of the world\'s classic rafting rivers, through remote jungle canyon. Trips run the upper section.',
-               trips: ['adventures-abounds'] },
+               info: 'Class III–IV. One of the world\'s classic rafting rivers, through remote jungle canyon. Adventures Abounds runs the upper section; Best of the Caribbean runs the whole river over two days with a night at a jungle camp.',
+               trips: ['adventures-abounds', 'best-of-caribbean'] },
   pejibaye:  { label: 'Pejibaye River',  match: ['pejibaye', 'pejivalle'], // OSM/Mapbox name it "Pejivalle"
                info: 'A "park and play" section near Turrialba used for international slalom racing — kayak, SUP and duckie.',
                trips: ['adventures-abounds'] },
   sarapiqui: { label: 'Sarapiquí River', match: ['sarapiqu'],
                info: 'Class I–IV, flowing north from Poás Volcano. Rafting, SUP and kayaking in the northern lowlands.',
-               trips: ['famous-cr', 'adventures-abounds'] }
+               trips: ['famous-cr', 'adventures-abounds', 'best-of-la-fortuna'] }
 };
 
 /* =====================================================================
@@ -534,7 +660,7 @@ TRIPS.forEach(t => t.days.forEach(d => d.items.forEach(it => {
   const r = PLACES[it.p].region;
   (REGION_TRIPS[r] = REGION_TRIPS[r] || new Set()).add(t.id);
 })));
-const REGION_ORDER = ['Guanacaste', 'Arenal', 'Sarapiquí', 'Central Valley', 'Turrialba'];
+const REGION_ORDER = ['Guanacaste', 'Arenal', 'Sarapiquí', 'Manuel Antonio', 'Central Valley', 'Turrialba', 'Caribbean'];
 
 function placeDaysInTrip(trip, pid) {
   return [...new Set(trip.days.filter(d => d.items.some(it => it.p === pid)).map(d => d.day))];
